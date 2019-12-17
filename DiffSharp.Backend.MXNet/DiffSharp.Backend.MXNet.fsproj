@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="RawTensorFloat32CPU.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MXNetSharp" Version="0.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\DiffSharp.Core\DiffSharp.Core.fsproj" />
+  </ItemGroup>
+
+</Project>
