@@ -6,7 +6,7 @@ open System
 open MXNetSharp
 
 type RawTensorFloat32CPU(value: NDArray, shape:int[]) =
-    inherit RawTensor(value, shape, DType.Float32, Device.CPU, DiffSharp.Backend.Backend.None)
+    inherit RawTensor(value, shape, DType.Float32, Device.CPU, DiffSharp.Backend.Backend.MXNet)
     let context = CPU 0
     static let dtype = DataType.Float32
 
