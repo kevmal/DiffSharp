@@ -1,4 +1,4 @@
-namespace DiffSharp.Backend.None
+namespace DiffSharp.Backend.MXNet
 open DiffSharp
 open DiffSharp.Backend
 open DiffSharp.Util
@@ -31,14 +31,27 @@ type RawTensorFloat32CPU(value: NDArray, shape:int[]) =
         with get ([<System.ParamArray>] index:int[]) =
             if index.Length <> t.Dim then invalidArg "index" (sprintf "Expecting a %id index" t.Dim)
             let tvalue = t.Value:?>NDArray
-            tvalue.[index].ToFloat32Scalar()
+            let r = tvalue.[index]
+            r.ToFloat32Scalar()
 
     override t.GetItem(index:int[]) = RawTensorFloat32CPU.Create(t.[index])
     
     override t.GetSlice(bounds:int[,]) =
-        let slice = [|for i = 0 to bounds.GetLength(0) - 1 do bounds.[i,0]; bounds.[i,1] |]
-        let result = (t.Value:?>NDArray).GetSlice(slice)
+        let slice = 
+            [|
+                for i = 0 to bounds.GetLength(0) - 1 do 
+                    if bounds.[i,0] = bounds.[i,1] then 
+                        bounds.[i,0] :> obj
+                    else
+                        (Some bounds.[i,0]) :> obj
+                        (Some bounds.[i,1]) :> obj
+            |]
         let shape = Array.init (bounds.GetLength(0)) (fun i -> bounds.[i,1] - bounds.[i,0] + 1) |> shapeSqueeze -1
+        let result = 
+            if Array.isEmpty shape then 
+                (t.Value:?>NDArray).GetSlice(a = slice).Reshape(1)
+            else
+                (t.Value:?>NDArray).GetSlice(a = slice).Reshape(shape)
         upcast RawTensorFloat32CPU(result, shape)
 
     override t1.CompareTo(t2) =
@@ -51,9 +64,9 @@ type RawTensorFloat32CPU(value: NDArray, shape:int[]) =
         | 0 -> upcast RawTensorFloat32CPU(NDArray.CopyFrom([|value|],[1],context), [||])
         | _ -> upcast RawTensorFloat32CPU(context.Ones(shape,dtype).MutMultiply(double value), shape)
     override t.Zero() = upcast RawTensorFloat32CPU(NDArray.ConvertCopyFrom([|0.0|], shape = [1],ctx = context,dtype=dtype), [||])
-    override t.Zeros(shape) = upcast RawTensorFloat32CPU(context.Zeros(shape, dtype), shape)
+    override t.Zeros(shape) = upcast RawTensorFloat32CPU(context.Zeros((if Array.isEmpty shape then [|1|] else shape), dtype), shape)
     override t.One() = upcast RawTensorFloat32CPU(NDArray.ConvertCopyFrom([|1.0|], shape = [1],ctx = context,dtype=dtype), [||])
-    override t.Ones(shape) = upcast RawTensorFloat32CPU(context.Ones(shape, dtype), shape)
+    override t.Ones(shape) = upcast RawTensorFloat32CPU(context.Ones((if Array.isEmpty shape then [|1|] else shape), dtype), shape)
     override t.Random(shape) = 
         let dtype = 
             match dtype with 
@@ -61,7 +74,10 @@ type RawTensorFloat32CPU(value: NDArray, shape:int[]) =
             | Float16 -> FloatDType.Float16
             | Float64 -> FloatDType.Float64
             | x -> failwithf "Data type %A not supported with Random" x
-        upcast RawTensorFloat32CPU(context.RandomUniform(0.0, 1.0, shape, dtype), shape)
+        if Array.isEmpty shape then 
+            upcast RawTensorFloat32CPU(context.RandomUniform(0.0, 1.0, [|1|], dtype), shape)
+        else
+            upcast RawTensorFloat32CPU(context.RandomUniform(0.0, 1.0, shape, dtype), shape)
     override t.RandomNormal(shape) =
         let dtype = 
             match dtype with 
@@ -69,7 +85,10 @@ type RawTensorFloat32CPU(value: NDArray, shape:int[]) =
             | Float16 -> FloatDType.Float16
             | Float64 -> FloatDType.Float64
             | x -> failwithf "Data type %A not supported with Random" x
-        upcast RawTensorFloat32CPU(context.RandomNormal(0.0, 1.0, shape, dtype), shape)
+        if Array.isEmpty shape then 
+            upcast RawTensorFloat32CPU(context.RandomNormal(0.0, 1.0, [|1|], dtype), shape)
+        else
+            upcast RawTensorFloat32CPU(context.RandomNormal(0.0, 1.0, shape, dtype), shape)
     override t.RandomMultinomial(numSamples) = 
         let dtype = 
             match dtype with 
@@ -137,7 +156,7 @@ type RawTensorFloat32CPU(value: NDArray, shape:int[]) =
 
     override t1.Equals(t2:RawTensor) = 
         match t2 with
-        | :? RawTensorFloat32CPU as t2 -> t1.Shape = t2.Shape && MX.Sum((t1.Value:?>NDArray) .= (t2.Value:?>NDArray)).ToFloat32Scalar() = 0.f
+        | :? RawTensorFloat32CPU as t2 -> t1.Shape = t2.Shape && MX.Sum((t1.Value:?>NDArray) .<> (t2.Value:?>NDArray)).ToFloat32Scalar() = 0.f
         | _ -> failwith <| sprintf "Cannot compare RawTensors of different types. t1:%A, t2:%A" t1 t2
 
     override t1.ApproximatelyEquals(t2:RawTensor, tolerance) =
@@ -147,16 +166,21 @@ type RawTensorFloat32CPU(value: NDArray, shape:int[]) =
             let t1value = t1.Value:?>NDArray
             let t2value = t2.Value:?>NDArray
             t1.Shape = t2.Shape && 
-                MX.Sum((t1value - t2value) .>= tolerance).ToFloat32Scalar() = 0.f
+                MX.Sum(abs(t1value - t2value) .>= tolerance).ToFloat32Scalar() = 0.f
         | _ -> failwith <| sprintf "Cannot compare RawTensors of different types. t1:%A, t2:%A" t1 t2
 
     override __.StackTs(tensors) =
-        let tensors = tensors |> Seq.toList
-        let values, shapes = tensors |> List.map (fun t -> t.Value:?>NDArray, t.Shape) |> List.unzip
+        let tensors = tensors |> Seq.toArray
+        let values, shapes = tensors |> Array.map (fun t -> t.Value:?>NDArray, t.Shape) |> Array.unzip
         if not (allEqual shapes) then invalidArg "tensors" "Expecting Tensors with same shape"
-        let n = tensors |> List.length
+        let n = tensors |> Array.length
         let m = shapeLength shapes.[0]
-        let result = MX.Concat(data = (values |> List.map (fun a -> a.Reshape(1,-2)) |> List.toArray), dim = 0)
+        let valuesReshaped = 
+            if Array.isEmpty tensors || tensors.[0].Shape.Length > 0 then 
+                values |> Array.map (fun a -> a.Reshape(-4, 1, -1, -2))
+            else
+                values 
+        let result = MX.Concat(data = valuesReshaped, dim = 0)
         upcast RawTensorFloat32CPU(result, Array.append [|n|] shapes.[0])
 
     override t.UnstackT() =
@@ -194,6 +218,10 @@ type RawTensorFloat32CPU(value: NDArray, shape:int[]) =
 
     override t.MaxIndexT() =
         let tvalue = t.Value:?>NDArray
+        let r1 = tvalue.Reshape(-1)
+        let r2 = MX.Argmax(tvalue.Reshape(-1))
+        let r3 = r2.ToIntScalar()
+        let i = t.FlatIndexToIndex(r3)
         t.FlatIndexToIndex(MX.Argmax(tvalue.Reshape(-1)).ToIntScalar()) //REVIEW: is there an op that does this? 
 
     override t.MinIndexT() =
@@ -215,27 +243,27 @@ type RawTensorFloat32CPU(value: NDArray, shape:int[]) =
     override t1.AddT2T1(t2) =
         let t1value = t1.Value:?>NDArray
         let t2value = t2.Value:?>NDArray
-        let result = t1value + t2value
+        let result = t1value .+ t2value
         upcast RawTensorFloat32CPU(result, t1.Shape)
 
-    override t1.AddTTSlice(location:int[], t2) = failwith "not impl"
-        (*// if not (shapeContains t1.Shape t2.Shape) then failwithf "Expecting t1.Shape to contain t2.Shape, received %A, %A" t1.Shape t2.Shape
+    override t1.AddTTSlice(location:int[], t2) = 
         let t1value = t1.Value:?>NDArray
         let t2 = t2 :?> RawTensorFloat32CPU
-        let result = Array.copy t1value
-        let shape2 = shapeUnsqueezeAs t2.Shape t1.Shape
-        let rec add (shape2:int[]) externalCoords =
-            if shape2.Length = 1 then
-                for i=0 to shape2.[0]-1 do
-                    let globalCoords = Array.append externalCoords [|i|]
-                    let t1Coords = Array.map2 (+) globalCoords location
-                    let t1FlatIndex = t1.IndexToFlatIndex(t1Coords)
-                    result.[t1FlatIndex] <- result.[t1FlatIndex] + t2.[globalCoords]
-            else
-                for i=0 to shape2.[0]-1 do
-                    add (shape2.[1..]) (Array.append externalCoords [|i|])
-        add shape2 [||]
-        upcast RawTensorFloat32CPU(result, t1.Shape)*)
+        let t2value = t2.Value:?>NDArray
+        let copy = t1value.CopyTo(context)
+        let slice = 
+            (location, t2value.Shape)
+            ||> Array.map2 
+                (fun l s ->
+                    [|
+                        Some l :> obj
+                        Some (l + s - 1) :> obj
+                    |]
+                )
+            |> Array.concat
+        let v = copy.GetSlice(slice) + t2value
+        copy.SetSlice(a = (Array.append slice [|box v|]))
+        upcast RawTensorFloat32CPU(copy, t1.Shape)
 
     override t1.SubTT(t2) =
         let t1value = t1.Value:?>NDArray
@@ -320,7 +348,7 @@ type RawTensorFloat32CPU(value: NDArray, shape:int[]) =
 
     override t.SumT() =
         let tvalue = t.Value:?>NDArray
-        let result = MX.Sum(tvalue)
+        let result = MX.Sum(tvalue, keepdims = false)
         upcast RawTensorFloat32CPU(result, [||]) 
     
     override t.SumT2Dim0() =
@@ -461,9 +489,9 @@ and RawTensorFloat32CPUStatics() =
     static let dtype = DataType.Float32
     static let context = CPU 0
 
-    override __.Zeros(shape:int[]):RawTensor = upcast RawTensorFloat32CPU(context.Zeros(shape, dtype), shape)
+    override __.Zeros(shape:int[]):RawTensor = upcast RawTensorFloat32CPU(context.Zeros((if Array.isEmpty shape then [|1|] else shape), dtype), shape)
     
-    override __.Ones(shape:int[]):RawTensor = upcast RawTensorFloat32CPU(context.Ones(shape, dtype), shape)
+    override __.Ones(shape:int[]):RawTensor = upcast RawTensorFloat32CPU(context.Ones((if Array.isEmpty shape then [|1|] else shape), dtype), shape)
 
     override __.Random(shape:int[]):RawTensor =
         let dtype = 
@@ -486,12 +514,27 @@ and RawTensorFloat32CPUStatics() =
 
 
     override __.Create(value:obj) : RawTensor = 
+        let ndshape shape = if Array.isEmpty shape then [|1|] else shape
         match value with 
+        | :? NDArray as a -> 
+            upcast RawTensorFloat32CPU(a.AsType(dtype).CopyTo(context), a.Shape)
         | :? Array as a -> 
             let result = NDArray.CopyFrom(a,context)
             upcast RawTensorFloat32CPU(result, result.Shape)
         | :? float32 as a -> 
             let result = NDArray.CopyFrom([|a|],context)
             upcast RawTensorFloat32CPU(result, [||])
-        | x -> invalidArg "value" "Cannot convert value to RawTensorFloat32CPU"
-    
+        | _ -> 
+            let array, shape = value |> flatArrayAndShape<float32>
+            if notNull array then 
+                upcast RawTensorFloat32CPU(context.CopyFrom(array, ndshape shape), shape)
+            else 
+                let array, shape = value |> flatArrayAndShape<double>
+                if notNull array then 
+                    upcast RawTensorFloat32CPU(context.CopyFrom(array |> Array.map float32, ndshape shape), shape)
+                else
+                    let array, shape = value |> flatArrayAndShape<int>
+                    if notNull array then 
+                        upcast RawTensorFloat32CPU(context.CopyFrom(array |> Array.map float32, ndshape shape), shape)
+                    else
+                        invalidArg "value" "Cannot convert value to RawTensorFloat32CPU"

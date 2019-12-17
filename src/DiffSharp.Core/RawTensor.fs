@@ -21,18 +21,21 @@ type Backend =
     | None
     | OpenBLAS
     | Torch
+    | MXNet
 
     member internal x.Code = 
         match x with 
         | None -> 0x000
         | OpenBLAS  -> 0x010
         | Torch -> 0x020
+        | MXNet -> 0x030
 
     member x.Name = 
         match x with 
         | None -> "None"
         | OpenBLAS -> "OpenBLAS"
         | Torch -> "Torch"
+        | MXNet -> "MXNet"
 
 type DType =
     | Float16
@@ -64,7 +67,7 @@ type [<AbstractClass>]
     static member Get(?dtype: DType, ?device:Device, ?backend:Backend) =
         let dtype = defaultArg dtype Float32
         let device = defaultArg device CPU
-        let backend = defaultArg backend Backend.None
+        let backend = defaultArg backend Backend.MXNet
         let code = dtype.Code + device.Code + backend.Code
         match backends.TryGetValue(code) with 
         | true, v -> v
