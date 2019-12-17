@@ -15,7 +15,7 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "DiffSharp.Tests", "src\Diff
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Test", "src\Test\Test.fsproj", "{D5D79C57-70F9-424A-B090-507452B31745}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "DiffSharp.Backend.MXNet", "DiffSharp.Backend.MXNet\DiffSharp.Backend.MXNet.fsproj", "{7C212B28-7788-4559-B499-0935892BFF1B}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "DiffSharp.Backend.MXNet", "src\DiffSharp.Backend.MXNet\DiffSharp.Backend.MXNet.fsproj", "{7C212B28-7788-4559-B499-0935892BFF1B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
