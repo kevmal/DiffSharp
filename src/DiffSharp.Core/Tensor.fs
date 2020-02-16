@@ -15,12 +15,10 @@ type Tensor =
         | TensorR(tp,_,_,_,_) -> tp
 
     member t.PrimalRaw =
-        let rec primalRaw x =
-            match x with
-            | Tensor(tp) -> tp
-            | TensorF(tp,_,_) -> primalRaw tp
-            | TensorR(tp,_,_,_,_) -> primalRaw tp
-        primalRaw t
+        match t with
+        | Tensor(tp) -> tp
+        | TensorF(tp,_,_) -> tp.PrimalRaw
+        | TensorR(tp,_,_,_,_) -> tp.PrimalRaw
 
     member t.Depth =
         let rec depth x d =
@@ -551,6 +549,14 @@ type Tensor =
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
     member t.Unsqueeze(dim) = Tensor.Unsqueeze(t, dim)
 
+    static member Flip (a:Tensor, dims:int[]) =
+        let inline fRaw(a:RawTensor) = a.FlipT(dims)
+        let inline fTensor(a) = Tensor.Flip(a, dims)
+        let inline dfTensorFwd(cp,ap,ad) = Tensor.Flip(ad, dims)
+        let inline dfTensorRev(a) = FlipT(a, dims)
+        Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
+    member t.Flip(dims) = Tensor.Flip(t, dims)
+
     static member Repeat (a:Tensor, dim:int, times:int) =
         if a.Shape.[dim] <> 1 then invalidOp <| sprintf "Expecting Tensor's shape at dim to be 1, received Tensor with shape %A and dim %A" a.Shape dim
         let newShape = a.Shape |> Array.copy
@@ -765,6 +771,23 @@ type Tensor =
 
     static member MSELoss(a:Tensor, b:Tensor) = let z = a - b in (z * z).Mean()
 
+    static member Conv1D(a:Tensor, b:Tensor, ?stride:int, ?padding:int) =
+        // a: input
+        // b: filter
+        let stride = defaultArg stride 1
+        let padding = defaultArg padding 0
+        let inline fRaw(a:RawTensor,b) = a.Conv1D(b, stride, padding)
+        let inline fTensor(a,b) = Tensor.Conv1D(a, b, stride, padding)
+        let inline dfTensorFwdTT(cp,ap,ad,bp,bd) = Tensor.Conv1D(ad, bp, stride, padding) + Tensor.Conv1D(ap, bd, stride, padding)
+        let inline dfTensorFwdTC(cp,ap,ad) = Tensor.Conv1D(ad, b, stride, padding)
+        let inline dfTensorFwdCT(cp,bp,bd) = Tensor.Conv1D(a, bd, stride, padding)
+        // TODO: implement the derivatives (the following are placeholders from Tensor.MatMul)
+        let inline dfTensorRevTT(a,b) = Conv1DTT(a,b, stride, padding)
+        let inline dfTensorRevTC(a,b) = Conv1DTTConst(a,b, stride, padding)
+        let inline dfTensorRevCT(a,b) = Conv1DTConstT(a,b, stride, padding)
+        Tensor.OpBinary(a, b, fRaw, fTensor, dfTensorFwdTT, dfTensorFwdTC, dfTensorFwdCT, dfTensorRevTT, dfTensorRevTC, dfTensorRevCT)
+
+
     member t.Reverse(?value:Tensor, ?zeroDerivatives:bool) =
         let value = defaultArg value (Tensor.OnesLike(t))
         let zeroDerivatives = defaultArg zeroDerivatives true
@@ -828,6 +851,9 @@ type Tensor =
                         | MatMulT2T2(a,b) -> reset (a::b::tt)
                         | MatMulT2T2Const(a,_) -> reset (a::tt)
                         | MatMulT2ConstT2(_,b) -> reset (b::tt)
+                        | Conv1DTT(a,b,_,_) -> reset (a::b::tt)
+                        | Conv1DTTConst(a,_,_,_) -> reset (a::tt)
+                        | Conv1DTConstT(_,b,_,_) -> reset (b::tt)
                         | NegT(a) -> reset (a::tt)
                         | SumT(a) -> reset (a::tt)
                         | SumT2Dim0(a) -> reset (a::tt)
@@ -837,6 +863,7 @@ type Tensor =
                         | TransposeT2(a) -> reset (a::tt)
                         | SqueezeT(a) -> reset (a::tt)
                         | UnsqueezeT(a) -> reset (a::tt)
+                        | FlipT(a,_) -> reset (a::tt)
                         | ViewT(a,_) -> reset (a::tt)
                         | SliceT(a,_) -> reset (a::tt)
                         | AddTTSlice(a,_,b) -> reset (a::b::tt)
@@ -924,6 +951,9 @@ type Tensor =
                         | MatMulT2T2(a,b) -> push ((Tensor.MatMul(t.Derivative, b.Primal.Transpose()), a) :: (Tensor.MatMul(a.Primal.Transpose(), t.Derivative), b) :: tt)
                         | MatMulT2T2Const(a,b) -> push ((Tensor.MatMul(t.Derivative, b.Transpose()), a) :: tt)
                         | MatMulT2ConstT2(a,b) -> push ((Tensor.MatMul(a.Transpose(), t.Derivative), b) :: tt)
+                        | Conv1DTT(a,b,_,_) -> failwith "Not implemented"
+                        | Conv1DTTConst(a,_,_,_) -> failwith "Not implemented"
+                        | Conv1DTConstT(_,b,_,_) -> failwith "Not implemented"           
                         | NegT(a) -> push ((-t.Derivative, a) :: tt)
                         | SumT(a) -> push ((Tensor.Extend(t.Derivative, a.Shape), a) :: tt)
                         | SumT2Dim0(a) -> push ((Tensor.ZerosLike(a) + t.Derivative, a) :: tt)
@@ -936,6 +966,7 @@ type Tensor =
                         | TransposeT2(a) -> push ((t.Derivative.Transpose(), a) :: tt)
                         | SqueezeT(a) -> push ((t.Derivative.ViewAs(a), a) :: tt)
                         | UnsqueezeT(a) -> push ((t.Derivative.ViewAs(a), a) :: tt)
+                        | FlipT(a, dims) -> push ((t.Derivative.Flip(dims), a) :: tt)
                         | ViewT(a,aShape) -> push (((t.Derivative.View(aShape)), a) :: tt)
                         | SliceT(a,bounds) -> 
                             // TODO: Tensor.ZerosLike(a) below is to handle non-scalar TensorRs with a scalar derivative Tensor(0.) (representing the initialization before accumulation). This is correct but can be changed to eliminate the extra op.
@@ -1020,6 +1051,10 @@ and TensorOp =
     | MatMulT2T2Const of Tensor * Tensor
     | MatMulT2ConstT2 of Tensor * Tensor
 
+    | Conv1DTT of Tensor * Tensor * int * int
+    | Conv1DTTConst of Tensor * Tensor * int * int
+    | Conv1DTConstT of Tensor * Tensor * int * int
+
     | NegT of Tensor
     | SumT of Tensor
     | SumT2Dim0 of Tensor
@@ -1033,6 +1068,7 @@ and TensorOp =
     | TransposeT2 of Tensor
     | SqueezeT of Tensor
     | UnsqueezeT of Tensor
+    | FlipT of Tensor * int[]
     | ViewT of Tensor * int[]
     | SignT of Tensor
     | FloorT of Tensor

@@ -58,10 +58,12 @@ type [<AbstractClass>]
      RawTensorStatics() = 
     static let backends = System.Collections.Concurrent.ConcurrentDictionary<int, RawTensorStatics>()
 
-    abstract Zeros : int[] -> RawTensor
-    abstract Ones : int[] -> RawTensor
-    abstract Random : int[] -> RawTensor
-    abstract RandomNormal : int[]-> RawTensor
+    abstract Zero : RawTensor
+    abstract Zeros : shape:int[] -> RawTensor
+    abstract One : RawTensor
+    abstract Ones : shape:int[] -> RawTensor
+    abstract Random : shape:int[] -> RawTensor
+    abstract RandomNormal : shape:int[]-> RawTensor
     abstract Create : obj -> RawTensor
 
     static member Get(?dtype: DType, ?device:Device, ?backend:Backend) =
@@ -87,8 +89,7 @@ type [<AbstractClass>]
                 ) 
 
 and [<AbstractClass>]
-    RawTensor(value:obj, shape:int[], dtype:DType, device:Device, backend:Backend) =
-    member t.Value = value
+    RawTensor(shape:int[], dtype:DType, device:Device, backend:Backend) =
     member t.Shape = shape
     member t.Dim = shape.Length
     member t.Nelement = shapeLength shape
@@ -96,11 +97,19 @@ and [<AbstractClass>]
     member t.Device = device
     member t.Backend = backend
     override t.ToString() = t.GetString()
-    member t.Extend(shape) = t.Create(t.ToValue(), shape)
+    member t.Extend(shape) = t.CreateFromScalar(t.ToValue(), shape)
+
+    static member Zero(?dtype, ?device, ?backend) = 
+        let statics = RawTensorStatics.Get(?dtype=dtype, ?device=device, ?backend=backend)
+        statics.Zero
 
     static member Zeros(shape, ?dtype, ?device, ?backend) = 
         let statics = RawTensorStatics.Get(?dtype=dtype, ?device=device, ?backend=backend)
         statics.Zeros(shape|>Seq.toArray)
+
+    static member One(?dtype, ?device, ?backend) = 
+        let statics = RawTensorStatics.Get(?dtype=dtype, ?device=device, ?backend=backend)
+        statics.One
 
     static member Ones(shape, ?dtype, ?device, ?backend) =
         let statics = RawTensorStatics.Get(?dtype=dtype, ?device=device, ?backend=backend)
@@ -120,7 +129,8 @@ and [<AbstractClass>]
 
     abstract member CompareTo: RawTensor -> int
     abstract member Create : obj -> RawTensor
-    abstract member Create : obj * int[] -> RawTensor
+    abstract member CreateFromScalar : obj * int[] -> RawTensor
+    abstract member Copy : unit -> RawTensor
     abstract member StackTs: seq<RawTensor> -> RawTensor
     abstract member UnstackT: unit -> seq<RawTensor>
     abstract member Zero : unit -> RawTensor
@@ -159,12 +169,14 @@ and [<AbstractClass>]
     abstract member PowT0T: RawTensor -> RawTensor
     abstract member PowTT0 : RawTensor -> RawTensor
     abstract member MatMulT2T2: RawTensor -> RawTensor
+    abstract member Conv1D: RawTensor * int * int -> RawTensor
     abstract member NegT : unit -> RawTensor
     abstract member SumT : unit -> RawTensor
     abstract member SumT2Dim0 : unit -> RawTensor
     abstract member TransposeT2: unit -> RawTensor
     abstract member SqueezeT: int -> RawTensor
     abstract member UnsqueezeT: int -> RawTensor
+    abstract member FlipT: int[] -> RawTensor
     abstract member ViewT: int[] -> RawTensor
     abstract member SignT: unit -> RawTensor
     abstract member FloorT: unit -> RawTensor
@@ -185,4 +197,4 @@ and [<AbstractClass>]
     abstract member TanhT: unit -> RawTensor
     abstract member AsinT: unit -> RawTensor
     abstract member AcosT: unit -> RawTensor
-    abstract member AtanT: unit -> RawTensor    
+    abstract member AtanT: unit -> RawTensor
