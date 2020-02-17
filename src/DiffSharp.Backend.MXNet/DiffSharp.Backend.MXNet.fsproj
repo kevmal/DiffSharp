@@ -9,7 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MXNetSharp" Version="0.0.2" />
+    <PackageReference Include="MXNetSharp" Version="0.0.3" />
   </ItemGroup>
 
   <ItemGroup>
