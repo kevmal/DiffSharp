@@ -76,9 +76,9 @@ type RawTensorFloat32CPU(value: NDArray, shape:int[]) =
             | Float64 -> FloatDType.Float64
             | x -> failwithf "Data type %A not supported with Random" x
         if Array.isEmpty shape then 
-            upcast RawTensorFloat32CPU(context.RandomUniform(0.0, 1.0, [|1|], dtype), shape)
+            upcast RawTensorFloat32CPU(context.RandomUniform([|1|], 0.0, 1.0, dtype), shape)
         else
-            upcast RawTensorFloat32CPU(context.RandomUniform(0.0, 1.0, shape, dtype), shape)
+            upcast RawTensorFloat32CPU(context.RandomUniform(shape, 0.0, 1.0, dtype), shape)
     override t.RandomNormal(shape) =
         let dtype = 
             match dtype with 
@@ -87,9 +87,9 @@ type RawTensorFloat32CPU(value: NDArray, shape:int[]) =
             | Float64 -> FloatDType.Float64
             | x -> failwithf "Data type %A not supported with Random" x
         if Array.isEmpty shape then 
-            upcast RawTensorFloat32CPU(context.RandomNormal(0.0, 1.0, [|1|], dtype), shape)
+            upcast RawTensorFloat32CPU(context.RandomNormal([|1|], 0.0, 1.0, dtype), shape)
         else
-            upcast RawTensorFloat32CPU(context.RandomNormal(0.0, 1.0, shape, dtype), shape)
+            upcast RawTensorFloat32CPU(context.RandomNormal(shape, 0.0, 1.0, dtype), shape)
     override t.RandomMultinomial(numSamples) = 
         let dtype = 
             match dtype with 
@@ -243,15 +243,27 @@ type RawTensorFloat32CPU(value: NDArray, shape:int[]) =
         let result = t1value .+ t2value
         upcast RawTensorFloat32CPU(result, t1.Shape)
 
-    override t1.Conv1D(t2, stride, padding) = failwith "TBD - MXNet Conv1D"
-        //let t1value = t1.Value
-        //let t2value = (t2 :?> RawTensorFloat32CPU).Value
-        //let result = MX.Convolution(t1value, t2value, null, null, numFilter=0, stride=[stride], pad=padding)
-        //upcast RawTensorFloat32CPU(result, t1.Shape)
+    override t1.Conv1D(t2, stride, padding) =
+        if t1.Dim <> 3 || t2.Dim <> 3 then 
+            invalidOp <| sprintf "Expecting two 3d Tensors t1, t2 where t1 = input: NxCxI (batchSize x inputChannels, inputLength) and filters: KxCxF (outputChannels x inputChannels, kernelLength), received Tensors with shapes %A, %A" t1.Shape t2.Shape
+        if padding < 0 then 
+            invalidOp <| sprintf "Expecting padding >= 0, received %A" padding
+        let inputChannels = t1.Shape.[1]
+        let inputLength = t1.Shape.[2]
+        if t2.Shape.[1] <> inputChannels then invalidOp <| sprintf "Input and kernel have different num_channels: %A, %A" inputChannels t2.Shape.[1]
+        let kernelLength = t2.Shape.[2]
+        if kernelLength > inputLength then invalidOp <| sprintf "Expecting kernelLength <= inputLength, received %A, %A" kernelLength inputLength
+        let t1value = t1.Value
+        let t2value = (t2 :?> RawTensorFloat32CPU).Value
+        let result = MX.Convolution(t1value, t2value, NDArray.NoArg, [t2.Shape.[2]], t2.Shape.[0], stride = [stride], pad = [padding], noBias = true)
+        upcast RawTensorFloat32CPU(result, result.Shape)
 
-    override t.Copy() = failwith "TBD - MXNet Copy"
 
-    override t.FlipT(dims) = failwith "TBD - MXNet FlipT"
+    override t.Copy() = upcast RawTensorFloat32CPU(t.Value.CopyTo(t.Value.Context), t.Shape)
+
+    override t.FlipT(dims) = 
+        let a = MX.NpiFlip(t.Value, dims)
+        upcast RawTensorFloat32CPU(a,a.Shape)
 
     override t1.AddT2T1(t2) =
         let t1value = t1.Value
@@ -517,7 +529,7 @@ and RawTensorFloat32CPUStatics() =
             | Float16 -> FloatDType.Float16
             | Float64 -> FloatDType.Float64
             | x -> failwithf "Data type %A not supported with Random" x
-        upcast RawTensorFloat32CPU(context.RandomUniform(0.0, 1.0, shape, dtype), shape)
+        upcast RawTensorFloat32CPU(context.RandomUniform(shape, 0.0, 1.0, dtype), shape)
 
 
     override __.RandomNormal(shape:int[]):RawTensor =
@@ -527,7 +539,7 @@ and RawTensorFloat32CPUStatics() =
             | Float16 -> FloatDType.Float16
             | Float64 -> FloatDType.Float64
             | x -> failwithf "Data type %A not supported with Random" x
-        upcast RawTensorFloat32CPU(context.RandomNormal(0.0, 1.0, shape, dtype), shape)
+        upcast RawTensorFloat32CPU(context.RandomNormal(shape, 0.0, 1.0, dtype), shape)
 
 
     override __.Create(value:obj) : RawTensor = 
