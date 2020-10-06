@@ -3,7 +3,6 @@
 open System
 open DiffSharp
 open DiffSharp.ShapeChecking
-open NUnit.Framework
 
 // This captures the expected semantics of different Dtypes
 type ComboInfo(?defaultBackend: Backend, ?defaultDevice: Device, ?defaultDtype: Dtype, ?defaultFetchDevices: (DeviceType option * Backend option -> Device list)) =
