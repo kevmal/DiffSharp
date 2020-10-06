@@ -297,7 +297,8 @@ type Linear(inFeatures:Int, outFeatures:Int, ?bias:bool) =
         if bias then f + b.value else f
 
     /// <summary>TBD</summary>
-    new (inFeatures: int, outFeatures: int, ?bias:bool) = Linear(Int inFeatures, Int outFeatures, ?bias=bias)
+    new (inFeatures: int, outFeatures: int, ?bias:bool) =
+       Linear(Int inFeatures, Int outFeatures, ?bias=bias)
 
 /// <summary>TBD</summary>
 type Conv1d(inChannels:Int, outChannels:Int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
@@ -560,7 +561,7 @@ type BatchNorm1d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
         else failwithf "Expecting value to have shape NxL (batchSize x Length) or NxCxL (batchSize x numChannels x Length), received value with shape %A" value.shape
 
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
-        BatchNorm1d(numFeatures, ?eps=eps, ?momentum=momentum, ?affine=affine, ?trackRunningStats=trackRunningStats, ?reversible=reversible)
+        BatchNorm1d(Int numFeatures, ?eps=eps, ?momentum=momentum, ?affine=affine, ?trackRunningStats=trackRunningStats, ?reversible=reversible)
 
 /// <summary>TBD</summary>
 type BatchNorm2d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
@@ -623,7 +624,7 @@ type BatchNorm2d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
 
     /// <summary>TBD</summary>
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
-        BatchNorm2d(numFeatures, ?eps=eps, ?momentum=momentum, ?affine=affine, ?trackRunningStats=trackRunningStats, ?reversible=reversible)
+        BatchNorm2d(Int numFeatures, ?eps=eps, ?momentum=momentum, ?affine=affine, ?trackRunningStats=trackRunningStats, ?reversible=reversible)
 
 /// <summary>TBD</summary>
 type BatchNorm3d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
@@ -686,4 +687,4 @@ type BatchNorm3d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
 
     /// <summary>TBD</summary>
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
-        BatchNorm3d(numFeatures, ?eps=eps, ?momentum=momentum, ?affine=affine, ?trackRunningStats=trackRunningStats, ?reversible=reversible)
+        BatchNorm3d(Int numFeatures, ?eps=eps, ?momentum=momentum, ?affine=affine, ?trackRunningStats=trackRunningStats, ?reversible=reversible)

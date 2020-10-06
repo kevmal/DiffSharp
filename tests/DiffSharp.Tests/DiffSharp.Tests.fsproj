@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Properties\launchSettings.json" />
     <Compile Include="TestUtil.fs" />
     <Compile Include="TestCombo.fs" />
     <Compile Include="TestCombos.fs" />
@@ -31,6 +32,8 @@
     <Compile Include="TestOptim.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
+
+  <ItemGroup />
 
   <ItemGroup>
     <ProjectReference Include="..\DiffSharp.Backends.TestDuplicate\DiffSharp.Backends.TestDuplicate.fsproj" />
