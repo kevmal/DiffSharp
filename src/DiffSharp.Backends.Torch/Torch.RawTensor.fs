@@ -87,7 +87,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
 
     override _.Shape = shape
     override _.Dim = shape.Length
-    override _.Nelement = Int (shapeLength shape.Values)
+    override _.Nelement = shapeLength shape
     override _.Dtype = dtype
     override _.DeviceType : DiffSharp.DeviceType = enum (int tt.DeviceType)
     override t.Device = Device(t.DeviceType, tt.DeviceIndex)
@@ -126,7 +126,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
 
         let shape = t.Shape
         let mutable res = hash shape
-        let n = Shape.nelements shape
+        let n = Shape.nelement shape
         match dtype with 
         | Dtype.Int8 ->
             let data = tt.Data<sbyte>()
@@ -179,7 +179,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
             | [| i0; i1; i2; i3 |] -> tt.[int64 i0, int64 i1, int64 i2, int64 i3]
             | _ -> 
                 let shape = t.Shape
-                tt.View(toTorchShape (Shape [|Shape.nelements shape|])).[int64 (indexToFlatIndex shape.Values indexes)]
+                tt.View(toTorchShape (Shape [|Shape.nelement shape|])).[int64 (indexToFlatIndex shape.Values indexes)]
 
         // Torch Tensors must be CPU before DataItem can be accessed
         let item = torchMoveTo item Device.CPU

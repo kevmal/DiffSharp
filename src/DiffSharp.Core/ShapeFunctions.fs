@@ -25,10 +25,10 @@ module Shape =
     let symbolic (dims: seq<Int>) = Shape (Seq.toArrayQuick dims)
 
     /// Gets the total number (possibly symbolic) of elements in the shape
-    let nelementsx (shape: Shape) = shape.nelementx
+    let nelementx (shape: Shape) = shape.nelementx
 
     /// Gets the total number of elements in the shape.
-    let nelements (shape: Shape) = shape.nelement
+    let nelement (shape: Shape) = shape.nelement
     
     /// The shape for a scalar value.
     let scalar : Shape = Shape ([| |]: int[])
@@ -469,8 +469,8 @@ module Shape =
 
     /// Checks if the given shape is appropriate for a view operation.
     let checkCanView (shape1: Shape) (shape2: Shape) =
-        let n1 = nelementsx shape1
-        let n2 = nelementsx shape2
+        let n1 = nelementx shape1
+        let n2 = nelementx shape2
         if not (n1 =~= n2) then failwithf "Cannot view Tensor of shape %A as shape %A, the first has %O elements, the second has %O elements" shape1 shape2 n1 n2
 
     /// Checks if the given shape is appropriate for a flatten operation.
@@ -478,7 +478,7 @@ module Shape =
         if startDim < 0 || startDim >= shape.Length then failwithf "Expecting 0 <= startDim (%A) < %A" startDim shape.Length
         if endDim < 0 || endDim >= shape.Length then failwithf "Expecting 0 <= endDim (%A) < %A" endDim shape.Length
         if endDim <= startDim then failwithf "Expecting startDim (%A) < endDim (%A)" startDim endDim
-        let n = nelementsx shape.[startDim .. endDim] 
+        let n = nelementx shape.[startDim .. endDim] 
         Shape [|  for i in 0..shape.Length-1 do if (i < startDim) || (i > endDim) then shape.[i] elif i = startDim then n |]
 
     /// Checks if the given shape is appropriate for an addSlice operation.
@@ -582,7 +582,7 @@ module Shape =
         elif numUnspecified = 0 then
             shape
         else
-            let divisor = shape.Dims  |> Array.filter (fun i -> not i.IsRequest) |> Shape |> nelementsx
+            let divisor = shape.Dims  |> Array.filter (fun i -> not i.IsRequest) |> Shape |> nelementx
             if not (nelement % divisor =~= Int 0) then failwithf "Cannot complete shape %A to have %A elements" shape nelement
             let missing = nelement / divisor
             [|for d in shape.Dims do if d.IsRequest then yield missing else yield d|]
@@ -606,9 +606,7 @@ module Shape =
 module ShapeAutoOpens =
 
     /// Gets the total number of elements in a shape.
-    let shapeLength (shape: int[]) =
-        if shape.Length = 0 then 1
-        else Array.reduce (*) shape
+    let shapeLength (shape: Shape) = Shape.nelement shape
 
     /// Converts the array of three-position bounds specifications to a location.
     let boundsToLocation (bounds: int[,]) =

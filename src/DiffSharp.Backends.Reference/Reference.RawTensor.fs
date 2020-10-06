@@ -24,7 +24,7 @@ type RawTensorCPU<'T when 'T : equality>(values: 'T[], shape: Shape, dtype: Dtyp
 
     override _.Shape = shape
     override _.Dim = shape.Length
-    override _.Nelement = Shape.nelementsx shape
+    override _.Nelement = Shape.nelement shape
     override _.Dtype = dtype
     override _.Device = device
     override _.DeviceType = device.DeviceType
@@ -62,7 +62,7 @@ type RawTensorCPU<'T when 'T : equality>(values: 'T[], shape: Shape, dtype: Dtyp
         let fullBounds = fullBounds |> Array2D.map Int.eval
         // printfn "rfullBounds\n%A" fullBounds
         // printfn "rshape\n%A" shape
-        let array = Array.zeroCreate (shapeLength shape.Values)
+        let array = Array.zeroCreate (shapeLength shape)
         let mutable arrayi = 0
         let rec slice (fullBounds:int[,]) externalCoords =
             if fullBounds.GetLength(0) = 1 then
@@ -89,9 +89,9 @@ type RawTensorCPU<'T when 'T : equality>(values: 'T[], shape: Shape, dtype: Dtyp
         if shape = newShape then t :> _ else
         Shape.checkCanExpand shape newShape
         let trim = newShape.Length - shape.Length
-        let exp = shapeLength newShape.[0..trim-1].Values
+        let exp = shapeLength newShape.[0..trim-1]
         let jshape = newShape.[trim..]
-        let n = shapeLength newShape.Values
+        let n = shapeLength newShape
         let result = Array.zeroCreate n 
         if jshape.Length = 0 then 
             // The expansion is everything
@@ -130,8 +130,8 @@ type RawTensorCPU<'T when 'T : equality>(values: 'T[], shape: Shape, dtype: Dtyp
     override _.StackTs(tensors, dim) =
         let values, shapes = tensors |> Array.map (fun t -> t.GetTypedValues(), t.Shape) |> Array.unzip
         let n, shape1, shape2, newShape = Shape.checkCanStack shapes dim
-        let m1 = shapeLength shape1.Values
-        let m2 = shapeLength shape2.Values
+        let m1 = shapeLength shape1
+        let m2 = shapeLength shape2
         let m = m1 * m2
         let result = Array.zeroCreate (n * m)
         for i=0 to (n*m)-1 do
@@ -146,8 +146,8 @@ type RawTensorCPU<'T when 'T : equality>(values: 'T[], shape: Shape, dtype: Dtyp
         let shape = t.Shape
         let shape1, shape2, unstackedShape = Shape.checkCanUnstack shape dim
         let n = shape.[dim].Value
-        let m1 = shapeLength shape1.Values
-        let m2 = shapeLength shape2.Values
+        let m1 = shapeLength shape1
+        let m2 = shapeLength shape2
         let m = m1 * m2
         let values = t.Values
         let results = Array.init n (fun _ -> Array.zeroCreate m)
@@ -161,8 +161,8 @@ type RawTensorCPU<'T when 'T : equality>(values: 'T[], shape: Shape, dtype: Dtyp
     override t.CatTs(tensors, dim) =
         let values, shapes = tensors |> Array.map (fun t -> t.GetTypedValues(), t.Shape) |> Array.unzip
         let n, shape1, m2, shape3, outShape = Shape.checkCanCat shapes dim
-        let m1 = shapeLength shape1.Values
-        let m3 = shapeLength shape3.Values
+        let m1 = shapeLength shape1
+        let m3 = shapeLength shape3
         let m = m1 * m2.Value * m3
         let result = Array.zeroCreate m
         let mutable i = 0
@@ -182,8 +182,8 @@ type RawTensorCPU<'T when 'T : equality>(values: 'T[], shape: Shape, dtype: Dtyp
         let n = sizes.Length
         let shape1 = shape.[0..dim-1]
         let shape2 = shape.[dim+1..]
-        let m1 = shapeLength shape1.Values
-        let m3 = shapeLength shape2.Values
+        let m1 = shapeLength shape1
+        let m3 = shapeLength shape2
         let values = t.Values
         let results = Array.init n (fun k -> Array.zeroCreate (m1 * sizes.[k].Value * m3))
         let mutable i = 0
@@ -314,7 +314,7 @@ type RawTensorCPU<'T when 'T : equality>(values: 'T[], shape: Shape, dtype: Dtyp
         if dtype = t.Dtype then 
             upcast t
         else
-            let tflat = t.ViewT(Shape [|t.Nelement|]) // We flatten, cast, and return with the correct shape because .ToValues() in the next line does not support tensors with dimension > 4.
+            let tflat = t.ViewT(t.Shape.flatten()) // We flatten, cast, and return with the correct shape because .ToValues() in the next line does not support tensors with dimension > 4.
             RawTensor.Create(tflat.ToValues(), dtype=dtype, backend=t.Backend, device=t.Device).ViewT(t.Shape)
 
     override t.MoveTo(device: Device) = t.MakeLike(values, shape, device=device)
@@ -346,14 +346,14 @@ module internal RawTensorCPU =
     
     /// Get the "0" tensor for a CPU tensor type of the given shape
     let inline Zeros(shape:Shape)  : (^T[] * Shape) =
-        let values = Array.create (shapeLength shape.Values) zero< ^T >
+        let values = Array.create (shapeLength shape) zero< ^T >
         (values, shape)
 
     /// Get the "0" tensor for a CPU tensor type of the given shape
     let inline Empty(shape:Shape)  : (^T[] * Shape) = Zeros shape
 
     let inline Ones(shape:Shape) =
-        let values = Array.create (shapeLength shape.Values) one< ^T >
+        let values = Array.create (shapeLength shape) one< ^T >
         (values, shape)
 
     let inline CreateFromFlatArray (values: System.Array, shape: Shape) : (^T[] * Shape) = 
@@ -367,7 +367,7 @@ module internal RawTensorCPU =
         | _ -> invalidOp <| sprintf "Cannot compare RawTensors t1 (Shape=%A, Dtype=%A, Device=%A, Backend=%A) and t2 (Shape=%A, Dtype=%A, Device=%A, Backend=%A)" t1.Shape t1.Dtype t1.Device t1.Backend t2.Shape t2.Dtype t2.Device t2.Backend
 
     let inline Full(shape:Shape, value: ^T) =
-        let result = Array.create (shapeLength shape.Values) value
+        let result = Array.create (shapeLength shape) value
         (result, shape)
 
     let inline AllClose(t1: RawTensorCPU< ^T >, t2:RawTensor, relativeTolerance: ^T, absoluteTolerance: ^T) =
@@ -866,15 +866,15 @@ module internal RawTensorCPU =
         (result, t.Shape)
 
     let inline Random ofDouble (shape:Shape) : (^T[] * Shape) =
-        let values = Array.init (shapeLength shape.Values) (fun _ -> ofDouble (DiffSharp.Util.Random.Uniform()))
+        let values = Array.init (shapeLength shape) (fun _ -> ofDouble (DiffSharp.Util.Random.Uniform()))
         (values, shape)
 
     let inline RandomNormal ofDouble (shape:Shape) : (^T[] * Shape) =
-        let values = Array.init (shapeLength shape.Values) (fun _ -> ofDouble (DiffSharp.Util.Random.Normal()))
+        let values = Array.init (shapeLength shape) (fun _ -> ofDouble (DiffSharp.Util.Random.Normal()))
         (values, shape)
 
     let inline RandomInt ofInt (shape:Shape) (low:int) (high:int) : (^T[] * Shape) =
-        let values = Array.init (shapeLength shape.Values) (fun _ -> ofInt (DiffSharp.Util.Random.Integer(low, high)))
+        let values = Array.init (shapeLength shape) (fun _ -> ofInt (DiffSharp.Util.Random.Integer(low, high)))
         (values, shape)
 
 /// The concrete implementation of RawTensor for Float32 data.
@@ -1533,9 +1533,9 @@ type RawTensorBool(values: bool[], shape:Shape, device) =
     static member Seed(seed) = Random.Seed(seed)
     static member Zero(device) = ([| false |], Shape.scalar) |> createOn device
     static member One(device) = ([| true |], Shape.scalar) |> createOn device
-    static member Zeros(shape:Shape, device) = (Array.zeroCreate (shapeLength shape.Values), shape) |> createOn device
-    static member Empty(shape:Shape, device) = (Array.zeroCreate (shapeLength shape.Values), shape) |> createOn device
-    static member Ones(shape:Shape, device) = (Array.create (shapeLength shape.Values) true, shape) |> createOn device
+    static member Zeros(shape:Shape, device) = (Array.zeroCreate (shapeLength shape), shape) |> createOn device
+    static member Empty(shape:Shape, device) = (Array.zeroCreate (shapeLength shape), shape) |> createOn device
+    static member Ones(shape:Shape, device) = (Array.create (shapeLength shape) true, shape) |> createOn device
     static member Full(shape:Shape, value:obj, device) = RawTensorCPU.Full (shape, System.Convert.ToBoolean value) |> createOn device
     static member Random(_shape:Shape, _device) = opNotSupported "Random" Dtype.Bool
     static member RandomNormal(_shape:Shape, _device) = opNotSupported "RandomNormal" Dtype.Bool

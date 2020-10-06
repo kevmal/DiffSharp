@@ -102,7 +102,7 @@ type ParameterDict() =
         if tensors.dim <> 1 then failwithf "Expecting 1d tensors but received tensors with shape %A" tensors.shape
         if tensors.nelement <> d.nelement then failwithf "Expecting tensors.nelement (%A) and ParameterDict.nelement (%A) to be the same" tensors.nelement d.nelement
         let shapes = [|for t in d.values.Values do t.value.shapex|]
-        let sizes = [|for s in shapes do Shape.nelementsx s|]
+        let sizes = [|for s in shapes do Shape.nelementx s|]
         let ts = Array.map2 (fun (t:Tensor) (s:Shape) -> t.view(s)) (tensors.split(sizes)) shapes
         let mutable i = 0
         let keys = Dictionary.copyKeys d.values

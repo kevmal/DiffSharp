@@ -33,33 +33,14 @@ open DiffSharp
 open DiffSharp.Model
 open DiffSharp.Optim
 open DiffSharp.Data
-open DiffSharp.Symbols
+open DiffSharp.ShapeChecking
 
-
-dsharp.config(device=sym?Default, dtype=sym?Default, backend=Backend.Symbolic) // symbolic default device, symbolic default dtype
-dsharp.tensor([1;1])
-dsharp.zeros([sym?M;sym?N])
-dsharp.zeros([sym?M;sym?N]) + dsharp.zeros([sym?M;sym?N])
-dsharp.zeros([sym?M;sym?N]) + dsharp.zeros([1;1])
-dsharp.zeros([1;2]) + dsharp.zeros([1;1])
-dsharp.zero() + dsharp.zero()
-
-
-test case v. type checking  = "works"  = no type errors for all values of right type
-
-test case v. shape checking = "works"  = no shape errors for all values of right shape 
-
-/// !VAE(N*28*28, Z, [H1; H2]).loss(B*N*28*28)
-type VAE(xDim:Int, zDim:Int, ?hDims:seq<int>, ?activation:Tensor->Tensor, ?activationLast:Tensor->Tensor) =
+type VAE(xDim:Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Tensor, ?activationLast:Tensor->Tensor) =
     inherit Model()
     let hDims = defaultArg hDims (let d = (xDim+zDim+1)/2 in seq [d; d]) |> Array.ofSeq
     let activation = defaultArg activation dsharp.relu
     let activationLast = defaultArg activationLast dsharp.sigmoid
-    let dims =
-        if hDims.Length = 0 then
-            [|xDim; zDim|]
-        else
-            Array.append (Array.append [|xDim|] hDims) [|zDim|]
+    let dims = [| yield xDim; yield! hDims; yield zDim |]
             
     let enc = Array.append [|for i in 0..dims.Length-2 -> Linear(dims.[i], dims.[i+1])|] [|Linear(dims.[dims.Length-2], dims.[dims.Length-1])|]
     let dec = [|for i in 0..dims.Length-2 -> Linear(dims.[i+1], dims.[i])|] |> Array.rev
@@ -88,7 +69,7 @@ type VAE(xDim:Int, zDim:Int, ?hDims:seq<int>, ?activation:Tensor->Tensor, ?activ
         activationLast <| dec.[dec.Length-1].forward(h)
 
     member _.encodeDecode(x:Tensor) =
-        let mu, logVar = encode (x.view([-1; xDim]))
+        let mu, logVar = encode (x.viewx(Shape [|Int -1; xDim|]))
         let z = latent mu logVar
         decode z, mu, logVar
 
@@ -106,19 +87,58 @@ type VAE(xDim:Int, zDim:Int, ?hDims:seq<int>, ?activation:Tensor->Tensor, ?activ
         let xRecon, mu, logVar = m.encodeDecode x
         VAE.loss(xRecon, x, mu, logVar)
 
-    member _.sample(?numSamples:int) = 
-        let numSamples = defaultArg numSamples 1
-        dsharp.randn([|numSamples; zDim|]) |> decode
+    member _.sample(?numSamples:Int) = 
+        let numSamples = defaultArg numSamples (Int 1)
+        dsharp.randn(Shape [|numSamples; zDim|]) |> decode
+
+    new (xDim:int, zDim:int, ?hDims:seq<int>, ?activation:Tensor->Tensor, ?activationLast:Tensor->Tensor) =
+        VAE(Int xDim, Int zDim, ?hDims = Option.map (Seq.map Int) hDims, ?activation=activation, ?activationLast=activationLast)
 
 
+let model = VAE(28*28, 16, [512; 256])
+
+let trainSet = MNIST("./mnist", train=true, transform=id)
+let trainLoader = trainSet.loader(batchSize=32, shuffle=true)
+
+printfn "%A" model
+
+let optimizer = Adam(model, lr=dsharp.tensor(0.001))
+
+let epochs = 2
+for epoch = 0 to epochs do
+    for i, x, _ in trainLoader.epoch() do
+        model.reverseDiff()
+        let l = model.loss(x)
+        l.reverse()
+        optimizer.step()
+        printfn "epoch: %A/%A minibatch: %A/%A loss: %A" epoch epochs i trainLoader.length (float(l))
+
+        if i % 250 = 0 then
+            printfn "Saving samples"
+            let samples = model.sample(64).view([-1; 1; 28; 28])
+            samples.saveImage(sprintf "samples_%A_%A.png" epoch i)
+
+(*
+dsharp.config(device=sym?Default, dtype=sym?Default, backend=Backend.Symbolic) // symbolic default device, symbolic default dtype
+dsharp.tensor([1;1])
+dsharp.zeros([sym?M;sym?N])
+dsharp.zeros([sym?M;sym?N]) + dsharp.zeros([sym?M;sym?N])
+dsharp.zeros([sym?M;sym?N]) + dsharp.zeros([1;1])
+dsharp.zeros([1;2]) + dsharp.zeros([1;1])
+dsharp.zero() + dsharp.zero()
+
+
+//test case v. type checking  = "works"  = no type errors for all values of right type
+
+//test case v. shape checking = "works"  = no shape errors for all values of right shape 
+
+/// !VAE(N*28*28, Z, [H1; H2]).loss(B*N*28*28)
 dsharp.config(backend=Backend.Symbolic, device=GPU, dtype=Dtype.Float32)
 dsharp.seed(0)
 
 [<SampleModel>]
-let model = VAE(N*28*28, Z, [H1; H2]).loss(B*N*28*28) -> 0
 
-
-X / 28*28
+let model = VAE(N*28*28, Z, [H1; H2]).loss(B*N*28*28) 
 
 
 model.nparameters
@@ -142,29 +162,6 @@ Externally (API)
 dsharp.ones(shape:Shape, ...)   <-- added overload
 
 
-
-
-(*
-
-let trainSet = MNIST("./mnist", train=true, transform=id)
-let trainLoader = trainSet.loader(batchSize=32, shuffle=true)
-
-printfn "%A" model
-
-let optimizer = Adam(model, lr=dsharp.tensor(0.001))
-
-let epochs = 2
-for epoch = 0 to epochs do
-    for i, x, _ in trainLoader.epoch() do
-        model.reverseDiff()
-        let l = model.loss(x)
-        l.reverse()
-        optimizer.step()
-        printfn "epoch: %A/%A minibatch: %A/%A loss: %A" epoch epochs i trainLoader.length (float(l))
-
-        if i % 250 = 0 then
-            printfn "Saving samples"
-            let samples = model.sample(64).view([-1; 1; 28; 28])
-            samples.saveImage(sprintf "samples_%A_%A.png" epoch i)
-
 *)
+
+

@@ -67,7 +67,7 @@ type Tensor =
         if t.backend = backend then t else
         match t with
         | Tensor(tp) -> 
-            let tpflat = tp.ViewT(Shape [|tp.Nelement|]) //
+            let tpflat = tp.ViewT(tp.Shape.flatten())
             let tpflatValues = tpflat.ToValues()
             Tensor(tp.CreateLike(tpflatValues, backend=backend).ViewT(tp.Shape))
         | TensorF(_) -> failwith "Cannot move TensorF - do not move during differentiation"
@@ -254,10 +254,10 @@ type Tensor =
     member t.dim = t.primalRaw.Dim
 
     /// Gets the number of elements in the tensor
-    member t.nelement = t.primalRaw.Nelement.Value
+    member t.nelement = t.primalRaw.Nelement
 
     /// Gets the number of elements in the tensor as a Int
-    member internal t.nelementfull = t.primalRaw.Nelement
+    member internal t.nelementx = Shape.nelementx t.primalRaw.Shape
 
     /// Returns the value of a (non-scalar) tensor as an array
     member t.toArray() = t.primalRaw.ToArray()
@@ -1336,7 +1336,7 @@ type Tensor =
             result.castAfterSummation(?dtype=dtype)
 
     /// <summary>Returns the mean value of all elements in the input tensor</summary>
-    member a.mean() = a.sum() / a.nelementfull.ValueOrOne
+    member a.mean() = a.sum() / a.nelementx.ValueOrOne
 
     /// <summary>Returns the mean value of each row of the input tensor in the given dimension dim.</summary>
     /// <remarks>If keepdim is True, the output tensor is of the same size as input except in the dimension dim where it is of size 1. Otherwise, dim is squeezed, resulting in the output tensor having 1 fewer dimension.</remarks>
@@ -1355,7 +1355,7 @@ type Tensor =
     /// <param name="unbiased ">Whether to use the unbiased estimation or not.</param>
     member a.variance(?unbiased:bool) = 
         let unbiased = defaultArg unbiased true  // Use Bessel's correction if unbiased=true
-        let n = if unbiased then a.nelementfull - 1 else a.nelementfull
+        let n = if unbiased then a.nelementx - 1 else a.nelementx
         let a' = a - a.mean() in (a' * a').sum() / n.ValueOrOne
 
     /// <summary>Returns the variance of each row of the input tensor in the given dimension dim.</summary>
@@ -1596,7 +1596,7 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member a.viewx(shape:Shape) =
-        let shape = shape |> Shape.complete a.nelementfull  // Handles -1 semantics
+        let shape = shape |> Shape.complete a.nelementx  // Handles -1 semantics
         Shape.checkCanView a.shapex shape
         let fRaw(a:RawTensor) = a.ViewT(shape)
         let fTensor(a:Tensor) = a.viewx(shape)

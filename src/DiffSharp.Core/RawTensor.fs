@@ -86,8 +86,8 @@ type RawTensor() =
     /// Gets the dimensionality of the tensor
     abstract member Dim : int
 
-    /// Gets the number of logical elements in the tensor
-    abstract member Nelement : Int
+    /// Gets the number of elements in the tensor
+    abstract member Nelement : int
 
     /// Gets the element storage type for the tensor
     abstract member Dtype : Dtype

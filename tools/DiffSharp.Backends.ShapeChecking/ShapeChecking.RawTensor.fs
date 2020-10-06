@@ -29,7 +29,7 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
 
     override _.Shape = shape
     override _.Dim = shape.Length
-    override _.Nelement = Shape.nelementsx shape
+    override _.Nelement = Shape.nelement shape
     override _.Dtype = dtype
     override _.Device = device
     override _.DeviceType = device.DeviceType
