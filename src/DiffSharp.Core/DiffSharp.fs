@@ -3,11 +3,7 @@ namespace DiffSharp
 open DiffSharp.Backends
 open DiffSharp.Util
 
-
-
-
 /// Tensor operations
-
 type dsharp =
 
     /// <summary>

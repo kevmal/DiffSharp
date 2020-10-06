@@ -736,7 +736,7 @@ module internal RawTensorCPU =
         // t2: filters, KxCxExFxG (outputChannels x inputChannels x kernelDepth x kernelHeight x kernelWidth)
         let batchSize, inputChannels, (kernelDepth, kernelHeight, kernelWidth), (outputChannels, outputDepth, outputHeight, outputWidth), outputShape = 
             Shape.checkCanConv3d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|1;1;1|]  
-        let batchSize, inputChannels, kernelHeight, kernelDepth, kernelWidth, outputChannels, outputDepth, outputHeight, outputWidth =
+        let batchSize, inputChannels, kernelDepth, kernelHeight, kernelWidth, outputChannels, outputDepth, outputHeight, outputWidth =
             batchSize.Value, inputChannels.Value, kernelDepth.Value, kernelHeight.Value, kernelWidth.Value, outputChannels.Value, outputDepth.Value, outputHeight.Value, outputWidth.Value
         let result = t1.ZerosLike(outputShape) :?> RawTensorCPU< ^T>
         let t1 =

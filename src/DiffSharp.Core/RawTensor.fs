@@ -66,8 +66,7 @@ type BackendTensorStatics() =
 
     /// Get the implementation for the given backend.
     static member Get(?backend: Backend) =
-        let backend = defaultArg backend Backend.Default
-        hook.Get(backend)
+        hook.Get(?backend=backend)
 
 /// <summary>
 ///   Represents a raw (i.e. non-differentiable) tensor implemented by a DiffSharp backend.

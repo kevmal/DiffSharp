@@ -629,11 +629,13 @@ module ShapeAutoOpens =
     let dilatedCoordinates (coordinates: int[]) (dilations: int[]) =
         Array.map2 (*) coordinates dilations
 
+    /// Checks if the given index is valid in the context of the given shape.
     let checkValidIndex (shape: int[]) (index: int[]) =
         if shape.Length <> index.Length then failwithf "Expecting shape (%A) and index (%A) to have the same length" shape index
         let valid = Array.forall2 (fun s i -> i < s) shape index
         if not valid then failwithf "index (%A) is not valid for shape (%A)" index shape
 
+    /// Converts the given index to a flat index in the context of the given shape.
     let indexToFlatIndex (shape: int[]) (index: int[]) =
         checkValidIndex shape index
         let mutable flatIndex = 0
