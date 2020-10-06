@@ -1,19 +1,52 @@
-namespace Tests
+﻿namespace Tests
 
+#if SYMBOLIC_SHAPES
 open NUnit.Framework
 open DiffSharp
-open DiffSharp.Util
-open System
+open DiffSharp.ShapeChecking
 
 [<TestFixture>]
-type TestTensor () =
-    [<SetUp>]
-    member _.Setup () =
-        ()
+type TestTensorShapesSymbolic () =
+    let ShapeChecking =
+        [ let devices = [ Device.CPU ]
+          for device in devices do
+              for dtype in [ Dtype.Float32 ] do
+                yield ComboInfo(defaultBackend=Backend.ShapeChecking, defaultDevice=device, defaultDtype=dtype, defaultFetchDevices=(fun _ -> devices)) ]
 
+    [<Test>]
+    member _.TestTensorFullSymbolic () =
+        for combo in ShapeChecking do 
+            let shape = Shape.symbolic [| sym?M ; sym?N |]
+            let t1a = combo.full(shape, 2.5)
+            Assert.CheckEqual(shape, t1a.shapex)
+
+    [<Test>]
+    member _.TestTensorViewSymbolic () =
+        for combo in ShapeChecking do 
+            let N : Int = sym?N
+            let M : Int = sym?M
+            let t = combo.randint(0, 2, Shape.symbolic [5*2*N;5*2*M])
+            let t1 = t.view(-1)
+            let t1Shape = t1.shapex
+            let t1ShapeCorrect = Shape.symbolic [100*N*M]
+            let t2Shape = t.view([-1;50]).shapex
+            let t2ShapeCorrect = Shape.symbolic [|2*N*M;Int 50|]
+            let t3Shape = t.view([2;-1;50]).shapex
+            let t3ShapeCorrect = Shape.symbolic [|Int 2;N*M;Int 50|]
+            let t4Shape = t.view([2;-1;10]).shapex
+            let t4ShapeCorrect = Shape.symbolic [|Int 2;5*N*M;Int 10|]
+        
+            Assert.True(t1ShapeCorrect =~= t1Shape)
+            Assert.True(t2ShapeCorrect =~= t2Shape)
+            Assert.True(t3ShapeCorrect =~= t3Shape)
+            Assert.True(t4ShapeCorrect =~= t4Shape)
+            Assert.True(t1.dtype =~= combo.dtype)
+#endif
+
+(*
     member _.TestTensorCreateAllTensorTypesGeneric (ofDouble: double -> 'T) =
       // Test creating these types of tensors
-      for combo in Combos.All do 
+      for combo in Combos.ShapeChecking do 
         let t0 = combo.tensor(ofDouble 1.)
         let t0ShapeCorrect = [||]
         let t0DimCorrect = 0
@@ -94,13 +127,6 @@ type TestTensor () =
         Assert.CheckEqual(Dtype.Float32, t4.dtype)
 
     [<Test>]
-    member _.TestTensorHandle () =
-        for combo in Combos.Float32 do
-           if combo.backend = Backend.Reference then
-               let t1 = combo.tensor([1.0f ; 1.0f ])
-               Assert.CheckEqual([| 1.0f ; 1.0f |], (t1.primalRaw.Handle :?> float32[]))
-
-    [<Test>]
     member _.TestTensorCreate0 () =
       for combo in Combos.AllDevicesAndBackends do
         let t0 = combo.tensor(1.)
@@ -148,78 +174,78 @@ type TestTensor () =
         let t2 = combo.tensor([[1.; 2.; 3.]; [4.; 5.; 6.]])
         Assert.CheckEqual(t2ShapeCorrect, t2.shape)
         Assert.CheckEqual(t2DimCorrect, t2.dim)
-        Assert.CheckEqual(t2ValuesCorrect, t2.toArray() :?> float32[,])
+        Assert.CheckEqual(t2ValuesCorrect, t2.toArray())
 
         // create from double array list
         let t2ArrayList = combo.tensor([[|1.; 2.; 3.|]; [|4.; 5.; 6.|]])
         Assert.CheckEqual(t2ShapeCorrect, t2ArrayList.shape)
         Assert.CheckEqual(t2DimCorrect, t2ArrayList.dim)
-        Assert.CheckEqual(t2ValuesCorrect, t2ArrayList.toArray() :?> float32[,])
+        Assert.CheckEqual(t2ValuesCorrect, t2ArrayList.toArray())
 
         // create from double list array
         let t2ListArray = combo.tensor([| [1.; 2.; 3.]; [4.; 5.; 6.] |])
         Assert.CheckEqual(t2ShapeCorrect, t2ListArray.shape)
         Assert.CheckEqual(t2DimCorrect, t2ListArray.dim)
-        Assert.CheckEqual(t2ValuesCorrect, t2ListArray.toArray() :?> float32[,])
+        Assert.CheckEqual(t2ValuesCorrect, t2ListArray.toArray())
 
         // create from double[][]
         let t2ArrayArray = combo.tensor([| [| 1.; 2.; 3. |]; [| 4.; 5.; 6.|] |])
         Assert.CheckEqual(t2ShapeCorrect, t2ArrayArray.shape)
         Assert.CheckEqual(t2DimCorrect, t2ArrayArray.dim)
-        Assert.CheckEqual(t2ValuesCorrect, t2ArrayArray.toArray() :?> float32[,])
+        Assert.CheckEqual(t2ValuesCorrect, t2ArrayArray.toArray())
 
         // create from double[,]
         let t2Array2D = combo.tensor(array2D [| [| 1.; 2.; 3. |]; [| 4.; 5.; 6.|] |])
         Assert.CheckEqual(t2ShapeCorrect, t2Array2D.shape)
         Assert.CheckEqual(t2DimCorrect, t2Array2D.dim)
-        Assert.CheckEqual(t2ValuesCorrect, t2Array2D.toArray() :?> float32[,])
+        Assert.CheckEqual(t2ValuesCorrect, t2Array2D.toArray())
 
         // create from seq<double[]>
         let t2ArraySeq = combo.tensor(seq { yield [| 1.; 2.; 3. |]; yield [| 4.; 5.; 6.|] })
         Assert.CheckEqual(t2ShapeCorrect, t2ArraySeq.shape)
         Assert.CheckEqual(t2DimCorrect, t2ArraySeq.dim)
-        Assert.CheckEqual(t2ValuesCorrect, t2ArraySeq.toArray() :?> float32[,])
+        Assert.CheckEqual(t2ValuesCorrect, t2ArraySeq.toArray())
 
         // create from seq<seq<double>>
         let t2SeqSeq = combo.tensor(seq { seq { 1.; 2.; 3. }; seq { 4.; 5.; 6.} })
         Assert.CheckEqual(t2ShapeCorrect, t2SeqSeq.shape)
         Assert.CheckEqual(t2DimCorrect, t2SeqSeq.dim)
-        Assert.CheckEqual(t2ValuesCorrect, t2SeqSeq.toArray() :?> float32[,])
+        Assert.CheckEqual(t2ValuesCorrect, t2SeqSeq.toArray())
 
         // create from (double * double * double) list list
         let t2TupleListList = combo.tensor([ [ 1., 2., 3. ]; [ 4., 5., 6. ] ])
         Assert.CheckEqual(t2ShapeCorrect, t2TupleListList.shape)
         Assert.CheckEqual(t2DimCorrect, t2TupleListList.dim)
-        Assert.CheckEqual(t2ValuesCorrect, t2TupleListList.toArray() :?> float32[,])
+        Assert.CheckEqual(t2ValuesCorrect, t2TupleListList.toArray())
 
         // create from ((double * double * double) list * (double * double * double) list) list
         let t2TupleListTupleList = combo.tensor([ [ 1., 2., 3. ], [ 4., 5., 6. ] ])
         Assert.CheckEqual(t2ShapeCorrect, t2TupleListTupleList.shape)
         Assert.CheckEqual(t2DimCorrect, t2TupleListTupleList.dim)
-        Assert.CheckEqual(t2ValuesCorrect, t2TupleListTupleList.toArray() :?> float32[,])
+        Assert.CheckEqual(t2ValuesCorrect, t2TupleListTupleList.toArray())
 
         // create from (double * double * double)[]
         let t2TupleArray = combo.tensor([| [ 1., 2., 3. ]; [ 4., 5., 6. ] |])
         Assert.CheckEqual(t2ShapeCorrect, t2TupleArray.shape)
         Assert.CheckEqual(t2DimCorrect, t2TupleArray.dim)
-        Assert.CheckEqual(t2ValuesCorrect, t2TupleArray.toArray() :?> float32[,])
+        Assert.CheckEqual(t2ValuesCorrect, t2TupleArray.toArray())
 
         // create from ((double * double * double) [] * (double * double * double) []) []
         let t2TupleArrayTupleArray = combo.tensor([| [| 1., 2., 3. |], [| 4., 5., 6. |] |])
         Assert.CheckEqual(t2ShapeCorrect, t2TupleArrayTupleArray.shape)
         Assert.CheckEqual(t2DimCorrect, t2TupleArrayTupleArray.dim)
-        Assert.CheckEqual(t2ValuesCorrect, t2TupleArrayTupleArray.toArray() :?> float32[,])
-        Assert.CheckEqual(t2ValuesCorrect, t2TupleArrayTupleArray.toArray() :?> float32[,])
+        Assert.CheckEqual(t2ValuesCorrect, t2TupleArrayTupleArray.toArray())
+        Assert.CheckEqual(t2ValuesCorrect, t2TupleArrayTupleArray.toArray())
 
         // create from (double * double * double)seq
         let t2TupleArray = combo.tensor(seq { [ 1., 2., 3. ]; [ 4., 5., 6. ] })
         Assert.CheckEqual(t2ShapeCorrect, t2TupleArray.shape)
         Assert.CheckEqual(t2DimCorrect, t2TupleArray.dim)
-        Assert.CheckEqual(t2ValuesCorrect, t2TupleArray.toArray() :?> float32[,])
+        Assert.CheckEqual(t2ValuesCorrect, t2TupleArray.toArray())
 
         let t2TupleOfList = combo.tensor [[2.], [3.], [4.]]
         Assert.CheckEqual([| 3; 1 |], t2TupleOfList.shape)
-        Assert.CheckEqual(array2D [ [2.f]; [3.f]; [4.f] ], t2TupleOfList.toArray() :?> float32[,])
+        Assert.CheckEqual(array2D [ [2]; [3]; [4] ], t2TupleOfList.toArray())
 
     [<Test>]
     member _.TestTensorCreate3 () =
@@ -232,7 +258,7 @@ type TestTensor () =
 
         Assert.CheckEqual(t3ShapeCorrect, t3.shape)
         Assert.CheckEqual(t3DimCorrect, t3.dim)
-        Assert.CheckEqual(t3ValuesCorrect, t3.toArray() :?> float32[,,])
+        Assert.CheckEqual(t3ValuesCorrect, t3.toArray())
 
     [<Test>]
     member _.TestTensorCreate4 () =
@@ -245,7 +271,7 @@ type TestTensor () =
 
         Assert.CheckEqual(t4ShapeCorrect, t4.shape)
         Assert.CheckEqual(t4DimCorrect, t4.dim)
-        Assert.CheckEqual(t4ValuesCorrect, t4.toArray() :?> float32[,,,])
+        Assert.CheckEqual(t4ValuesCorrect, t4.toArray())
 
     [<Test>]
     member _.TestTensorToArray () =
@@ -254,45 +280,6 @@ type TestTensor () =
             let t = combo.tensor(a)
             let tToArrayCorrect = combo.arrayCreator2D a
             Assert.CheckEqual(tToArrayCorrect, t.toArray())
-
-    [<Test>]
-    member _.TestTensorSaveSaveAndLoadToSpecificConfiguration () =
-        let fileName = System.IO.Path.GetTempFileName()
-        for combo in Combos.All do 
-            let a = combo.tensor([[1,2],[3,4]])
-            a.save(fileName)
-            let b = combo.load(fileName)
-            Assert.CheckEqual(a, b)
-
-    [<Test>]
-    member _.TestTensorSaveLoadBackToDefaultConfiguarionThenMoveToCombo () =
-        let fileName = System.IO.Path.GetTempFileName()
-        for combo in Combos.All do 
-            let a = combo.tensor([[1,2],[3,4]])
-            a.save(fileName)
-            let b = Tensor.load(fileName)
-            let bInCombo = combo.move(b)
-            Assert.CheckEqual(a, bInCombo)
-
-    [<Test>]
-    member _.TestTensorSaveLoadBackToDefaultConfiguarion () =
-        let fileName = System.IO.Path.GetTempFileName()
-        for combo in Combos.All do 
-            let a = combo.tensor([[1,2],[3,4]])
-            a.save(fileName)
-            let aInDefault = a.move(device=Device.Default, backend=Backend.Default)
-            let b = Tensor.load(fileName, dtype = combo.dtype)
-            Assert.CheckEqual(aInDefault, b)
-
-    [<Test>]
-    member _.TestTensorSaveLoadConfiguarion () =
-        let fileName = System.IO.Path.GetTempFileName()
-        let a = dsharp.tensor([[1,2],[3,4]])
-        a.save(fileName)
-        for combo in Combos.All do 
-            let aInCombo = combo.move(a)
-            let b = combo.load(fileName)
-            Assert.CheckEqual(aInCombo, b)
 
     [<Test>]
     member _.TestTensorClone () =
@@ -491,14 +478,14 @@ type TestTensor () =
         let t1slice1 = t1.primalRaw.GetSlice(array2D [ [ Int 3; Int 4; Int 0 ] ])
         let t1slice2 = t1.primalRaw.GetSlice(array2D [ [ Int 3; Int 3; Int 0 ] ])
 
-        Assert.CheckEqual(3, (t1slice1.GetItem(0) |> Convert.ToInt32))
-        Assert.CheckEqual(4, (t1slice1.GetItem(1) |> Convert.ToInt32))
+        Assert.CheckEqual(3, t1slice1.GetItem(0))
+        Assert.CheckEqual(4, t1slice1.GetItem(1))
         Assert.CheckEqual(1, t1slice1.Dim)
-        Assert.CheckEqual(2, t1slice1.Shape.[0].Value)
+        Assert.CheckEqual(2, t1slice1.Shape.[0])
 
-        Assert.CheckEqual(3, (t1slice2.GetItem(0) |> Convert.ToInt32))
+        Assert.CheckEqual(3, t1slice2.GetItem(0))
         Assert.CheckEqual(1, t1slice2.Dim)
-        Assert.CheckEqual(1, t1slice2.Shape.[0].Value)
+        Assert.CheckEqual(1, t1slice2.Shape.[0])
 
         // TODO: slicing reducing down to scalar
         //let t1slice3 = t1.primalRaw.GetSlice(array2D [ [ 3; 3; 1 ] ])
@@ -508,25 +495,26 @@ type TestTensor () =
         let t2 = combo.tensor([ for i in 0 .. 10 -> [ i*10 .. i*10+10 ] ])
         let t2slice1 = t2.primalRaw.GetSlice(array2D [ [ Int 3; Int 5; Int 0 ]; [ Int 3; Int 5; Int 0 ] ])
 
-        Assert.CheckEqual(33, t2slice1.GetItem(0, 0) |> Convert.ToInt32)
-        Assert.CheckEqual(34, t2slice1.GetItem(0, 1) |> Convert.ToInt32)
-        Assert.CheckEqual(35, t2slice1.GetItem(0, 2) |> Convert.ToInt32)
-        Assert.CheckEqual(43, t2slice1.GetItem(1, 0) |> Convert.ToInt32)
-        Assert.CheckEqual(44, t2slice1.GetItem(1, 1) |> Convert.ToInt32)
-        Assert.CheckEqual(45, t2slice1.GetItem(1, 2) |> Convert.ToInt32)
-        Assert.CheckEqual(53, t2slice1.GetItem(2, 0) |> Convert.ToInt32)
-        Assert.CheckEqual(54, t2slice1.GetItem(2, 1) |> Convert.ToInt32)
-        Assert.CheckEqual(55, t2slice1.GetItem(2, 2) |> Convert.ToInt32)
+        Assert.CheckEqual(33, t2slice1.GetItem(0, 0))
+        Assert.CheckEqual(34, t2slice1.GetItem(0, 1))
+        Assert.CheckEqual(35, t2slice1.GetItem(0, 2))
+        Assert.CheckEqual(43, t2slice1.GetItem(1, 0))
+        Assert.CheckEqual(44, t2slice1.GetItem(1, 1))
+        Assert.CheckEqual(45, t2slice1.GetItem(1, 2))
+        Assert.CheckEqual(53, t2slice1.GetItem(2, 0))
+        Assert.CheckEqual(54, t2slice1.GetItem(2, 1))
+        Assert.CheckEqual(55, t2slice1.GetItem(2, 2))
 
         let t2slice2 = t2.primalRaw.GetSlice(array2D [ [ Int 3; Int 5; Int 0 ]; [ Int 3; Int 3; Int 1 ] ])
-        Assert.CheckEqual(33, t2slice2.GetItem(0) |> Convert.ToInt32)
-        Assert.CheckEqual(43, t2slice2.GetItem(1) |> Convert.ToInt32)
-        Assert.CheckEqual(53, t2slice2.GetItem(2) |> Convert.ToInt32)
+        Assert.CheckEqual(33, t2slice2.GetItem(0))
+        Assert.CheckEqual(43, t2slice2.GetItem(1))
+        Assert.CheckEqual(53, t2slice2.GetItem(2))
 
         let t2slice3 = t2.primalRaw.GetSlice(array2D [ [ Int 3; Int 3; Int 1 ]; [ Int 3; Int 5; Int 0 ] ])
-        Assert.CheckEqual(33, t2slice3.GetItem(0) |> Convert.ToInt32)
-        Assert.CheckEqual(34, t2slice3.GetItem(1) |> Convert.ToInt32)
-        Assert.CheckEqual(35, t2slice3.GetItem(2) |> Convert.ToInt32)
+        Assert.CheckEqual(33, t2slice3.GetItem(0))
+        Assert.CheckEqual(34, t2slice3.GetItem(1))
+        Assert.CheckEqual(35, t2slice3.GetItem(2))
+
 
     [<Test>]
     // Test cases of indexing where indexing returns a scalar
@@ -764,9 +752,7 @@ type TestTensor () =
                 | Int64 -> ""
                 | Float32 -> ".000000"
                 | Float64 -> ".000000"
-#if SYMBOLIC_SHAPES
                 | Sym _ -> failwith "unexpected symbolic"
-#endif
             let t0StringCorrect = sprintf "Tensor 2%s" suffix
             let t1StringCorrect = sprintf "Tensor [[2%s], \n [2%s]]" suffix suffix
             let t2StringCorrect = sprintf "Tensor [[[2%s, 2%s]]]" suffix suffix
@@ -1014,12 +1000,12 @@ type TestTensor () =
         for tys in Combos.Bool do
             let t1 = tys.tensor([1; 0; 1; 0], dtype=Bool)
 
-            Assert.CheckEqual([| true; false; true; false |], t1.toArray() :?> bool[])
+            Assert.CheckEqual([| true; false; true; false |], t1.toArray())
             Assert.CheckEqual(Bool, t1.dtype)
 
             let t2 = tys.tensor([true; false; true; false], dtype=Bool)
 
-            Assert.CheckEqual([| true; false; true; false |], t2.toArray() :?> bool[])
+            Assert.CheckEqual([| true; false; true; false |], t2.toArray())
             Assert.CheckEqual(Bool, t2.dtype)
 
     [<Test>]
@@ -1430,9 +1416,9 @@ type TestTensor () =
             Assert.CheckEqual(t1Correct, Seq.toList t1)
             for t in t1 do 
                 Assert.CheckEqual(t.dtype, combo.dtype)
-            Assert.CheckEqual(t2Correct, Array.toList t2)
-            Assert.CheckEqual(t2Correct_dim1, Array.toList t2_dim1)
-            Assert.CheckEqual(t2Correct_dim2, Array.toList t2_dim2)
+            Assert.CheckEqual(t2Correct, t2)
+            Assert.CheckEqual(t2Correct_dim1, t2_dim1)
+            Assert.CheckEqual(t2Correct_dim2, t2_dim2)
 
     [<Test>]
     member _.TestTensorCatTs () =
@@ -5051,27 +5037,8 @@ type TestTensor () =
             let tClamped = dsharp.clamp(t, -2, 3)
             let tClampedCorrect = combo.tensor([-2, -2, -2, -1,  0,  1,  2,  3,  3])
             Assert.CheckEqual(tClampedCorrect, tClamped)
-
-    [<Test>]
-    member _.TestTensorView () =
-        for combo in Combos.All do 
-            let t = combo.randint(0, 2, [10;10])
-            let t1 = t.view(-1)
-            let t1Shape = t1.shape
-            let t1ShapeCorrect = [|100|]
-            let t2Shape = t.view([-1;50]).shape
-            let t2ShapeCorrect = [|2;50|]
-            let t3Shape = t.view([2;-1;50]).shape
-            let t3ShapeCorrect = [|2;1;50|]
-            let t4Shape = t.view([2;-1;10]).shape
-            let t4ShapeCorrect = [|2;5;10|]
-        
-            Assert.CheckEqual(t1ShapeCorrect, t1Shape)
-            Assert.CheckEqual(t2ShapeCorrect, t2Shape)
-            Assert.CheckEqual(t3ShapeCorrect, t3Shape)
-            Assert.CheckEqual(t4ShapeCorrect, t4Shape)
-            Assert.CheckEqual(t1.dtype, combo.dtype)
-
+*)
+(*
     [<Test>]
     member _.TestTensorViewAs () =
         for combo in Combos.All do
@@ -7458,3 +7425,5 @@ type TestTensor () =
             Assert.True(t3p1d2.allclose(t3p1d2Correct, 0.01, 0.01))
 
 
+
+*)

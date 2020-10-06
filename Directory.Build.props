@@ -25,6 +25,7 @@
     </RestoreSources>
     -->
     <OtherFlags>--warnon:1182 --warnon:3390 $(OtherFlags)</OtherFlags>
+    <DefineConstants>NO_SYMBOLIC_SHAPES</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup>

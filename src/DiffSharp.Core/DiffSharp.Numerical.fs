@@ -70,7 +70,7 @@ type dsharp with
     static member numfgradhessian (epsilon:float) (f:Tensor->Tensor) (x:Tensor) =
         let fx, g = dsharp.numfgrad epsilon f x
         if x.dim <> 1 || fx.dim <> 0 then failwithf "f must be a scalar-valued function of a vector, encountered f:%A->%A" x.shape fx.shape
-        let h = g.expand([x.nelement; x.nelement])
+        let h = g.expand([ x.nelement; x.nelement ])
         let hh = dsharp.stack(Array.init x.nelement (fun i -> dsharp.numgrad epsilon f (x + dsharp.onehot(x.nelement, i)*epsilon)))
         fx, g, (hh - h) / epsilon
 

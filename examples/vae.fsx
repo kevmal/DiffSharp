@@ -33,11 +33,26 @@ open DiffSharp
 open DiffSharp.Model
 open DiffSharp.Optim
 open DiffSharp.Data
+open DiffSharp.Symbols
 
 
-type VAE(xDim:int, zDim:int, ?hDims:seq<int>, ?activation:Tensor->Tensor, ?activationLast:Tensor->Tensor) =
+dsharp.config(device=sym?Default, dtype=sym?Default, backend=Backend.Symbolic) // symbolic default device, symbolic default dtype
+dsharp.tensor([1;1])
+dsharp.zeros([sym?M;sym?N])
+dsharp.zeros([sym?M;sym?N]) + dsharp.zeros([sym?M;sym?N])
+dsharp.zeros([sym?M;sym?N]) + dsharp.zeros([1;1])
+dsharp.zeros([1;2]) + dsharp.zeros([1;1])
+dsharp.zero() + dsharp.zero()
+
+
+test case v. type checking  = "works"  = no type errors for all values of right type
+
+test case v. shape checking = "works"  = no shape errors for all values of right shape 
+
+/// !VAE(N*28*28, Z, [H1; H2]).loss(B*N*28*28)
+type VAE(xDim:Int, zDim:Int, ?hDims:seq<int>, ?activation:Tensor->Tensor, ?activationLast:Tensor->Tensor) =
     inherit Model()
-    let hDims = defaultArg hDims (let d = (xDim+zDim)/2 in seq [d; d]) |> Array.ofSeq
+    let hDims = defaultArg hDims (let d = (xDim+zDim+1)/2 in seq [d; d]) |> Array.ofSeq
     let activation = defaultArg activation dsharp.relu
     let activationLast = defaultArg activationLast dsharp.sigmoid
     let dims =
@@ -51,6 +66,7 @@ type VAE(xDim:int, zDim:int, ?hDims:seq<int>, ?activation:Tensor->Tensor, ?activ
     do 
         base.add([for m in enc -> box m])
         base.add([for m in dec -> box m])
+
 
     let encode x =
         let mutable x = x
@@ -95,13 +111,44 @@ type VAE(xDim:int, zDim:int, ?hDims:seq<int>, ?activation:Tensor->Tensor, ?activ
         dsharp.randn([|numSamples; zDim|]) |> decode
 
 
-dsharp.config(backend=Backend.Torch, device=Device.CPU)
+dsharp.config(backend=Backend.Symbolic, device=GPU, dtype=Dtype.Float32)
 dsharp.seed(0)
+
+[<SampleModel>]
+let model = VAE(N*28*28, Z, [H1; H2]).loss(B*N*28*28) -> 0
+
+
+X / 28*28
+
+
+model.nparameters
+model.parameters
+model.parameters.dtype
+model.parameters.shape
+
+
+Internally:
+
+1.  int   --> type Dim(value: int)
+2.  int[] --> type Shape(dims: Dim[]) 
+
+Externally (API)
+
+  dsharp.zeros(shape:int[], ...)
+  dsharp.zeros(shape:Shape, ...)   <-- added overload
+
+  dsharp.ones(shape:Shape, ...)   <-- added overload
+
+dsharp.ones(shape:Shape, ...)   <-- added overload
+
+
+
+
+(*
 
 let trainSet = MNIST("./mnist", train=true, transform=id)
 let trainLoader = trainSet.loader(batchSize=32, shuffle=true)
 
-let model = VAE(28*28, 16, [512; 256])
 printfn "%A" model
 
 let optimizer = Adam(model, lr=dsharp.tensor(0.001))
@@ -120,3 +167,4 @@ for epoch = 0 to epochs do
             let samples = model.sample(64).view([-1; 1; 28; 28])
             samples.saveImage(sprintf "samples_%A_%A.png" epoch i)
 
+*)

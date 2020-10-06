@@ -1,92 +1,7 @@
 ﻿namespace DiffSharp
 
-/// <summary>
-///   Represents the type of a device. 
-/// </summary>
-///
-/// <remarks>
-///   The numeric values used are as for LibTorch.
-/// </remarks>
-///
-/// <namespacedoc>
-///   <summary>Contains fundamental types for the tensor programming model, including Tensor, Shape and dsharp.</summary>
-/// </namespacedoc>
-type DeviceType =
-    | CPU = 0
-    | CUDA = 1 // CUDA.
-    | MKLDNN = 2 // Reserved for explicit MKLDNN
-    | OPENGL = 3 // OpenGL
-    | OPENCL = 4 // OpenCL
-    | IDEEP = 5 // IDEEP.
-    | HIP = 6 // AMD HIP
-    | FPGA = 7 // FPGA
-    | MSNPU = 8 // MSNPU
-    | XLA = 9 // XLA / TPU
-
-/// Represents a device specification.
-[<Struct>]
-type Device =
-    | Device of DeviceType * int
-    member x.DeviceType = (let (Device(a,_)) = x in a)
-    member x.DeviceIndex = (let (Device(_,b)) = x in b)
-    static member CPU = Device(DeviceType.CPU, -1)
-    static member GPU = Device(DeviceType.CUDA, 0)
-
-    member internal x.Code = (int x.DeviceType <<< 4) + x.DeviceIndex
-
-    member internal x.Name =
-       (match x.DeviceType with
-        | DeviceType.CPU -> "cpu"
-        | DeviceType.CUDA -> "cuda"
-        | DeviceType.MKLDNN -> "mkldnn"
-        | DeviceType.OPENGL -> "opengl"
-        | DeviceType.OPENCL -> "opencl"
-        | DeviceType.IDEEP -> "ideep"
-        | DeviceType.HIP -> "hip"
-        | DeviceType.FPGA -> "fpga"
-        | DeviceType.MSNPU -> "msnpu"
-        | DeviceType.XLA -> "xla"
-        | _ -> failwith "unknown device type") + string x.DeviceIndex
-
-/// Contains functions and settings related to device specifications.
-module Device = 
-
-    /// Get or set the default device used when creating tensors. Note, use <c>dsharp.config(...)</c> instead.
-    let mutable Default : Device = Device.CPU
-
-/// Represents a backend for DiffSharp tensors
-[<RequireQualifiedAccess>]
-type Backend =
-    /// The reference backend 
-    | Reference
-    /// The LibTorch backend 
-    | Torch
-    /// Reserved for future use
-    | Other of name: string * code: int
-
-    member internal x.Code = 
-        match x with 
-        | Reference -> 0x000
-        | Torch -> 0x0100
-        | Other (_name, code) -> (code + 3) <<< 8
-
-    /// Get the name of the backend
-    member x.Name = 
-        match x with 
-        | Reference -> "Reference"
-        | Torch -> "Torch"
-        | Other (name, _) -> name
-
-/// Contains functions and settings related to backend specifications.
-module Backend = 
-    let internal count = ref 0
-    let internal codes = System.Collections.Concurrent.ConcurrentDictionary<string,Backend>()
-
-    /// Register a new backend
-    let Register name = codes.GetOrAdd(name, (fun _ -> incr count; Backend.Other(name, count.Value)))
-
-    /// Get or set the default backend used when creating tensors. Note, use <c>dsharp.config(...)</c> instead.
-    let mutable Default = Backend.Reference
+open DiffSharp
+open DiffSharp.ShapeChecking
 
 /// Represents a storage type for elements of a tensor
 [<Struct>]
@@ -108,6 +23,10 @@ type Dtype =
     | Int64
     /// Store elements as booleans
     | Bool
+#if SYMBOLIC_SHAPES
+    /// Allows symbolic dtypes
+    | Sym of Symbol
+#endif
 
     member internal x.Name =
         match x with
@@ -120,25 +39,34 @@ type Dtype =
         | Int32 -> "Int32"
         | Int64 -> "Int64"
         | Bool -> "Bool"
-
-    /// Get the .NET type that corresponds to this type when data is transferred to .NET
-    member x.AsType () =
-        match x with
-        //| Float16 -> typeof<single>
-        | Float32 -> typeof<single>
-        | Float64 -> typeof<double>
-        | Int8 -> typeof<int8>
-        | Byte -> typeof<byte>
-        | Int16 -> typeof<int16>
-        | Int32 -> typeof<int32>
-        | Int64 -> typeof<int64>
-        | Bool -> typeof<bool>
+#if SYMBOLIC_SHAPES
+        | Sym sym -> sym.ToString()
+#endif
 
     /// Gets the natural result of the Sum(), SumToSize() and Sum(dim) operation on this dtype
     member t.SummationType =
         match t with
         | Bool | Byte | Int8 | Int16 | Int32 | Int64 -> Dtype.Int64
+#if SYMBOLIC_SHAPES
+        | Sym symb -> Sym (Symbol.unop "summationType" symb)
+#endif
         | dt -> dt
+
+#if SYMBOLIC_SHAPES
+    member t.AsSymbol(syms: SymbolScope) =
+        match t with
+        | Sym sym -> sym
+        | _ -> syms.CreateConst(t)
+    /// Constraint equality
+    static member (=~=) (a:Dtype,b:Dtype) : bool = 
+        match a, b with 
+        | Sym sym, v2 | v2, Sym sym -> sym.Solve(v2.AsSymbol(sym.SymbolScope))
+        | a, b -> (a = b)
+#else
+    /// Constraint equality
+    static member (=~=) (a:Dtype,b:Dtype) : bool = (a = b)
+#endif
+
 
 /// Contains functions and settings related to tensor element types
 module Dtype =
@@ -146,12 +74,18 @@ module Dtype =
     let (|FloatingPoint|_|) x =
         match x with
         | Float32 | Float64 -> Some()
+#if SYMBOLIC_SHAPES
+        | Sym _ -> failwith "FloatingPoint - symbolic dtype"
+#endif
         | _ -> None
 
     /// Matches all integral tensor element types
     let (|Integral|_|) x =
         match x with
         | Byte | Int8 | Int16 | Int32 | Int64 -> Some()
+#if SYMBOLIC_SHAPES
+        | Sym _ -> failwith "Integral - symbolic dtype"
+#endif
         | _ -> None
 
     /// Matches all integral or boolean tensor element types
@@ -165,6 +99,11 @@ module Dtype =
         if dtype1 = dtype2 then Some dtype1
         else
             match dtype1, dtype2 with 
+#if SYMBOLIC_SHAPES
+            | Sym sym, _ | _, Sym sym ->
+                // TODO: this lays down a constraint
+                Some (Sym (Symbol.binop "widen" (dtype1.AsSymbol(sym.SymbolScope)) (dtype2.AsSymbol(sym.SymbolScope))))
+#endif
             | Float64, _ | _, Float64 -> Some Float64
             | Float32, _ | _, Float32 -> Some Float32
             | Int64, _ | _, Int64 -> Some Int64
@@ -177,20 +116,12 @@ module Dtype =
             | Bool, Bool -> Some Bool
             | Int8, Byte | Byte, Int8  -> None
 
-    /// Convert System.Type to Dtype
-    let ofType (ty: System.Type) =
-        if ty.Equals(typeof<int32>) then Dtype.Int32
-        elif ty.Equals(typeof<double>) then Dtype.Float64
-        elif ty.Equals(typeof<single>) then Dtype.Float32
-        elif ty.Equals(typeof<int64>) then Dtype.Int64
-        elif ty.Equals(typeof<int16>) then Dtype.Int16
-        elif ty.Equals(typeof<int8>) then Dtype.Int8
-        elif ty.Equals(typeof<byte>) then Dtype.Byte
-        elif ty.Equals(typeof<bool>) then Dtype.Bool
-        else failwithf "unknown type '%A' used as tensor type" ty
-
     /// Get or set the default element type used when creating tensors. Note, use <c>dsharp.config(...)</c> instead.
     let mutable Default = Dtype.Float32
+
+#if SYMBOLIC_SHAPES
+    let Symbolic (s: Symbol) : Dtype = Dtype.Sym s
+#endif
 
 /// Contains global functions and settings related to tensor element types, used when writing backends.
 [<AutoOpen>]

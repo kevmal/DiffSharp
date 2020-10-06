@@ -67,7 +67,7 @@ type Tensor =
         if t.backend = backend then t else
         match t with
         | Tensor(tp) -> 
-            let tpflat = tp.ViewT([|tp.Nelement|]) //
+            let tpflat = tp.ViewT(Shape [|tp.Nelement|]) //
             let tpflatValues = tpflat.ToValues()
             Tensor(tp.CreateLike(tpflatValues, backend=backend).ViewT(tp.Shape))
         | TensorF(_) -> failwith "Cannot move TensorF - do not move during differentiation"
@@ -140,6 +140,9 @@ type Tensor =
 
     /// Gets the backend of the tensor
     member t.backend = t.primalRaw.Backend
+
+    /// Determine if the tensor might have symbolic shape, dtype, device
+    member t.symbolic = (t.backend = Backend.ShapeChecking)
 
     /// Gets the differentiation depth of the tensor
     member t.depth =
@@ -241,14 +244,20 @@ type Tensor =
         | Tensor(_) -> true
         | _ -> false
 
+    /// Gets the shape of the tensor, including any possible symbolic shape information
+    member t.shapex = t.primalRaw.Shape
+
     /// Gets the shape of the tensor
-    member t.shape = t.primalRaw.Shape
+    member t.shape = t.shapex.Values
 
     /// Gets the number of dimensions of the tensor
     member t.dim = t.primalRaw.Dim
 
     /// Gets the number of elements in the tensor
-    member t.nelement = t.primalRaw.Nelement
+    member t.nelement = t.primalRaw.Nelement.Value
+
+    /// Gets the number of elements in the tensor as a Int
+    member internal t.nelementfull = t.primalRaw.Nelement
 
     /// Returns the value of a (non-scalar) tensor as an array
     member t.toArray() = t.primalRaw.ToArray()
@@ -430,20 +439,32 @@ type Tensor =
     /// Returns a new tensor filled with '0' values for the given shape, element type and configuration, defaulting to the 
     /// shape and configuration of the input tensor.
     member a.zerosLike(?shape:seq<int>, ?dtype, ?device, ?backend) = 
-        let shape = defaultArg shape (a.shape |> Array.toSeq)
-        Tensor(a.primalRaw.ZerosLike(shape |> Array.ofSeq, ?dtype=dtype, ?device=device, ?backend=backend))
+        let shape = shape |> Option.map Shape.constant
+        let shape = defaultArg shape a.shapex
+        Tensor(a.primalRaw.ZerosLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
+
+    member a.zerosLike(shape:Shape, ?dtype, ?device, ?backend) = 
+        Tensor(a.primalRaw.ZerosLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// Returns a new tensor filled with '1' values for the given shape, element type and configuration, defaulting to the 
     /// shape and configuration of the input tensor.
     member a.onesLike(?shape:seq<int>, ?dtype, ?device, ?backend) = 
-        let shape = defaultArg shape (a.shape |> Array.toSeq)
-        Tensor(a.primalRaw.OnesLike(shape |> Array.ofSeq, ?dtype=dtype, ?device=device, ?backend=backend))
+        let shape = shape |> Option.map Shape.constant
+        let shape = defaultArg shape a.shapex
+        Tensor(a.primalRaw.OnesLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
+
+    member a.onesLike(shape:Shape, ?dtype, ?device, ?backend) = 
+        Tensor(a.primalRaw.OnesLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// Returns a new tensor filled with the given scalar value for the given shape, element type and configuration, defaulting to the 
     /// shape and configuration of the input tensor.
     member a.fullLike(value:scalar, ?shape:seq<int>, ?dtype, ?device, ?backend) = 
-        let shape = defaultArg shape (a.shape |> Array.toSeq)
-        Tensor(a.primalRaw.FullLike(shape |> Array.ofSeq, value, ?dtype=dtype, ?device=device, ?backend=backend))
+        let shape = shape |> Option.map Shape.constant
+        let shape = defaultArg shape a.shapex
+        Tensor(a.primalRaw.FullLike(shape, value, ?dtype=dtype, ?device=device, ?backend=backend))
+
+    member a.fullLike(value:scalar, shape:Shape, ?dtype, ?device, ?backend) = 
+        Tensor(a.primalRaw.FullLike(shape, value, ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// Returns a new scalar tensor for the given shape, element type and configuration, defaulting to the 
     /// shape and configuration of the input tensor.
@@ -453,21 +474,32 @@ type Tensor =
     /// Returns a new tensor with random values drawn from the uniform distribution [0,1) for the
     /// given shape, element type and configuration, defaulting to the shape and configuration of the input tensor.
     member a.randLike(?shape:seq<int>, ?dtype, ?device, ?backend) = 
-        let shape = defaultArg shape (a.shape |> Array.toSeq)
-        Tensor(a.primalRaw.RandomLike((shape |> Array.ofSeq), ?dtype=dtype, ?device=device, ?backend=backend))
+        let shape = shape |> Option.map Shape.constant
+        let shape = defaultArg shape a.shapex
+        Tensor(a.primalRaw.RandomLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
+
+    member a.randLike(shape:Shape, ?dtype, ?device, ?backend) = 
+        Tensor(a.primalRaw.RandomLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// Returns a new tensor with random values drawn from the standard normal distribution, for the
-
     /// given shape, element type and configuration, defaulting to the shape and configuration of the input tensor.
     member a.randnLike(?shape:seq<int>, ?dtype, ?device, ?backend) = 
-        let shape = defaultArg shape (a.shape |> Array.toSeq)
-        Tensor(a.primalRaw.RandomNormalLike(shape |> Array.ofSeq, ?dtype=dtype, ?device=device, ?backend=backend))
+        let shape = shape |> Option.map Shape.constant
+        let shape = defaultArg shape a.shapex
+        Tensor(a.primalRaw.RandomNormalLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
+
+    member a.randnLike(shape:Shape, ?dtype, ?device, ?backend) = 
+        Tensor(a.primalRaw.RandomNormalLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// Returns a new tensor with random integer values drawn from the given range, for the
     /// given shape, element type and configuration, defaulting to the shape and configuration of the input tensor.
     member a.randintLike(low:int, high:int, ?shape:seq<int>, ?dtype, ?device, ?backend) = 
-        let shape = defaultArg shape (a.shape |> Array.toSeq)
-        Tensor(a.primalRaw.RandomIntLike(shape |> Array.ofSeq, low, high, ?dtype=dtype, ?device=device, ?backend=backend))
+        let shape = shape |> Option.map Shape.constant
+        let shape = defaultArg shape a.shapex
+        Tensor(a.primalRaw.RandomIntLike(shape, low, high, ?dtype=dtype, ?device=device, ?backend=backend))
+
+    member a.randintLike(low:int, high:int, shape: Shape, ?dtype, ?device, ?backend) = 
+        Tensor(a.primalRaw.RandomIntLike(shape, low, high, ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// Returns a scalar '0' tensor for the given element type and configuration, defaulting to
     /// the element type and configuration of the input tensor.
@@ -506,6 +538,7 @@ type Tensor =
 
     /// Returns a tensor in the manner of <see cref="M:DiffSharp.dsharp.onehot"/> for the given element type and configuration, defaulting to
     /// the element type and configuration of the input tensor.
+    /// TODO: consider symbolics
     member a.onehotLike(length:int, hot:int, ?dtype, ?device, ?backend) =
         if hot < 0 || hot >= length then failwithf "Expecting 0 <= hot < length"
         a.zerosLike([|length|], ?dtype=dtype, ?device=device, ?backend=backend).addSlice([|hot|], a.onesLike([|1|], ?dtype=dtype, ?device=device, ?backend=backend))
@@ -571,6 +604,7 @@ type Tensor =
         let mutable d = []
         let mutable i = 0
         let mutable j = offset
+        // TODO: symbolics-friendly version of this
         while not finished do
             if i >= a.shape.[dim1] || j >= a.shape.[dim2] then 
                 finished <- true
@@ -608,23 +642,25 @@ type Tensor =
     ///   </para>
     /// </remarks>
     member a.expand(newShape:seq<int>) =
-        let newShape = newShape|>Shape.create
-        if a.shape = newShape then a 
+        a.expandx(newShape|>Shape.constant)
+        
+    member internal a.expandx(newShape:Shape) =
+        if a.shapex = newShape then a 
         else
-            let newShape = Shape.completeExpand a.shape newShape  // Handles -1 semantics
-            Shape.checkCanExpand a.shape newShape
+            let newShape = Shape.completeExpand a.shapex newShape  // Handles -1 semantics
+            Shape.checkCanExpand a.shapex newShape
             match a with
             | Tensor(ap) -> Tensor(ap.Expand(newShape))
             | TensorF(ap,ad,at) ->
-                let cp = ap.expand(newShape)
-                let cd = ad.expand(newShape)
+                let cp = ap.expandx(newShape)
+                let cd = ad.expandx(newShape)
                 TensorF(cp,cd,at)
             | TensorR(ap,_,_,_,at) ->
-                let cp = ap.expand(newShape)
+                let cp = ap.expandx(newShape)
                 TensorR(cp, ref (a.zeroLike()), ExpandT(a), ref 0u, at)
 
     /// <summary>Expand this tensor to the same size as the other.</summary>
-    member a.expandAs(b:Tensor) = a.expand(b.shape)
+    member a.expandAs(b:Tensor) = a.expandx(b.shapex)
 
     /// <summary>Convert tensor to an image tensor with shape Channels x Height x Width</summary>
     member t.toImage(?pixelMin:double, ?pixelMax:double, ?normalize:bool, ?gridCols:int) =
@@ -633,8 +669,9 @@ type Tensor =
         let normalize = defaultArg normalize false
         if t.dim < 1 || t.dim > 4 then failwithf "Expecting the tensor 1 <= dim (%A) <= 4, received shape %A" t.dim t.shape
 
+        let sizes = t.shape
         if t.dim = 4 then // we make an image grid
-            let mutable numItems = t.shape.[0]
+            let mutable numItems = sizes.[0]
             let cols = defaultArg gridCols (int(ceil(sqrt(float(numItems)))))
             if cols < 1 || cols > numItems then failwithf "Expecting 1 <= gridCols (%A) <= %A" cols numItems
             let mutable rows = 0
@@ -642,7 +679,7 @@ type Tensor =
             while items > 0 do
                 rows <- rows + 1
                 items <- items - cols
-            let c, h, w = t.shape.[1], t.shape.[2], t.shape.[3]
+            let c, h, w = sizes.[1], sizes.[2], sizes.[3]
             let mutable tgrid = t.zerosLike([h*rows; w*cols; c])
             // transform [n, c, h, w] to [n, h, w, c]
             let t:Tensor = t.transpose(1, 3)
@@ -663,13 +700,13 @@ type Tensor =
                 pixels <- pixels.view([1; 1; t.nelement])
                 pixels <- pixels.expand([3; -1; -1])
             elif t.dim = 2 then
-                pixels <- pixels.view([1; t.shape.[0]; t.shape.[1]])
+                pixels <- pixels.view([1; sizes.[0]; sizes.[1]])
                 pixels <- pixels.expand([3; -1; -1])
             else
-                if t.shape.[0] = 1 then
+                if sizes.[0] = 1 then
                     pixels <- pixels.expand([3; -1; -1])
-                elif t.shape.[0] <> 3 then 
-                    failwithf "Expecting the number of channels (%A) to be 1 or 3" t.shape.[0]
+                elif sizes.[0] <> 3 then 
+                    failwithf "Expecting the number of channels (%A) to be 1 or 3" sizes.[0]
             if pixelMin < 0. || pixelMin > 1. then failwithf "Expecting 0 <= pixelMin (%A) <= 1" pixelMin
             if pixelMax < 0. || pixelMax > 1. then failwithf "Expecting 0 <= pixelMax (%A) <= 1" pixelMax
             let pixelRange = pixelMax - pixelMin
@@ -687,7 +724,8 @@ type Tensor =
             let c = int (numZeroToOne * float(asciiPalette.Length)) - 1
             let c = min (asciiPalette.Length - 1) (max 0 c)
             asciiPalette.[c]
-        let h, w = pixels.shape.[0], pixels.shape.[1]
+        let sizes = pixels.shape
+        let h, w = sizes.[0], sizes.[1]
         let sb = System.Text.StringBuilder()
         for y=0 to h-1 do
             for x=0 to w-1 do
@@ -698,7 +736,8 @@ type Tensor =
     /// <summary>Save tensor to an image file using png or jpg format</summary>
     member t.saveImage(fileName:string, ?pixelMin:double, ?pixelMax:double, ?normalize:bool, ?gridCols:int) =
         let pixels:Tensor = t.toImage(?pixelMin=pixelMin, ?pixelMax=pixelMax, ?normalize=normalize, ?gridCols=gridCols)
-        let c, h, w = pixels.shape.[0], pixels.shape.[1], pixels.shape.[2]        
+        let sizes = pixels.shape
+        let c, h, w = sizes.[0], sizes.[1], sizes.[2]        
         let image = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.RgbaVector>(w, h)
         for y=0 to h-1 do
             for x=0 to w-1 do
@@ -734,11 +773,15 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member internal t.GetSlice(bounds:int[,]) =
+        t.GetSlice(bounds |> Array2D.map Int)
+
+    /// <summary>TBD</summary>
+    member internal t.GetSlice(bounds:Int[,]) =
         // printfn "t.GetSlice bounds\n %A" bounds
         if t.dim = 0 then failwith "Cannot slice a scalar Tensor"
-        let fullBounds = Array2D.init t.dim 3 (fun i j -> if j=0 then 0 elif j=1 then t.shape.[i]-1 else 0)
+        let fullBounds = Array2D.init t.dim 3 (fun i j -> if j=0 then Int 0 elif j=1 then t.shapex.[i]-1 else Int 0)
         bounds |> Array2D.iteri (fun i j v -> 
-            if j=1 && v >= t.shape.[i] then failwithf "Index outside the bounds of Tensor shape %A" t.shape
+            if j=1 && v >= t.shapex.[i] then failwithf "Index outside the bounds of Tensor shape %A" t.shape
             fullBounds.[i, j] <- v)
         // printfn "t.GetSlice fullBounds\n %A" fullBounds
         match t with
@@ -751,7 +794,7 @@ type Tensor =
         with get([<System.ParamArray>] index:int[]) =
             if t.dim = 0 then failwith "Cannot index a scalar Tensor"
             if index.Length > t.dim then failwithf "Expecting an index with <=%i dimensions" t.dim
-            let bounds = Array2D.init index.Length 3 (fun i j -> if j=2 then 1 else index.[i])
+            let bounds = Array2D.init index.Length 3 (fun i j -> if j=2 then Int 1 else Int index.[i])
             t.GetSlice(bounds)
 
     /// <summary>
@@ -783,7 +826,7 @@ type Tensor =
         let dim = defaultArg dim 0 
         let tensors = tensors |> Seq.toArray
         // TODO: check if all Tensors are of the same type (Tensor, TensorF, or TensorR) and have the same nesting tag
-        let shapes = tensors |> Array.map (fun t -> t.shape)
+        let shapes = tensors |> Array.map (fun t -> t.shapex)
         Shape.checkCanStack shapes dim |> ignore
         match Seq.head tensors with
         | Tensor(ap) -> Tensor(ap.StackTs((tensors |> Array.map (fun t -> t.primalRaw)), dim))
@@ -801,7 +844,7 @@ type Tensor =
     /// <returns>Returns an array of all slices along a given dimension.</returns>
     member a.unstack (?dim:int) =
         let dim = defaultArg dim 0 
-        Shape.checkCanUnstack a.shape |> ignore
+        Shape.checkCanUnstack a.shapex |> ignore
         match a with
         | Tensor(ap) -> ap.UnstackT(dim) |> Array.map Tensor
         | TensorF(ap,ad,at) -> Array.map2 (fun p d -> TensorF(p,d,at)) (ap.unstack(dim)) (ad.unstack(dim))
@@ -830,6 +873,9 @@ type Tensor =
     /// <param name="sizes">List of sizes for each chunk</param>
     /// <param name="dim">The dimension along which to split the tensor, defaults to 0.</param>
     member a.split (sizes: seq<int>, ?dim: int) =
+        a.split ((sizes |> Seq.map Int), ?dim=dim)
+
+    member a.split (sizes: seq<Int>, ?dim: int) =
         let dim = defaultArg dim 0
         let sizes = sizes |> Seq.toArray
         match a with
@@ -877,7 +923,7 @@ type Tensor =
                 let aCast = a.cast(tnew)
                 let bCast = b.cast(tnew)
                 aCast + bCast
-        elif a.shape = b.shape then
+        elif a.shapex = b.shapex then
             let fRaw(a:RawTensor,b) = a.AddTT(b)
             let fTensor(a,b) = a + b
             let dfTensorFwdTT(cp,ap,ad,bp:Tensor,bd:Tensor) = ad + bd
@@ -891,7 +937,7 @@ type Tensor =
             let fRaw(a,b:RawTensor) = b.AddTT0(a)
             let fTensor(a,b) = a + b
             let dfTensorFwdTT(cp,ap,ad,bp:Tensor,bd:Tensor) = ad + bd
-            let dfTensorFwdTC(cp,ap,ad:Tensor) = ad.expand(b.shape)
+            let dfTensorFwdTC(cp,ap,ad:Tensor) = ad.expandx(b.shapex)
             let dfTensorFwdCT(cp,bp,bd) = bd
             let dfTensorRevTT(a,b) = AddTT0(b,a)
             let dfTensorRevTC(a,b) = AddTConstT0(a)
@@ -902,12 +948,12 @@ type Tensor =
             let fTensor(a,b) = a + b
             let dfTensorFwdTT(cp,ap,ad,bp:Tensor,bd:Tensor) = ad + bd
             let dfTensorFwdTC(cp,ap,ad) = ad
-            let dfTensorFwdCT(cp,bp,bd:Tensor) = bd.expand(a.shape)
+            let dfTensorFwdCT(cp,bp,bd:Tensor) = bd.expandx(a.shapex)
             let dfTensorRevTT(a,b) = AddTT0(a,b)
             let dfTensorRevTC(a,b) = AddTT0Const(a)
             let dfTensorRevCT(a,b) = AddTConstT0(b)
             Tensor.OpBinary(a, b, fRaw, fTensor, dfTensorFwdTT, dfTensorFwdTC, dfTensorFwdCT, dfTensorRevTT, dfTensorRevTC, dfTensorRevCT)
-        elif a.dim = 2 && b.dim = 1 && a.shape.[1] = b.shape.[0] then
+        elif a.dim = 2 && b.dim = 1 && a.shapex.[1] = b.shapex.[0] then
             let fRaw(a:RawTensor,b) = a.AddT2T1(b)
             let fTensor(a,b) = a + b
             let dfTensorFwdTT(cp,ap,ad,bp:Tensor,bd:Tensor) = ad + bd
@@ -917,7 +963,7 @@ type Tensor =
             let dfTensorRevTC(a,b) = AddT2T1Const(a)
             let dfTensorRevCT(a,b) = AddT2ConstT1(b)
             Tensor.OpBinary(a, b, fRaw, fTensor, dfTensorFwdTT, dfTensorFwdTC, dfTensorFwdCT, dfTensorRevTT, dfTensorRevTC, dfTensorRevCT)
-        elif a.dim = 1 && b.dim = 2 && a.shape.[0] = b.shape.[1] then
+        elif a.dim = 1 && b.dim = 2 && a.shapex.[0] = b.shapex.[1] then
             let fRaw(a,b:RawTensor) = b.AddT2T1(a)
             let fTensor(a,b) = a + b
             let dfTensorFwdTT(cp,ap,ad,bp:Tensor,bd:Tensor) = ad + bd
@@ -928,9 +974,9 @@ type Tensor =
             let dfTensorRevCT(a,b) = AddT2T1Const(b)
             Tensor.OpBinary(a, b, fRaw, fTensor, dfTensorFwdTT, dfTensorFwdTC, dfTensorFwdCT, dfTensorRevTT, dfTensorRevTC, dfTensorRevCT)
         else
-            let newShape = Shape.broadcast2 a.shape b.shape
-            let aExpanded = a.expand(newShape)
-            let bExpanded = b.expand(newShape)
+            let newShape = Shape.broadcast2 a.shapex b.shapex
+            let aExpanded = a.expandx(newShape)
+            let bExpanded = b.expandx(newShape)
             aExpanded + bExpanded
 
     /// <summary>Each element of the tensor <paramref name="a" /> is added to the scalar <paramref name="b" />. The resulting tensor is returned.</summary>
@@ -956,7 +1002,7 @@ type Tensor =
                 let aCast = a.cast(tnew)
                 let bCast = b.cast(tnew)
                 aCast - bCast
-        elif a.shape = b.shape then
+        elif a.shapex = b.shapex then
             let fRaw(a:RawTensor,b) = a.SubTT(b)
             let fTensor(a,b) = a - b
             let dfTensorFwdTT(cp,ap,ad,bp,bd) = ad - bd
@@ -970,7 +1016,7 @@ type Tensor =
             let fRaw(a:RawTensor,b) = a.SubT0T(b)
             let fTensor(a,b) = a - b
             let dfTensorFwdTT(cp,ap,ad,bp,bd) = ad - bd
-            let dfTensorFwdTC(cp,ap,ad:Tensor) = ad.expand(b.shape)
+            let dfTensorFwdTC(cp,ap,ad:Tensor) = ad.expandx(b.shapex)
             let dfTensorFwdCT(cp,bp,bd) = -bd
             let dfTensorRevTT(a,b) = SubT0T(a,b)
             let dfTensorRevTC(a,b) = SubT0TConst(a)
@@ -981,15 +1027,15 @@ type Tensor =
             let fTensor(a,b) = a - b
             let dfTensorFwdTT(cp,ap,ad,bp,bd) = ad - bd
             let dfTensorFwdTC(cp,ap,ad) = ad
-            let dfTensorFwdCT(cp,bp,bd:Tensor) = (-bd).expand(a.shape)
+            let dfTensorFwdCT(cp,bp,bd:Tensor) = (-bd).expandx(a.shapex)
             let dfTensorRevTT(a,b) = SubTT0(a,b)
             let dfTensorRevTC(a,b) = SubTT0Const(a)
             let dfTensorRevCT(a,b) = SubTConstT0(b)
             Tensor.OpBinary(a, b, fRaw, fTensor, dfTensorFwdTT, dfTensorFwdTC, dfTensorFwdCT, dfTensorRevTT, dfTensorRevTC, dfTensorRevCT)
         else
-            let newShape = Shape.broadcast2 a.shape b.shape
-            let aExpanded = a.expand(newShape)
-            let bExpanded = b.expand(newShape)
+            let newShape = Shape.broadcast2 a.shapex b.shapex
+            let aExpanded = a.expandx(newShape)
+            let bExpanded = b.expandx(newShape)
             aExpanded - bExpanded
 
     /// <summary>Subtracts the scalar <paramref name="b" /> from the corresponding element of the tensor <paramref name="a" />. The resulting tensor is returned.</summary>
@@ -1015,7 +1061,7 @@ type Tensor =
                 let aCast = a.cast(tnew)
                 let bCast = b.cast(tnew)
                 aCast * bCast
-        elif a.shape = b.shape then
+        elif a.shapex = b.shapex then
             let fRaw(a:RawTensor,b) = a.MulTT(b)
             let fTensor(a,b) = a * b
             let dfTensorFwdTT(cp:Tensor,ap:Tensor,ad:Tensor,bp:Tensor,bd:Tensor) = (ad * bp) + (ap * bd)
@@ -1046,9 +1092,9 @@ type Tensor =
             let dfTensorRevCT(a,b) = MulTConstT0(a,b)
             Tensor.OpBinary(a, b, fRaw, fTensor, dfTensorFwdTT, dfTensorFwdTC, dfTensorFwdCT, dfTensorRevTT, dfTensorRevTC, dfTensorRevCT)
         else
-            let newShape = Shape.broadcast2 a.shape b.shape
-            let aExpanded = a.expand(newShape)
-            let bExpanded = b.expand(newShape)
+            let newShape = Shape.broadcast2 a.shapex b.shapex
+            let aExpanded = a.expandx(newShape)
+            let bExpanded = b.expandx(newShape)
             aExpanded * bExpanded
 
     /// <summary>Multiplies each element of the tensor <paramref name="a" /> by the scalar <paramref name="b" />. The resulting tensor is returned.</summary>
@@ -1075,7 +1121,7 @@ type Tensor =
                 let aCast = a.cast(tnew)
                 let bCast = b.cast(tnew)
                 aCast / bCast
-        elif a.shape = b.shape then
+        elif a.shapex = b.shapex then
             let fRaw(a:RawTensor,b) = a.DivTT(b)
             let fTensor(a,b) = a / b
             let dfTensorFwdTT(cp:Tensor,ap:Tensor,ad:Tensor,bp:Tensor,bd:Tensor) = (ad - bd * cp) / bp
@@ -1106,9 +1152,9 @@ type Tensor =
             let dfTensorRevCT(a,b) = DivTConstT0(a,b)
             Tensor.OpBinary(a, b, fRaw, fTensor, dfTensorFwdTT, dfTensorFwdTC, dfTensorFwdCT, dfTensorRevTT, dfTensorRevTC, dfTensorRevCT)
         else
-            let newShape = Shape.broadcast2 a.shape b.shape
-            let aExpanded = a.expand(newShape)
-            let bExpanded = b.expand(newShape)
+            let newShape = Shape.broadcast2 a.shapex b.shapex
+            let aExpanded = a.expandx(newShape)
+            let bExpanded = b.expandx(newShape)
             aExpanded / bExpanded
 
     /// <summary>Divides each element of the tensor <paramref name="a" /> by the scalar <paramref name="b" />. The resulting tensor is returned.</summary>
@@ -1135,7 +1181,7 @@ type Tensor =
                 let aCast = a.cast(tnew)
                 let bCast = b.cast(tnew)
                 Tensor.Pow (aCast, bCast)
-        elif a.shape = b.shape then
+        elif a.shapex = b.shapex then
             let fRaw(a:RawTensor,b) = a.PowTT(b)
             let fTensor(a:Tensor,b:Tensor) = a ** b
             let dfTensorFwdTT(cp:Tensor,ap:Tensor,ad:Tensor,bp:Tensor,bd:Tensor) = (ap ** (bp - 1.)) * (ad * bp + ap * bd * log ap)
@@ -1166,9 +1212,9 @@ type Tensor =
             let dfTensorRevCT(a,b) = PowTConstT0(a,b)
             Tensor.OpBinary(a, b, fRaw, fTensor, dfTensorFwdTT, dfTensorFwdTC, dfTensorFwdCT, dfTensorRevTT, dfTensorRevTC, dfTensorRevCT)
         else
-            let newShape = Shape.broadcast2 a.shape b.shape
-            let aExpanded = a.expand(newShape)
-            let bExpanded = b.expand(newShape)
+            let newShape = Shape.broadcast2 a.shapex b.shapex
+            let aExpanded = a.expandx(newShape)
+            let bExpanded = b.expandx(newShape)
             Tensor.Pow(aExpanded, bExpanded)
 
     /// <summary>Raises each element of the tensor <paramref name="a" /> to the power of the scalar <paramref name="b" />. The resulting tensor is returned.</summary>
@@ -1198,7 +1244,7 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member a.matmul (b:Tensor) =
-        Shape.checkCanMatmul a.shape b.shape
+        Shape.checkCanMatmul a.shapex b.shapex
         let fRaw(a:RawTensor,b) = a.MatMulT2T2(b)
         let fTensor(a:Tensor,b) = a.matmul(b)
         let dfTensorFwdTT(cp,ap:Tensor,ad:Tensor,bp:Tensor,bd:Tensor) = ad.matmul(bp) + ap.matmul(bd)
@@ -1212,7 +1258,7 @@ type Tensor =
     /// <summary>Computes the dot product (inner product) of two tensors.</summary>
     /// <remarks>This function does not broadcast.</remarks>
     member a.dot(b:Tensor) =
-        Shape.checkCanDot a.shape b.shape
+        Shape.checkCanDot a.shapex b.shapex
         let a:Tensor = a.view([1;a.nelement])
         let b:Tensor = b.view([b.nelement;1])
         a.matmul(b).view([])
@@ -1250,14 +1296,16 @@ type Tensor =
         if dim = 0 && a.dim = 0 then a
         else
             if dim >= a.dim || dim < 0 then failwithf "Expecting dim to be between 0 and %A" a.dim
-            let sBounds = Array2D.init a.dim 3 (fun i j -> if j=0 then 0 elif j=1 then a.shape.[i]-1 else 0)
-            sBounds.[dim, 1] <- 0
-            sBounds.[dim, 2] <- 1
+            let sBounds = Array2D.init a.dim 3 (fun i j -> if j=0 then Int 0 elif j=1 then a.shapex.[i]-1 else Int 0)
+            sBounds.[dim, 1] <- Int 0
+            sBounds.[dim, 2] <- Int 1
             let mutable s = a.zerosLike(dtype=a.dtype.SummationType).GetSlice(sBounds)
-            for i=0 to a.shape.[dim]-1 do
-                sBounds.[dim,0] <- i
-                sBounds.[dim,1] <- i
-                sBounds.[dim,2] <- 1
+            // Note: symbolics skip this
+            if not a.symbolic then 
+              for i=0 to a.shape.[dim]-1 do
+                sBounds.[dim,0] <- Int i
+                sBounds.[dim,1] <- Int i
+                sBounds.[dim,2] <- Int 1
                 s <- s + a.GetSlice(sBounds).cast(a.dtype.SummationType)
             s
        let res2 = if keepDim then res.unsqueeze(dim) else res
@@ -1265,7 +1313,11 @@ type Tensor =
 
     /// <summary>Sum this tensor to size <paramref name="newShape" />, which must be broadcastable to this tensor size.</summary>
     member a.sumToSize(newShape:int[], ?dtype: Dtype) =
-        let oldShape = a.shape
+        a.sumToSize(Shape.constant newShape, ?dtype=dtype)
+
+    /// <summary>Sum this tensor to size <paramref name="newShape" />, which must be broadcastable to this tensor size.</summary>
+    member a.sumToSize(newShape:Shape, ?dtype: Dtype) =
+        let oldShape = a.shapex
         if oldShape = newShape then
             a.cast(defaultArg dtype a.dtype.SummationType)
         elif newShape.Length = 0 then
@@ -1284,7 +1336,7 @@ type Tensor =
             result.castAfterSummation(?dtype=dtype)
 
     /// <summary>Returns the mean value of all elements in the input tensor</summary>
-    member a.mean() = a.sum() / a.nelement
+    member a.mean() = a.sum() / a.nelementfull.ValueOrOne
 
     /// <summary>Returns the mean value of each row of the input tensor in the given dimension dim.</summary>
     /// <remarks>If keepdim is True, the output tensor is of the same size as input except in the dimension dim where it is of size 1. Otherwise, dim is squeezed, resulting in the output tensor having 1 fewer dimension.</remarks>
@@ -1295,7 +1347,7 @@ type Tensor =
         if dim = 0 && a.dim = 0 then a
         else 
            let sm = a.sum(dim, ?keepDim=keepDim)
-           let dv = sm / a.shape.[dim]
+           let dv = sm / a.shapex.[dim].ValueOrOne
            dv
 
     /// <summary>Returns the variance of all elements in the input tensor.</summary>
@@ -1303,8 +1355,8 @@ type Tensor =
     /// <param name="unbiased ">Whether to use the unbiased estimation or not.</param>
     member a.variance(?unbiased:bool) = 
         let unbiased = defaultArg unbiased true  // Use Bessel's correction if unbiased=true
-        let n = if unbiased then a.nelement - 1 else a.nelement
-        let a' = a - a.mean() in (a' * a').sum() / n
+        let n = if unbiased then a.nelementfull - 1 else a.nelementfull
+        let a' = a - a.mean() in (a' * a').sum() / n.ValueOrOne
 
     /// <summary>Returns the variance of each row of the input tensor in the given dimension dim.</summary>
     /// <remarks>
@@ -1315,20 +1367,24 @@ type Tensor =
     /// <param name="keepDim">Whether the output tensor has dim retained or not.</param>
     /// <param name="unbiased ">Whether to use the unbiased estimation or not.</param>
     member a.variance(dim:int, ?keepDim:bool, ?unbiased:bool) =
-         // TODO: this is the naive algorithm, can be improved for better numerical stability
+      if a.symbolic then
+          a.mean(dim, ?keepDim=keepDim)
+      else
+        // Note: symbolics skip this
+        // TODO: this is the naive algorithm, can be improved for better numerical stability
         let keepDim = defaultArg keepDim false
         let unbiased = defaultArg unbiased true  // Use Bessel's correction if unbiased=true
         let dim = Shape.completeDim a.dim dim  // Handles -1 semantics
-        let sBounds = Array2D.init a.dim 3 (fun i j -> if j=0 then 0 elif j=1 then a.shape.[i]-1 else 0)
-        sBounds.[dim, 1] <- 0
-        sBounds.[dim, 2] <- 1
+        let sBounds = Array2D.init a.dim 3 (fun i j -> if j=0 then Int 0 elif j=1 then a.shapex.[i]-1 else Int 0)
+        sBounds.[dim, 1] <- Int 0
+        sBounds.[dim, 2] <- Int 1
         let mutable s = a.zerosLike().GetSlice(sBounds)
         let mutable sSquare = a.zerosLike().GetSlice(sBounds)
-        let n = a.shape.[dim]
+        let n = a.shapex.[dim].Value
         for i=0 to n-1 do
-            sBounds.[dim,0] <- i
-            sBounds.[dim,1] <- i
-            sBounds.[dim,2] <- 1
+            sBounds.[dim,0] <- Int i
+            sBounds.[dim,1] <- Int i
+            sBounds.[dim,2] <- Int 1
             let slice = a.GetSlice(sBounds)
             s <- s + slice
             sSquare <- sSquare + slice * slice
@@ -1385,11 +1441,11 @@ type Tensor =
         let backend = defaultArg backend probs.backend
         if probs.dim = 0 then
             let b = Random.Bernoulli (float probs)
-            Tensor.create(b, dtype=dtype, device=device, backend=backend).view(probs.shape)
+            Tensor.create(b, dtype=dtype, device=device, backend=backend).viewx(probs.shapex)
         else
             let p:Tensor = probs.float().flatten()
             let b = p.toArray() :?> float[] |> Array.map Random.Bernoulli
-            Tensor.create(b, dtype=dtype, device=device, backend=backend).view(probs.shape)
+            Tensor.create(b, dtype=dtype, device=device, backend=backend).viewx(probs.shapex)
 
     /// <summary>TBD</summary>
     member a.dropout(?p:double) =
@@ -1406,25 +1462,27 @@ type Tensor =
     /// <summary>TBD</summary>
     member a.dropout2d(?p:double) =
         let p = defaultArg p 0.5
-        Shape.checkCanDropout2d a.shape p
+        Shape.checkCanDropout2d a.shapex p
         if p = 0. then
             a
         elif p = 1. then
             a * a.zerosLike()
         else
-            let mask = a.fullLike(1.-p, Array.append a.shape.[0..1] [|1;1|]).bernoulli()
+            let shape = Shape (Array.append a.shapex.[0..1].Dims [|Int 1;Int 1|])
+            let mask = a.fullLike(1.-p, shape).bernoulli()
             a * mask
 
     /// <summary>TBD</summary>
     member a.dropout3d(?p:double) =
         let p = defaultArg p 0.5
-        Shape.checkCanDropout3d a.shape p
+        Shape.checkCanDropout3d a.shapex p
         if p = 0. then
             a
         elif p = 1. then
             a * a.zerosLike()
         else
-            let mask = a.fullLike(1.-p, Array.append a.shape.[0..1] [|1;1;1|]).bernoulli()
+            let shape = Shape (Array.append a.shapex.[0..1].Dims [|Int 1;Int 1;Int 1|])
+            let mask = a.fullLike(1.-p, shape).bernoulli()
             a * mask
 
     /// <summary>TBD</summary>
@@ -1440,7 +1498,7 @@ type Tensor =
     member a.transpose(dim0:int, dim1:int) =
         let dim0 = Shape.completeDim a.dim dim0  // Handles -1 semantics
         let dim1 = Shape.completeDim a.dim dim1  // Handles -1 semantics
-        Shape.checkCanTranspose a.shape dim0 dim1
+        Shape.checkCanTranspose a.shapex dim0 dim1
         if dim0 = dim1 then
             a
         else
@@ -1507,19 +1565,24 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member a.repeat(dim:int, times:int) =
-        Shape.checkCanRepeat a.shape dim
-        let newShape = a.shape |> Array.copy
+        a.repeat(dim, Int times)
+
+    member a.repeat(dim:int, times:Int) =
+        Shape.checkCanRepeat a.shapex dim
+        let newShape = a.shapex.Dims |> Array.copy
         newShape.[dim] <- times
-        let mutable ret = a.zerosLike(newShape)
+        // Note: symbolics skip this
+        if a.symbolic then a.zerosLike(Shape newShape) else
+        let mutable ret = a.zerosLike(Shape newShape)
         let location = Array.create a.dim 0
-        for i=0 to times-1 do
+        for i=0 to times.Value-1 do
             location.[dim] <- i
             ret <- ret.addSlice(location, a)
         ret
 
     /// <summary>TBD</summary>
     member a.gather(dim:int, indices:Tensor) =
-        Shape.checkCanGather a.shape dim indices.shape indices.dtype
+        Shape.checkCanGather a.shapex dim indices.shapex indices.dtype
         let fRaw(a:RawTensor) = a.GatherT(dim, indices.primalRaw)
         let fTensor(a:Tensor) = a.gather(dim, indices)
         let dfTensorFwd(cp,ap,ad:Tensor) = ad.gather(dim, indices)
@@ -1528,12 +1591,17 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member a.view(shape:seq<int>) =
-        let shape = shape |> Shape.create |> Shape.complete a.nelement  // Handles -1 semantics
-        Shape.checkCanView a.shape shape
+        let shape = shape |> Shape.constant
+        a.viewx(shape)
+
+    /// <summary>TBD</summary>
+    member a.viewx(shape:Shape) =
+        let shape = shape |> Shape.complete a.nelementfull  // Handles -1 semantics
+        Shape.checkCanView a.shapex shape
         let fRaw(a:RawTensor) = a.ViewT(shape)
-        let fTensor(a:Tensor) = a.view(shape)
-        let dfTensorFwd(cp,ap,ad:Tensor) = ad.view(shape)
-        let dfTensorRev(a) = ViewT(a, a.shape)
+        let fTensor(a:Tensor) = a.viewx(shape)
+        let dfTensorFwd(cp,ap,ad:Tensor) = ad.viewx(shape)
+        let dfTensorRev(a) = ViewT(a, a.shapex)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
     /// <summary>Returns a new tensor with the same data as the object tensor but of a different shape.</summary>
@@ -1544,10 +1612,10 @@ type Tensor =
     ///   \(\forall i = d, \dots, d+k-1∀i=d,…,d+k−1 ,\) \[\text{stride}[i] = \text{stride}[i+1] \times \text{size}[i+1]\]
     /// </remarks>
     /// <param name="shape">the desired shape</param>
-    member t.view(shape:int) = t.view([|shape|])
+    member t.view(shape:int) = t.viewx(Shape [|shape|])
 
     /// <summary>TBD</summary>
-    member a.viewAs(b:Tensor) = a.view(b.shape)
+    member a.viewAs(b:Tensor) = a.viewx(b.shapex)
 
     /// <summary>TBD</summary>
     member a.flatten(?startDim:int, ?endDim:int) =
@@ -1556,8 +1624,8 @@ type Tensor =
         else
             let startDim = defaultArg startDim 0
             let endDim = defaultArg endDim (a.dim - 1)
-            Shape.checkCanFlatten a.shape startDim endDim
-            a.view(a.shape |> Shape.flatten startDim endDim)
+            let shape = Shape.checkCanFlatten a.shapex startDim endDim
+            a.viewx(shape)
 
     member internal a.clampWithMask(?low:scalar, ?high:scalar) =
         let lowTensor, highTensor = 
@@ -1567,8 +1635,8 @@ type Tensor =
             | None,   Some h -> a.min(), a.like(h)
             | None, None     -> failwithf "Expecting at least one of low, high"
         let mask() = // one-zero mask where the clamped values are zero and the rest are one
-            let ll = lowTensor.expand(a.shape)
-            let hh = highTensor.expand(a.shape)
+            let ll = lowTensor.expandx(a.shapex)
+            let hh = highTensor.expandx(a.shapex)
             1 - (a.lt(ll) + a.gt(hh)).cast(a.dtype)
         match a with
         | Tensor(ap)           -> let result, mask = ap.ClampT(lowTensor.primalRaw, highTensor.primalRaw), mask() in Tensor(result), mask
@@ -1805,8 +1873,12 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member a.addSlice(location:seq<int>, b:Tensor) =
-        let location = location |> Seq.toArray
-        Shape.checkCanAddSlice a.shape location b.shape
+        let location = location |> Seq.toArray |> Array.map Int
+        a.addSlice(location, b)
+
+    member a.addSlice(location:seq<Int>, b:Tensor) =
+        let location = location |> Seq.toArrayQuick
+        Shape.checkCanAddSlice a.shapex location b.shapex
         let fRaw(a:RawTensor,b) = a.AddTTSlice(location, b)
         let fTensor(a:Tensor,b) = a.addSlice(location, b)
         let dfTensorFwdTT(cp,ap,ad:Tensor,bp:Tensor,bd:Tensor) = ad.addSlice(location, bd)
@@ -1821,7 +1893,7 @@ type Tensor =
     member a.softmax(dim:int) =
         let dim = Shape.completeDim a.dim dim  // Handles -1 semantics
         let e = (a - a.max().noDiff()).exp()
-        let esum = e.sum(dim, keepDim=true).repeat(dim, a.shape.[dim])
+        let esum = e.sum(dim, keepDim=true).repeat(dim, a.shapex.[dim])
         e / esum
 
     /// <summary>TBD</summary>
@@ -1859,7 +1931,7 @@ type Tensor =
         if input.dim < 1 then let ret:Tensor = input.view(-1).bceLoss(target.view(-1), ?weight=weight, ?reduction=reduction) in if ret.dim = 0 then ret else ret.[0]
         else
         let n = input.shape.[0]
-        let weight = defaultArg weight (input.onesLike(shape=[|n|]))
+        let weight = defaultArg weight (input.onesLike(shape=Shape[|n|]))
         if weight.shape.[0] <> n then failwithf "Expecting weight to be a vector of size %A, but received %A" n weight.shape.[0]
         let reduction = defaultArg reduction "mean"
         if not (reduction = "none" || reduction = "mean" || reduction = "sum") then failwithf "Expecting reduction (%A) to be one of (none, mean, sum)" reduction
@@ -1882,19 +1954,25 @@ type Tensor =
             if input.dim < 2 
                 then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
             elif input.dim = 2 then
-                let n, c = input.shape.[0], input.shape.[1]
-                if target.shape <> [|n|] then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
-                n, c, [||]
+                let n, c = input.shapex.[0], input.shapex.[1]
+                if target.shapex.Dims <> [|n|] then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
+                n, c, Shape.scalar
             else
-                let n, c, d = input.shape.[0], input.shape.[1], input.shape.[2..]
-                if target.shape.[0] <> n then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
-                if d <> target.shape.[1..] then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
+                let n, c, d = input.shapex.[0], input.shapex.[1], input.shapex.[2..]
+                if target.shapex.[0] <> n then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
+                if d <> target.shapex.[1..] then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
                 n, c, d
+
+        // In symbolics the rest is skipped
+        if input.symbolic then input.sum() else
+        let n = n.Value
+        let classes = classes.Value
+
         let mutable weightSpecified = false
         let mutable ww = input.zeroLike()
         match weight with
         | Some w -> ww <- w; weightSpecified <- true
-        | None -> ww <- input.onesLike([classes]); weightSpecified <- false
+        | None -> ww <- input.onesLike([|classes|]); weightSpecified <- false
         let weight = ww
         let reduction = defaultArg reduction "mean"
         if not (reduction = "none" || reduction = "mean" || reduction = "sum") then failwithf "Expecting reduction (%A) to be one of (none, mean, sum)" reduction
@@ -1921,7 +1999,7 @@ type Tensor =
                                                                     let w = weight.[target]
                                                                     wacc <- wacc + w
                                                                     -w*aa.[target, j]) |> Tensor.stack
-                                    l.view(d)) |> Tensor.stack
+                                    l.viewx(d)) |> Tensor.stack
             if reduction = "none" then
                 l
             elif reduction = "mean" then
@@ -1932,21 +2010,21 @@ type Tensor =
     /// <summary>TBD</summary>
     member a.pad(paddings:seq<int>) =
         let paddings = paddings |> Array.ofSeq
-        Shape.checkCanPad a.shape paddings
+        Shape.checkCanPad a.shapex paddings
         if paddings |> Array.sum = 0 then
             a
         else
-            let shape = Array.copy a.shape
+            let shape = Array.copy a.shapex.Dims
             for i in 0..shape.Length-1 do
                 shape.[i] <- shape.[i] + paddings.[i] * 2
-            let ret = a.zerosLike(shape)
+            let ret = a.zerosLike(Shape shape)
             ret.addSlice(paddings, a)
 
     /// <summary>TBD</summary>
     member a.maxpool1di(kernelSize:int, ?stride:int, ?padding:int) =
         let stride = defaultArg stride kernelSize
         let padding = defaultArg padding 0
-        Shape.checkCanMaxpool1d a.dtype a.shape kernelSize stride padding  |> ignore
+        Shape.checkCanMaxpool1d a.dtype a.shapex kernelSize stride padding  |> ignore
         match a with
         | Tensor(ap)           -> let result, indices = ap.MaxPool1D(kernelSize, stride, padding) in Tensor(result), Tensor(indices)
         | TensorF(ap,ad,at)    -> let result, indices = ap.maxpool1di(kernelSize, stride, padding) in TensorF(result, ad.gather(dim=2, indices=indices), at), indices
@@ -1957,18 +2035,22 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member a.maxunpool1d(indices:Tensor, kernelSize:int, ?stride:int, ?padding:int, ?outputSize:seq<int>) =
+        a.maxunpool1dx(indices, kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?outputSize=Option.map (Seq.map Int) outputSize)
+
+    /// <summary>TBD</summary>
+    member internal a.maxunpool1dx(indices:Tensor, kernelSize:int, ?stride:int, ?padding:int, ?outputSize:seq<Int>) =
         let stride = defaultArg stride kernelSize
         let padding = defaultArg padding 0
         let outputSize = 
             match outputSize with
             | Some o -> let o = o |> Array.ofSeq in if o.Length <> 3 then failwithf "Expecting outputSize to be 3-dimensional" else o
             | None -> 
-                let inputSize = a.shape.[2]
-                [|indices.shape.[0]; indices.shape.[1]; ((inputSize-1) * stride - 2*padding + kernelSize)|]
-        Shape.checkCanMaxunpool1d a.dtype a.shape indices.dtype indices.shape outputSize |> ignore
+                let inputSize = a.shapex.[2]
+                [|indices.shapex.[0]; indices.shapex.[1]; ((inputSize-1) * stride - 2*padding + kernelSize)|]
+        Shape.checkCanMaxunpool1d a.dtype a.shapex indices.dtype indices.shapex outputSize |> ignore
         let fRaw(a:RawTensor) = a.MaxUnpool1D(indices.primalRaw, outputSize)
-        let fTensor(a:Tensor) = a.maxunpool1d(indices, kernelSize, stride=stride, padding=padding, outputSize=outputSize)
-        let dfTensorFwd(cp:Tensor,ap:Tensor,ad:Tensor) = ad.maxunpool1d(indices, kernelSize, stride=stride, padding=padding, outputSize=outputSize)
+        let fTensor(a:Tensor) = a.maxunpool1dx(indices, kernelSize, stride=stride, padding=padding, outputSize=outputSize)
+        let dfTensorFwd(cp:Tensor,ap:Tensor,ad:Tensor) = ad.maxunpool1dx(indices, kernelSize, stride=stride, padding=padding, outputSize=outputSize)
         let dfTensorRev(a) = MaxUnpool1DT(a, indices)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
@@ -1992,7 +2074,7 @@ type Tensor =
             | Some p, None -> [|p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
             | _ -> [|0; 0|]
-        Shape.checkCanMaxpool2d a.dtype a.shape kernelSizes strides paddings  |> ignore
+        Shape.checkCanMaxpool2d a.dtype a.shapex kernelSizes strides paddings  |> ignore
         match a with
         | Tensor(ap)           -> let result, indices = ap.MaxPool2D(kernelSizes, strides, paddings) in Tensor(result), Tensor(indices)
         | TensorF(ap,ad,at)    -> let result, indices = ap.maxpool2di(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorF(result, ad.flatten(startDim=2).gather(dim=2, indices=indices.flatten(startDim=2)).viewAs(indices), at), indices
@@ -2003,6 +2085,10 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member a.maxunpool2d(indices:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?outputSize:seq<int>) =
+        a.maxunpool2dx(indices, ?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings, ?outputSize=Option.map (Seq.map Int) outputSize)
+
+    /// <summary>TBD</summary>
+    member internal a.maxunpool2dx(indices:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?outputSize:seq<Int>) =
         let kernelSizes =
             match kernelSize, kernelSizes with
             | Some _, Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
@@ -2025,13 +2111,13 @@ type Tensor =
             match outputSize with
             | Some o -> let o = o |> Array.ofSeq in if o.Length <> 4 then failwithf "Expecting outputSize to be 4-dimensional" else o
             | None -> 
-                let inputHeight = a.shape.[2]
-                let inputWidth = a.shape.[3]
-                [|indices.shape.[0]; indices.shape.[1]; ((inputHeight-1) * strides.[0] - 2*paddings.[0] + kernelSizes.[0]); ((inputWidth-1) * strides.[1] - 2*paddings.[1] + kernelSizes.[1])|]
-        Shape.checkCanMaxunpool2d a.dtype a.shape indices.dtype indices.shape outputSize |> ignore
+                let inputHeight = a.shapex.[2]
+                let inputWidth = a.shapex.[3]
+                [|indices.shapex.[0]; indices.shapex.[1]; ((inputHeight-1) * strides.[0] - 2*paddings.[0] + kernelSizes.[0]); ((inputWidth-1) * strides.[1] - 2*paddings.[1] + kernelSizes.[1])|]
+        Shape.checkCanMaxunpool2d a.dtype a.shapex indices.dtype indices.shapex outputSize |> ignore
         let fRaw(a:RawTensor) = a.MaxUnpool2D(indices.primalRaw, outputSize)
-        let fTensor(a:Tensor) = a.maxunpool2d(indices, kernelSizes=kernelSizes, strides=strides, paddings=paddings, outputSize=outputSize)
-        let dfTensorFwd(cp:Tensor,ap:Tensor,ad:Tensor) = ad.maxunpool2d(indices, kernelSizes=kernelSizes, strides=strides, paddings=paddings, outputSize=outputSize)
+        let fTensor(a:Tensor) = a.maxunpool2dx(indices, kernelSizes=kernelSizes, strides=strides, paddings=paddings, outputSize=outputSize)
+        let dfTensorFwd(cp:Tensor,ap:Tensor,ad:Tensor) = ad.maxunpool2dx(indices, kernelSizes=kernelSizes, strides=strides, paddings=paddings, outputSize=outputSize)
         let dfTensorRev(a) = MaxUnpool2DT(a, indices)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
@@ -2055,7 +2141,7 @@ type Tensor =
             | Some p, None -> [|p; p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
             | _ -> [|0; 0; 0|]
-        Shape.checkCanMaxpool3d a.dtype a.shape kernelSizes strides paddings |> ignore
+        Shape.checkCanMaxpool3d a.dtype a.shapex kernelSizes strides paddings |> ignore
         match a with
         | Tensor(ap)           -> let result, indices = ap.MaxPool3D(kernelSizes, strides, paddings) in Tensor(result), Tensor(indices)
         | TensorF(ap,ad,at)    -> let result, indices = ap.maxpool3di(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorF(result, ad.flatten(startDim=2).gather(dim=2, indices=indices.flatten(startDim=2)).viewAs(indices), at), indices
@@ -2066,6 +2152,10 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member a.maxunpool3d(indices:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?outputSize:seq<int>) =
+        a.maxunpool3dx(indices, ?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings, ?outputSize=Option.map (Seq.map Int) outputSize)
+
+    /// <summary>TBD</summary>
+    member internal a.maxunpool3dx(indices:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?outputSize:seq<Int>) =
         let kernelSizes =
             match kernelSize, kernelSizes with
             | Some _, Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
@@ -2088,14 +2178,14 @@ type Tensor =
             match outputSize with
             | Some o -> let o = o |> Array.ofSeq in if o.Length <> 5 then failwithf "Expecting outputSize to be 5-dimensional" else o
             | None -> 
-                let inputDepth = a.shape.[2]
-                let inputHeight = a.shape.[3]
-                let inputWidth = a.shape.[4]
-                [|indices.shape.[0]; indices.shape.[1]; ((inputDepth-1) * strides.[0] - 2*paddings.[0] + kernelSizes.[0]); ((inputHeight-1) * strides.[1] - 2*paddings.[1] + kernelSizes.[1]); ((inputWidth-1) * strides.[2] - 2*paddings.[2] + kernelSizes.[2])|]
-        Shape.checkCanMaxunpool3d a.dtype a.shape indices.dtype indices.shape outputSize |> ignore
+                let inputDepth = a.shapex.[2]
+                let inputHeight = a.shapex.[3]
+                let inputWidth = a.shapex.[4]
+                [|indices.shapex.[0]; indices.shapex.[1]; ((inputDepth-1) * strides.[0] - 2*paddings.[0] + kernelSizes.[0]); ((inputHeight-1) * strides.[1] - 2*paddings.[1] + kernelSizes.[1]); ((inputWidth-1) * strides.[2] - 2*paddings.[2] + kernelSizes.[2])|]
+        Shape.checkCanMaxunpool3d a.dtype a.shapex indices.dtype indices.shapex outputSize |> ignore
         let fRaw(a:RawTensor) = a.MaxUnpool3D(indices.primalRaw, outputSize)
-        let fTensor(a:Tensor) = a.maxunpool3d(indices, kernelSizes=kernelSizes, strides=strides, paddings=paddings, outputSize=outputSize)
-        let dfTensorFwd(cp:Tensor,ap:Tensor,ad:Tensor) = ad.maxunpool3d(indices, kernelSizes=kernelSizes, strides=strides, paddings=paddings, outputSize=outputSize)
+        let fTensor(a:Tensor) = a.maxunpool3dx(indices, kernelSizes=kernelSizes, strides=strides, paddings=paddings, outputSize=outputSize)
+        let dfTensorFwd(cp:Tensor,ap:Tensor,ad:Tensor) = ad.maxunpool3dx(indices, kernelSizes=kernelSizes, strides=strides, paddings=paddings, outputSize=outputSize)
         let dfTensorRev(a) = MaxUnpool3DT(a, indices)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
@@ -2105,7 +2195,7 @@ type Tensor =
         let stride = defaultArg stride 1
         let padding = defaultArg padding 0
         let dilation = defaultArg dilation 1
-        Shape.checkCanConv1d a.deviceType b.deviceType a.dtype b.dtype a.shape b.shape stride padding dilation |> ignore
+        Shape.checkCanConv1d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex stride padding dilation |> ignore
         let mutable b = b
         if dilation > 1 then
             b <- b.dilate([|1;1;dilation|])
@@ -2125,15 +2215,16 @@ type Tensor =
     static member internal conv1dReverseDiff(a: Tensor, b:Tensor, cderivative:Tensor, aConst:bool, bConst:bool, stride:int, padding:int) =
         let a = if aConst then a else a.primal
         let b = if bConst then b else b.primal
+        if a.symbolic then a.zeroLike(), b.zeroLike() else
         let batchSize = cderivative.shape.[0]
         let outputChannels = cderivative.shape.[1]
-        // let outputLength = cderivative.shape.[2]
         let inputChannels = a.shape.[1]
         let inputLength = a.shape.[2]
         let kernelLength = b.shape.[2]
         let mutable cderivative = cderivative
         if stride > 1 then
             cderivative <- cderivative.dilate([|1;1;stride|])
+        let outputLength = cderivative.shape.[2]
         let mutable aderivative = a.zeroLike()
         let mutable bderivative = b.zeroLike()
         if not aConst then
@@ -2142,7 +2233,7 @@ type Tensor =
             let bFlipped = b.flip([|2|])
             for k=0 to outputChannels-1 do
                 let b = bFlipped.[k].view([|inputChannels; 1; kernelLength|])
-                let dBounds = array2D [[0; batchSize-1; 1]; [k; k; 1]; [0; cderivative.shape.[2]-1; 1]]
+                let dBounds = array2D [[0; batchSize-1; 1]; [k; k; 1]; [0; outputLength-1; 1]]
                 let d = cderivative.GetSlice(dBounds).view([|batchSize; 1; -1|])
                 let mutable ad = d.conv1d(b, padding=kernelLength-1)
                 if padding > 0 then
@@ -2150,14 +2241,14 @@ type Tensor =
                     ad <- ad.GetSlice(adBounds)
                     ad <- ad.view([|batchSize; inputChannels; inputLength|])
                 aderivative <- aderivative + ad
-        if not bConst then
+        if not a.symbolic && not bConst then
             // propagate to b
             bderivative <- b.zerosLike()
             for n=0 to batchSize-1 do
                 let aa = a.[n].view([|inputChannels; 1; inputLength|]) // treat size-one batch of a c-channel image as a size-c batch of one-channel images
                 let d = cderivative.[n]
                 for k=0 to outputChannels-1 do
-                    let dd = d.[k].view([|1; 1; cderivative.shape.[2]|])
+                    let dd = d.[k].view([|1; 1; outputLength|])
                     let mutable bd = aa.conv1d(dd, padding=padding)
                     bd <- bd.view([|1; inputChannels; bd.shape.[2]|])
                     let cBounds = array2D [[0;0;1]; [0;inputChannels-1;1]; [0;kernelLength-1;1]]
@@ -2173,8 +2264,8 @@ type Tensor =
         let dilation = defaultArg dilation 1
         let outputPadding = defaultArg outputPadding 0
 
-        let batchSize, inputChannels, kernelLength, outputChannels, outputSize, outputShape =
-            Shape.checkCanConvTranspose1d a.deviceType b.deviceType a.dtype b.dtype a.shape b.shape stride padding dilation outputPadding
+        let _, _, _, _, _, outputShape =
+            Shape.checkCanConvTranspose1d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex stride padding dilation outputPadding
         print outputShape
         let mutable b = b
         if dilation > 1 then
@@ -2205,7 +2296,7 @@ type Tensor =
             | Some d, None -> [|d; d|]
             | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 2 then failwithf "Expecting dilations to be 2-dimensional" else d
             | _ -> [|1; 1|]
-        Shape.checkCanConv2d a.deviceType b.deviceType a.dtype b.dtype a.shape b.shape strides paddings dilations |> ignore
+        Shape.checkCanConv2d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations |> ignore
         let mutable b = b
         if dilations.[0] > 1 || dilations.[1] > 1 then
             b <- b.dilate([|1; 1; dilations.[0]; dilations.[1]|])
@@ -2226,10 +2317,9 @@ type Tensor =
     static member internal conv2dReverseDiff(a: Tensor, b:Tensor, cderivative:Tensor, aConst:bool, bConst:bool, strides:int[], paddings:int[]) =
         let a = if aConst then a else a.primal
         let b = if bConst then b else b.primal
+        if a.symbolic then a.zeroLike(), b.zeroLike() else
         let batchSize = cderivative.shape.[0]
         let outputChannels = cderivative.shape.[1]
-        // let outputHeight = cderivative.shape.[2]
-        // let outputWidth = cderivative.shape.[3]
         let inputChannels = a.shape.[1]
         let inputHeight = a.shape.[2]
         let inputWidth = a.shape.[3]
@@ -2238,6 +2328,8 @@ type Tensor =
         let mutable cderivative = cderivative
         if strides.[0] > 1 || strides.[1] > 1 then
             cderivative <- cderivative.dilate([|1;1;strides.[0];strides.[1]|])
+        let outputHeight = cderivative.shape.[2]
+        let outputWidth = cderivative.shape.[3]
         let mutable aderivative = a.zeroLike()
         let mutable bderivative = b.zeroLike()
         if not aConst then
@@ -2246,8 +2338,8 @@ type Tensor =
             let bFlipped = b.flip([|2;3|])
             for k=0 to outputChannels-1 do
                 let b = bFlipped.[k].view([|inputChannels; 1; kernelHeight; kernelWidth|])
-                let dBounds = array2D [[0; batchSize-1; 1]; [k; k; 1]; [0; cderivative.shape.[2]-1; 1]; [0; cderivative.shape.[3]-1; 1]]
-                let d = cderivative.GetSlice(dBounds).view([|batchSize; 1; cderivative.shape.[2]; cderivative.shape.[3]|])
+                let dBounds = array2D [[0; batchSize-1; 1]; [k; k; 1]; [0; outputHeight-1; 1]; [0; outputWidth-1; 1]]
+                let d = cderivative.GetSlice(dBounds).view([|batchSize; 1; outputHeight; outputWidth|])
                 let mutable ad : Tensor = d.conv2d(b, paddings=[|kernelHeight-1; kernelWidth-1|])
                 if paddings.[0] > 0 || paddings.[1] > 0 then
                     let adBounds = array2D [[0; batchSize-1; 1]; 
@@ -2264,7 +2356,7 @@ type Tensor =
                 let aa = a.[n].view([|inputChannels; 1; inputHeight; inputWidth|]) // treat size-one batch of a c-channel image as a size-c batch of one-channel images
                 let d = cderivative.[n]
                 for k=0 to outputChannels-1 do
-                    let dd = d.[k].view([|1; 1; cderivative.shape.[2]; cderivative.shape.[3]|])
+                    let dd = d.[k].view([|1; 1; outputHeight; outputWidth|])
                     let mutable bd = aa.conv2d(dd, paddings=paddings)
                     // bd <- bd.view([|1; inputChannels; kernelHeight; kernelWidth|])
                     bd <- bd.view([|1; inputChannels; bd.shape.[2]; bd.shape.[3]|])
@@ -2302,7 +2394,7 @@ type Tensor =
             | _ -> [|0; 0|]
 
         let batchSize, inputChannels, (kernelHeight, kernelWidth), (outputChannels, outputHeight, outputWidth), outputShape =
-            Shape.checkCanConvTranspose2d a.deviceType b.deviceType a.dtype b.dtype a.shape b.shape strides paddings dilations outputPaddings
+            Shape.checkCanConvTranspose2d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations outputPaddings
         print outputShape
         let mutable b = b
         if dilations.[0] > 1 || dilations.[1] > 1 then
@@ -2333,7 +2425,7 @@ type Tensor =
             | Some d, None -> [|d; d; d|]
             | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 3 then failwithf "Expecting dilations to be 3-dimensional" else d
             | _ -> [|1; 1; 1|]
-        Shape.checkCanConv3d a.deviceType b.deviceType a.dtype b.dtype a.shape b.shape strides paddings dilations |> ignore
+        Shape.checkCanConv3d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations |> ignore
         let mutable b = b
         if dilations.[0] > 1 || dilations.[1] > 1 || dilations.[2] > 1 then
             b <- b.dilate([|1; 1; dilations.[0]; dilations.[1]; dilations.[2]|])
@@ -2354,11 +2446,9 @@ type Tensor =
     static member internal conv3dReverseDiff(a: Tensor, b:Tensor, cderivative:Tensor, aConst:bool, bConst:bool, strides:int[], paddings:int[]) =
         let a = if aConst then a else a.primal
         let b = if bConst then b else b.primal
+        if a.symbolic then a.zeroLike(), b.zeroLike() else
         let batchSize = cderivative.shape.[0]
         let outputChannels = cderivative.shape.[1]
-        // let outputDepth = cderivative.shape.[2]
-        // let outputHeight = cderivative.shape.[3]
-        // let outputWidth = cderivative.shape.[4]
         let inputChannels = a.shape.[1]
         let inputDepth = a.shape.[2]
         let inputHeight = a.shape.[3]
@@ -2369,6 +2459,9 @@ type Tensor =
         let mutable cderivative = cderivative
         if strides.[0] > 1 || strides.[1] > 1 || strides.[2] > 1 then
             cderivative <- cderivative.dilate([|1;1;strides.[0];strides.[1];strides.[2]|])
+        let outputDepth = cderivative.shape.[2]
+        let outputHeight = cderivative.shape.[3]
+        let outputWidth = cderivative.shape.[4]
         let mutable aderivative = a.zeroLike()
         let mutable bderivative = b.zeroLike()
         if not aConst then
@@ -2377,8 +2470,8 @@ type Tensor =
             let bFlipped = b.flip([|2;3;4|])
             for k=0 to outputChannels-1 do
                 let b = bFlipped.[k].view([|inputChannels; 1; kernelDepth; kernelHeight; kernelWidth|])
-                let dBounds = array2D [[0; batchSize-1; 1]; [k; k; 1]; [0; cderivative.shape.[2]-1; 1]; [0; cderivative.shape.[3]-1; 1]; [0; cderivative.shape.[4]-1; 1]]
-                let d = cderivative.GetSlice(dBounds).view([|batchSize; 1; cderivative.shape.[2]; cderivative.shape.[3]; cderivative.shape.[4]|])
+                let dBounds = array2D [[0; batchSize-1; 1]; [k; k; 1]; [0; outputDepth-1; 1]; [0; outputHeight-1; 1]; [0; outputWidth-1; 1]]
+                let d = cderivative.GetSlice(dBounds).view([|batchSize; 1; outputDepth; outputHeight; outputWidth|])
                 let mutable ad : Tensor = d.conv3d(b, paddings=[|kernelDepth-1; kernelHeight-1; kernelWidth-1|])
                 if paddings.[0] > 0 || paddings.[1] > 0 || paddings.[2] > 0 then
                     let adBounds = array2D [[0; batchSize-1; 1]; 
@@ -2396,7 +2489,7 @@ type Tensor =
                 let aa = a.[n].view([|inputChannels; 1; inputDepth; inputHeight; inputWidth|]) // treat size-one batch of a c-channel image as a size-c batch of one-channel images
                 let d = cderivative.[n]
                 for k=0 to outputChannels-1 do
-                    let dd = d.[k].view([|1; 1; cderivative.shape.[2]; cderivative.shape.[3]; cderivative.shape.[4]|])
+                    let dd = d.[k].view([|1; 1; outputDepth; outputHeight; outputWidth|])
                     let mutable bd = aa.conv3d(dd, paddings=paddings)
                     // bd <- bd.view([|1; inputChannels; kernelHeight; kernelWidth|])
                     bd <- bd.view([|1; inputChannels; bd.shape.[2]; bd.shape.[3]; bd.shape.[4]|])
@@ -2433,8 +2526,8 @@ type Tensor =
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting outputPaddings to be 3-dimensional" else p
             | _ -> [|0; 0; 0|]
 
-        let batchSize, inputChannels, (kernelDepth, kernelHeight, kernelWidth), (outputChannels, outputDepth, outputHeight, outputWidth), outputShape =
-            Shape.checkCanConvTranspose3d a.deviceType b.deviceType a.dtype b.dtype a.shape b.shape strides paddings dilations outputPaddings
+        let _, _, _, _, outputShape =
+            Shape.checkCanConvTranspose3d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations outputPaddings
         print outputShape
         let mutable b = b
         if dilations.[0] > 1 || dilations.[1] > 1 || dilations.[2] > 1 then
@@ -2631,9 +2724,9 @@ type Tensor =
                         | MatMulT2T2(a,b) -> push ((t.derivative.matmul(b.primal.transpose()), a) :: (a.primal.transpose().matmul(t.derivative), b) :: tt)
                         | MatMulT2T2Const(a,b) -> push ((t.derivative.matmul(b.transpose()), a) :: tt)
                         | MatMulT2ConstT2(a,b) -> push ((a.transpose().matmul(t.derivative), b) :: tt)
-                        | MaxPool1DT(a, indices, kernelSize) -> push ((t.derivative.maxunpool1d(indices, kernelSize=kernelSize, outputSize=a.shape), a) :: tt)
-                        | MaxPool2DT(a, indices, kernelSizes) -> push ((t.derivative.maxunpool2d(indices, kernelSizes=kernelSizes, outputSize=a.shape), a) :: tt)
-                        | MaxPool3DT(a, indices, kernelSizes) -> push ((t.derivative.maxunpool3d(indices, kernelSizes=kernelSizes, outputSize=a.shape), a) :: tt)
+                        | MaxPool1DT(a, indices, kernelSize) -> push ((t.derivative.maxunpool1dx(indices, kernelSize=kernelSize, outputSize=a.shapex.Dims), a) :: tt)
+                        | MaxPool2DT(a, indices, kernelSizes) -> push ((t.derivative.maxunpool2dx(indices, kernelSizes=kernelSizes, outputSize=a.shapex.Dims), a) :: tt)
+                        | MaxPool3DT(a, indices, kernelSizes) -> push ((t.derivative.maxunpool3dx(indices, kernelSizes=kernelSizes, outputSize=a.shapex.Dims), a) :: tt)
                         | MaxUnpool1DT(a, indices) -> push ((t.derivative.gather(dim=2, indices=indices), a) :: tt)
                         | MaxUnpool2DT(a, indices) -> push ((t.derivative.flatten(startDim=2).gather(dim=2, indices=indices.flatten(startDim=2)).viewAs(a), a) :: tt)
                         | MaxUnpool3DT(a, indices) -> push ((t.derivative.flatten(startDim=2).gather(dim=2, indices=indices.flatten(startDim=2)).viewAs(a), a) :: tt)
@@ -2665,9 +2758,9 @@ type Tensor =
                             let _, bderivative = Tensor.conv3dReverseDiff(a, b, t.derivative, true, false, stride, padding)
                             push ((bderivative, b) :: tt)
                         | NegT(a) -> push ((-t.derivative, a) :: tt)
-                        | SumT(a) -> push ((t.derivative.expand(a.shape), a) :: tt)
+                        | SumT(a) -> push ((t.derivative.expandx(a.shapex), a) :: tt)
                         | SumT2Dim0(a) -> push ((a.zerosLike() + t.derivative, a) :: tt)
-                        | ExpandT(a) -> push ((t.derivative.sumToSize(a.shape), a) :: tt)
+                        | ExpandT(a) -> push ((t.derivative.sumToSize(a.shapex), a) :: tt)
                         | StackTs(a,dim) ->
                             push (List.append (Array.zip (t.derivative.unstack(dim)) a |> Array.toList) tt)
                         | UnstackT(a,dim,i) -> 
@@ -2679,20 +2772,21 @@ type Tensor =
                             push (List.append (Array.zip (t.derivative.split(sizes, dim=dim)) a |> Array.toList) tt)
                         | SplitT(a,sizes,dim,i) -> 
                             if a.derivative.dim = 0 then a.derivative <- a.zerosLike() + a.derivative
-                            let locs = (0,sizes) ||> Array.scan (+)
-                            a.derivative <- a.derivative.addSlice(Array.init a.dim (fun j -> if j=dim then locs.[i] else 0), t.derivative)
+                            let locs = (Int 0,sizes) ||> Array.scan (+)
+                            a.derivative <- a.derivative.addSlice(Array.init a.dim (fun j -> if j=dim then locs.[i] else Int 0), t.derivative)
                             push ((a.zeroLike(), a) :: tt)
                         | GatherT(a,dim,indices) -> 
                             // TODO: The following is a minimal correct implementation. Faster and more memory efficient implementations should be possible.
                             let tflat = t.derivative.flatten()
                             let iflat = indices.flatten()
                             if a.derivative.dim = 0 then a.derivative <- a.zerosLike() + a.derivative
-                            for i=0 to tflat.nelement-1 do
+                            if not a.symbolic then 
+                              for i=0 to tflat.nelement-1 do
                                 let mutable t = tflat.[i]
                                 for k=0 to a.dim-1 do
                                     t <- t.unsqueeze(0)
                                 let j = iflat.[i].toScalar() :?> int
-                                let loc = flatIndexToIndex a.shape i
+                                let loc = flatIndexToIndex a.shapex.Values i
                                 loc.[dim] <- j
                                 a.derivative <- a.derivative.addSlice(loc, t)
                             push ((a.zeroLike(), a) :: tt)
@@ -2703,16 +2797,18 @@ type Tensor =
                         | FlipT(a, dims) -> push ((t.derivative.flip(dims), a) :: tt)
                         | DilateT(a, dilations) -> push ((t.derivative.undilate(dilations), a) :: tt)
                         | UndilateT(a, dilations) -> push ((t.derivative.dilate(dilations), a) :: tt)
-                        | ViewT(a,aShape) -> push (((t.derivative.view(aShape)), a) :: tt)
+                        | ViewT(a,aShape) -> push (((t.derivative.viewx(aShape)), a) :: tt)
                         | ClampT(a, mask) -> push ((t.derivative * mask, a) :: tt)
                         | SliceT(a,bounds) -> 
                             // TODO: a.zerosLike() below is to handle non-scalar TensorRs with a scalar derivative Tensor(0.) (representing the initialization before accumulation). This is correct but can be changed to eliminate the extra op.
                             if a.derivative.dim = 0 then a.derivative <- a.zerosLike() + a.derivative
-                            a.derivative <- a.derivative.addSlice(boundsToLocation bounds, t.derivative.view(boundsToShape bounds))
+                            if not a.symbolic then 
+                              let bounds = bounds |> Array2D.map (fun d -> d.Value)
+                              a.derivative <- a.derivative.addSlice(boundsToLocation bounds, t.derivative.view(boundsToShape bounds))
                             push ((a.zeroLike(), a) :: tt)
-                        | AddTTSlice(a,location,b) -> push ((t.derivative, a) :: (t.derivative.GetSlice(Shape.locationToBounds b.shape location), b):: tt)
+                        | AddTTSlice(a,location,b) -> push ((t.derivative, a) :: (t.derivative.GetSlice(Shape.locationToBounds b.shapex location), b):: tt)
                         | AddTTConstSlice(a) -> push ((t.derivative, a) :: tt)
-                        | AddTConstTSlice(location, b) -> push ((t.derivative.GetSlice(Shape.locationToBounds b.shape location), b):: tt)
+                        | AddTConstTSlice(location, b) -> push ((t.derivative.GetSlice(Shape.locationToBounds b.shapex location), b):: tt)
                         | SignT(a) -> push ((a.zerosLike(), a) :: tt)
                         | FloorT(a) -> push ((a.zerosLike(), a) :: tt)
                         | CeilT(a) -> push ((a.zerosLike(), a) :: tt)
@@ -2810,9 +2906,9 @@ and TensorOp =
     | Conv3DTTConst of Tensor * Tensor * int[] * int[]
     | Conv3DTConstT of Tensor * Tensor * int[] * int[]
 
-    | AddTTSlice of Tensor * int[] * Tensor
+    | AddTTSlice of Tensor * Int[] * Tensor
     | AddTTConstSlice of Tensor
-    | AddTConstTSlice of int[] * Tensor
+    | AddTConstTSlice of Int[] * Tensor
 
     | NegT of Tensor
     | SumT of Tensor
@@ -2821,8 +2917,8 @@ and TensorOp =
     | StackTs of Tensor[] * dim:int
     | UnstackT of Tensor * dim:int * i:int
     | CatTs of Tensor[] * dim:int
-    | SplitT of Tensor * int[] * dim:int * i:int
-    | SliceT of Tensor * int[,]
+    | SplitT of Tensor * Int[] * dim:int * i:int
+    | SliceT of Tensor * Int[,]
     | GatherT of Tensor * int * Tensor
     | TransposeT of Tensor * int * int
     | TransposeT2 of Tensor
@@ -2831,7 +2927,7 @@ and TensorOp =
     | FlipT of Tensor * int[]
     | DilateT of Tensor * int[]
     | UndilateT of Tensor * int[]
-    | ViewT of Tensor * int[]
+    | ViewT of Tensor * Shape
     | ClampT of Tensor * Tensor
     | SignT of Tensor
     | FloorT of Tensor
@@ -2855,7 +2951,6 @@ and TensorOp =
     | AcosT of Tensor
     | AtanT of Tensor
     | NewT
-
 
 type Tensor with
     [<ExcludeFromCodeCoverage>]
@@ -5541,5 +5636,3 @@ type Tensor with
         let bounds = array2D [[i0min; i0max; i0given]; [i1min; i1max; i1given]; [i2min; i2max; i2given]; [i3min; i3max; i3given]; [i4min; i4max; i4given]; [i5min; i5max; i5given]]
         t.GetSlice(bounds)
 
-[<assembly: System.Runtime.CompilerServices.InternalsVisibleTo("DiffSharp.Tests")>]
-do()
