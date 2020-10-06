@@ -24,7 +24,7 @@ type RawTensorCPU<'T when 'T : equality>(values: 'T[], shape: Shape, dtype: Dtyp
 
     override _.Shape = shape
     override _.Dim = shape.Length
-    override _.Nelement = Shape.nelement shape
+    override _.Nelement = shapeLength shape
     override _.Dtype = dtype
     override _.Device = device
     override _.DeviceType = device.DeviceType

@@ -37,7 +37,7 @@ open DiffSharp.ShapeChecking
 
 type VAE(xDim:Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Tensor, ?activationLast:Tensor->Tensor) =
     inherit Model()
-    let hDims = defaultArg hDims (let d = (xDim+zDim+1)/2 in seq [d; d]) |> Array.ofSeq
+    let hDims = defaultArg hDims (let d = (xDim+zDim)/2 in seq [d; d]) |> Array.ofSeq
     let activation = defaultArg activation dsharp.relu
     let activationLast = defaultArg activationLast dsharp.sigmoid
     let dims = [| yield xDim; yield! hDims; yield zDim |]
@@ -47,7 +47,6 @@ type VAE(xDim:Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Tensor, ?activ
     do 
         base.add([for m in enc -> box m])
         base.add([for m in dec -> box m])
-
 
     let encode x =
         let mutable x = x
@@ -94,12 +93,13 @@ type VAE(xDim:Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Tensor, ?activ
     new (xDim:int, zDim:int, ?hDims:seq<int>, ?activation:Tensor->Tensor, ?activationLast:Tensor->Tensor) =
         VAE(Int xDim, Int zDim, ?hDims = Option.map (Seq.map Int) hDims, ?activation=activation, ?activationLast=activationLast)
 
-
-let model = VAE(28*28, 16, [512; 256])
+dsharp.config(backend=Backend.Torch, device=Device.CPU)
+dsharp.seed(0)
 
 let trainSet = MNIST("./mnist", train=true, transform=id)
 let trainLoader = trainSet.loader(batchSize=32, shuffle=true)
 
+let model = VAE(28*28, 16, [512; 256])
 printfn "%A" model
 
 let optimizer = Adam(model, lr=dsharp.tensor(0.001))
