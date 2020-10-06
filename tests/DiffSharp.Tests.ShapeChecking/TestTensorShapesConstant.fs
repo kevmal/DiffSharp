@@ -12,7 +12,7 @@ type TestTensorShapesConstant () =
                 yield ComboInfo(defaultBackend=Backend.ShapeChecking, defaultDevice=device, defaultDtype=dtype, defaultFetchDevices=(fun _ -> devices)) ]
 
     [<Test>]
-    member _.TestTensorFullShapeChecking () =
+    member _.``test full shape checking``() =
         for combo in ShapeChecking do 
             // An imposibly large tensor
             let shape = Shape.constant [| 2000000 ; 1000000 |]

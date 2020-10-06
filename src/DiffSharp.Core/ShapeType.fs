@@ -100,7 +100,7 @@ type Int internal (n: int, sym: Symbol) =
     static member (*) (a:int, b:Int) : Int = Int a * b
 
     static member (/) (a:Int,b:Int) : Int = 
-        Int.binop a b (fun a b -> Int (a*b)) (fun a b -> Int.FromSymbol (Symbol.binop "div" a b))
+        Int.binop a b (fun a b -> Int (a/b)) (fun a b -> Int.FromSymbol (Symbol.binop "div" a b))
 
     static member (/) (a:Int, b:int) : Int = a / Int b
 
@@ -122,7 +122,7 @@ type Int internal (n: int, sym: Symbol) =
 
     static member Abs(dim: Int) = Int (abs dim.Value)
 
-    member _.IsRequest = (n = -1)
+    member _.IsUnspecified = (n = -1)
 
     member _.IsInvalid = (n < -1)
 
@@ -288,7 +288,7 @@ type Int (n: int) =
 
     static member Abs(dim: Int) = Int (abs dim.Value)
 
-    member _.IsRequest = (n = -1)
+    member _.IsUnspecified = (n = -1)
 
     member _.IsInvalid = (n < -1)
 

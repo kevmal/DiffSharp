@@ -14,14 +14,14 @@ type TestTensorShapesSymbolic () =
                 yield ComboInfo(defaultBackend=Backend.ShapeChecking, defaultDevice=device, defaultDtype=dtype, defaultFetchDevices=(fun _ -> devices)) ]
 
     [<Test>]
-    member _.TestTensorFullSymbolic () =
+    member _.``test full symbolic shape``() =
         for combo in ShapeChecking do 
             let shape = Shape.symbolic [| sym?M ; sym?N |]
             let t1a = combo.full(shape, 2.5)
             Assert.CheckEqual(shape, t1a.shapex)
 
     [<Test>]
-    member _.TestTensorViewSymbolic () =
+    member _.``test view symbolic shape`` () =
         for combo in ShapeChecking do 
             let N : Int = sym?N
             let M : Int = sym?M

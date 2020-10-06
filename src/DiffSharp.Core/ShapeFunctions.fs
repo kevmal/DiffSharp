@@ -575,17 +575,17 @@ module Shape =
 
     /// Completes the given shape with respect to a tensor with the given number of elements.
     let complete (nelement: Int) (shape: Shape) =
-        if (shape.Dims |> Array.exists (fun x -> x.IsInvalid)) then failwithf "Invalid shape %A" shape
-        let numUnspecified = shape.Dims |> Array.filter (fun x -> x.IsRequest) |> Array.length
+        if (shape.Dims |> Array.exists (fun d -> d.IsInvalid)) then failwithf "Invalid shape %A" shape
+        let numUnspecified = shape.Dims |> Array.filter (fun d -> d.IsUnspecified) |> Array.length
         if numUnspecified > 1 then
             failwithf "Cannot complete shape %A, expecting at most one unspecified dimension (-1)" shape
         elif numUnspecified = 0 then
             shape
         else
-            let divisor = shape.Dims  |> Array.filter (fun i -> not i.IsRequest) |> Shape |> nelementx
+            let divisor = shape.Dims  |> Array.filter (fun d -> not d.IsUnspecified) |> Shape |> nelementx
             if not (nelement % divisor =~= Int 0) then failwithf "Cannot complete shape %A to have %A elements" shape nelement
             let missing = nelement / divisor
-            [|for d in shape.Dims do if d.IsRequest then yield missing else yield d|]
+            [|for d in shape.Dims -> if d.IsUnspecified then missing else d|]
             |> Shape
 
     /// Completes the given shape dimension with respect to a concrete dimension.
@@ -597,7 +597,7 @@ module Shape =
     /// Completes the new shape for an expand operation based on the current shape of the tensor.
     let completeExpand (shape: Shape) (newShape: Shape) =
         let trim = newShape.Length - shape.Length
-        newShape.Dims |> Array.mapi (fun i x -> if i>=trim && x.IsRequest then shape.[i - trim] else x)
+        newShape.Dims |> Array.mapi (fun i x -> if i>=trim && x.IsUnspecified then shape.[i - trim] else x)
         |> Shape
 
     let inline create (xs: seq<int>) = Seq.toArrayQuick xs

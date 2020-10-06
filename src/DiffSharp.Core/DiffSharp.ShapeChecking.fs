@@ -168,6 +168,6 @@ module ShapedInferenceAutoOpens =
     /// <summary>Access the symbol scope for backend checking. Allows <c>sym?Name</c> notation for symbols in test code, avoiding lots of pesky strings</summary>
     let sym<'T> : SymbolScope = 
         if symscope.IsNone then
-            symscope <- Some (BackendSymbolStatics.Get().GetSymbolScope())
+            symscope <- Some (BackendSymbolStatics.Get(backend=Backend.ShapeChecking).GetSymbolScope())
         symscope.Value
 #endif
