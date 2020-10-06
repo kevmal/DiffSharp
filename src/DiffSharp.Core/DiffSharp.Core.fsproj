@@ -9,7 +9,7 @@
     <Compile Include="Symbols.fs" />
     <Compile Include="Device.fs" />
     <Compile Include="Dtype.fs" />
-    <Compile Include="Shape.fs" />
+    <Compile Include="ShapeType.fs" />
     <Compile Include="ShapeFunctions.fs" />
     <Compile Include="Util.fs" />
     <Compile Include="RawTensor.fs" />
