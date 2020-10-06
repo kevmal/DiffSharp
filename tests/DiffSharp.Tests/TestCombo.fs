@@ -136,19 +136,3 @@ type ComboInfo(?defaultBackend: Backend, ?defaultDevice: Device, ?defaultDtype: 
 #if SYMBOLIC_SHAPES
         | Dtype.Sym _ -> failwith "unexpected symbolic"
 #endif
-
-module Dtypes =
-
-    // We run most tests at all these tensor types
-    let Bool = [ Dtype.Bool ]
-    let SignedIntegral = [ Dtype.Int8; Dtype.Int16; Dtype.Int32; Dtype.Int64 ]
-    let UnsignedIntegral = [ Dtype.Byte ]
-    let Integral = SignedIntegral @ UnsignedIntegral
-    let FloatingPoint = [ Dtype.Float32; Dtype.Float64 ]
-    let Float32 = [ Dtype.Float32 ]
-
-    // Some operations have quirky behaviour on bool types, we pin these down manually
-    let SignedIntegralAndFloatingPoint = FloatingPoint @ SignedIntegral
-    let IntegralAndFloatingPoint = FloatingPoint @ Integral
-    let IntegralAndBool = Integral @ Bool
-    let All = FloatingPoint @ Integral @ Bool
