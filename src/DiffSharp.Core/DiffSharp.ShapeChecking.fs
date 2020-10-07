@@ -153,21 +153,21 @@ module ShapedInferenceAutoOpens =
 
 #if SYMBOLIC_SHAPES    
     module DeviceType =
-        let Symbolic (s: Symbol) : DeviceType = LanguagePrimitives.EnumOfValue (s.GetVarId())
+        let Symbolic (s: ISym) : DeviceType = LanguagePrimitives.EnumOfValue (hash (s.GetVarName()))
 
     /// Contains functions and settings related to device specifications.
     module Device = 
 
-        let Symbolic (sym: Symbol) : Device =
-            let dt = sym.SymbolScope.CreateInjected(sym.GetVarName())
+        let Symbolic (sym: ISym) : Device =
+            let dt = sym.SymContext.CreateInjected(sym.GetVarName())
             let device = Device(dt, 0)
             device
 
     let mutable private symscope = None
 
-    /// <summary>Access the symbol scope for backend checking. Allows <c>sym?Name</c> notation for symbols in test code, avoiding lots of pesky strings</summary>
-    let sym<'T> : SymbolScope = 
+    /// <summary>A global symbol context for shape checking. Allows <c>sym?Name</c> notation for symbols in test code, avoiding lots of pesky strings</summary>
+    let sym<'T> : SymContext = 
         if symscope.IsNone then
-            symscope <- Some (BackendSymbolStatics.Get(backend=Backend.ShapeChecking).GetSymbolScope())
+            symscope <- Some (BackendSymbolStatics.Get().CreateSymContext())
         symscope.Value
 #endif

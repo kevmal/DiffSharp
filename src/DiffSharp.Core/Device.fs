@@ -25,11 +25,6 @@ type DeviceType =
     | MSNPU = 8 // MSNPU
     | XLA = 9 // XLA / TPU
 
-#if SYMBOLIC_SHAPES
-module DeviceType =
-    let Symbolic (s: Symbol) : DeviceType = LanguagePrimitives.EnumOfValue (s.GetVarId())
-#endif
-
 /// Represents a device specification.
 [<Struct>]
 type Device =
@@ -58,10 +53,3 @@ module Device =
 
     /// Get or set the default device used when creating tensors. Note, use <c>dsharp.config(...)</c> instead.
     let mutable Default : Device = Device.CPU
-
-#if SYMBOLIC_SHAPES
-    let Symbolic (sym: Symbol) : Device =
-        let dt = sym.SymbolScope.CreateInjected(sym.GetVarName())
-        let device = Device(dt, 0)
-        device
-#endif

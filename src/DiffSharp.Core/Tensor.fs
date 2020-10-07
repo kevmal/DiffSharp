@@ -207,7 +207,7 @@ type Tensor =
     /// </remarks>
     member t.forwardDiff(derivative:Tensor, ?tag:uint32) = 
         let tag = defaultArg tag GlobalNestingLevel.Current
-        if t.shape <> derivative.shape then
+        if not (t.shapex =~= derivative.shapex) then
             failwithf "Expecting derivative of same shape with primal. primal: %A, derivative: %A" t derivative
         TensorF(t, derivative, tag)
 
@@ -1326,11 +1326,12 @@ type Tensor =
             Shape.checkCanExpand newShape oldShape
             let trim = oldShape.Length - newShape.Length
             let mutable result = a.cast(a.dtype.SummationType)
-            // collapse the eliminated dimensions
-            for _dim in 0 .. trim-1 do 
+            if not a.symbolic then 
+              // collapse the eliminated dimensions
+              for _dim in 0 .. trim-1 do 
                 result <- result.sum(0, keepDim=false)
-            // reduce the squeezed dimensions
-            for dim in 0 .. newShape.Length-1 do 
+              // reduce the squeezed dimensions
+              for dim in 0 .. newShape.Length-1 do 
                 if oldShape.[trim+dim] <> newShape.[dim] then 
                     result <- result.sum(dim, keepDim=true)
             result.castAfterSummation(?dtype=dtype)
@@ -1912,7 +1913,7 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member input.mseLoss(target:Tensor, ?reduction:string) = 
-        if input.shape <> target.shape then failwithf "Expecting input.shape (%A) and target.shape (%A) to be the same" input.shape target.shape
+        if not (input.shapex =~= target.shapex) then failwithf "Expecting input.shape (%A) and target.shape (%A) to be the same" input.shape target.shape
         let reduction = defaultArg reduction "mean"
         if not (reduction = "none" || reduction = "mean" || reduction = "sum") then failwithf "Expecting reduction (%A) to be one of (none, mean, sum)" reduction
         let z = input - target
@@ -1926,13 +1927,13 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member input.bceLoss(target:Tensor, ?weight:Tensor, ?reduction:string) =
-        if input.shape <> target.shape then failwithf "Expecting input shape (%A) and target shape (%A) to be the same" input.shape target.shape
+        if not (input.shapex =~= target.shapex) then failwithf "Expecting input.shape (%A) and target.shape (%A) to be the same" input.shape target.shape
         if target.max() > target.oneLike() || target.min() < target.zeroLike() then failwith "Expecting target values to be between 0 and 1."
         if input.dim < 1 then let ret:Tensor = input.view(-1).bceLoss(target.view(-1), ?weight=weight, ?reduction=reduction) in if ret.dim = 0 then ret else ret.[0]
         else
-        let n = input.shape.[0]
+        let n = input.shapex.[0]
         let weight = defaultArg weight (input.onesLike(shape=Shape[|n|]))
-        if weight.shape.[0] <> n then failwithf "Expecting weight to be a vector of size %A, but received %A" n weight.shape.[0]
+        if not (weight.shapex.[0] =~= n) then failwithf "Expecting weight to be a vector of size %A, but received %A" n weight.shape.[0]
         let reduction = defaultArg reduction "mean"
         if not (reduction = "none" || reduction = "mean" || reduction = "sum") then failwithf "Expecting reduction (%A) to be one of (none, mean, sum)" reduction
         let clampLog = -100
@@ -1955,12 +1956,12 @@ type Tensor =
                 then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
             elif input.dim = 2 then
                 let n, c = input.shapex.[0], input.shapex.[1]
-                if target.shapex.Dims <> [|n|] then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
+                if not (target.shapex =~= Shape [|n|]) then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
                 n, c, Shape.scalar
             else
                 let n, c, d = input.shapex.[0], input.shapex.[1], input.shapex.[2..]
-                if target.shapex.[0] <> n then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
-                if d <> target.shapex.[1..] then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
+                if not (target.shapex.[0] =~= n) then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
+                if not (d =~= target.shapex.[1..]) then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
                 n, c, d
 
         // In symbolics the rest is skipped
@@ -2266,7 +2267,7 @@ type Tensor =
 
         let _, _, _, _, _, outputShape =
             Shape.checkCanConvTranspose1d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex stride padding dilation outputPadding
-        print outputShape
+        //print outputShape
         let mutable b = b
         if dilation > 1 then
             b <- b.dilate([|1; 1; dilation|])
@@ -2446,7 +2447,10 @@ type Tensor =
     static member internal conv3dReverseDiff(a: Tensor, b:Tensor, cderivative:Tensor, aConst:bool, bConst:bool, strides:int[], paddings:int[]) =
         let a = if aConst then a else a.primal
         let b = if bConst then b else b.primal
+
+        // Symbolics skip this
         if a.symbolic then a.zeroLike(), b.zeroLike() else
+
         let batchSize = cderivative.shape.[0]
         let outputChannels = cderivative.shape.[1]
         let inputChannels = a.shape.[1]
@@ -2542,7 +2546,7 @@ type Tensor =
     member t.reverse(?value:Tensor, ?zeroDerivatives:bool) =
         let value = defaultArg value (t.onesLike())
         let zeroDerivatives = defaultArg zeroDerivatives true
-        if value.shape <> t.shape then failwithf "Expecting value.shape (%A) and t.shape (%A) to be the same" value.shape t.shape
+        if not (value.shapex =~= t.shapex) then failwithf "Expecting value.shape (%A) and t.shape (%A) to be the same" value.shape t.shape
         t.reverseReset(zeroDerivatives)
         t.reversePush(value)
 
@@ -2768,7 +2772,7 @@ type Tensor =
                             a.derivative <- a.derivative.addSlice(Array.init a.dim (fun j -> if j=dim then i else 0), t.derivative.unsqueeze(dim))
                             push ((a.zeroLike(), a) :: tt)
                         | CatTs(a, dim) ->
-                            let sizes = a |> Array.map (fun x -> x.shape.[dim])
+                            let sizes = a |> Array.map (fun x -> x.shapex.[dim])
                             push (List.append (Array.zip (t.derivative.split(sizes, dim=dim)) a |> Array.toList) tt)
                         | SplitT(a,sizes,dim,i) -> 
                             if a.derivative.dim = 0 then a.derivative <- a.zerosLike() + a.derivative

@@ -25,7 +25,7 @@ type Dtype =
     | Bool
 #if SYMBOLIC_SHAPES
     /// Allows symbolic dtypes
-    | Sym of Symbol
+    | Sym of ISym
 #endif
 
     member internal x.Name =
@@ -48,19 +48,20 @@ type Dtype =
         match t with
         | Bool | Byte | Int8 | Int16 | Int32 | Int64 -> Dtype.Int64
 #if SYMBOLIC_SHAPES
-        | Sym symb -> Sym (Symbol.unop "summationType" symb)
+        | Sym symb -> Sym (ISym.unop "summationType" symb)
 #endif
         | dt -> dt
 
 #if SYMBOLIC_SHAPES
-    member t.AsSymbol(syms: SymbolScope) =
+    member t.AsSymbol(syms: SymContext) =
         match t with
         | Sym sym -> sym
-        | _ -> syms.CreateConst(t)
+        | _ ->
+            syms.CreateConst(t.Name)
     /// Constraint equality
     static member (=~=) (a:Dtype,b:Dtype) : bool = 
         match a, b with 
-        | Sym sym, v2 | v2, Sym sym -> sym.Solve(v2.AsSymbol(sym.SymbolScope))
+        | Sym sym, v2 | v2, Sym sym -> sym.Solve(v2.AsSymbol(sym.SymContext))
         | a, b -> (a = b)
 #else
     /// Constraint equality
@@ -102,7 +103,7 @@ module Dtype =
 #if SYMBOLIC_SHAPES
             | Sym sym, _ | _, Sym sym ->
                 // TODO: this lays down a constraint
-                Some (Sym (Symbol.binop "widen" (dtype1.AsSymbol(sym.SymbolScope)) (dtype2.AsSymbol(sym.SymbolScope))))
+                Some (Sym (ISym.binop "widen" (dtype1.AsSymbol(sym.SymContext)) (dtype2.AsSymbol(sym.SymContext))))
 #endif
             | Float64, _ | _, Float64 -> Some Float64
             | Float32, _ | _, Float32 -> Some Float32
@@ -120,7 +121,7 @@ module Dtype =
     let mutable Default = Dtype.Float32
 
 #if SYMBOLIC_SHAPES
-    let Symbolic (s: Symbol) : Dtype = Dtype.Sym s
+    let Symbolic (s: ISym) : Dtype = Dtype.Sym s
 #endif
 
 /// Contains global functions and settings related to tensor element types, used when writing backends.

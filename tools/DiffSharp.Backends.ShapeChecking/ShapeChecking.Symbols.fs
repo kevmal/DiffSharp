@@ -3,13 +3,12 @@
 #if SYMBOLIC_SHAPES
 open System
 open System.Reflection
-open System.Collections.Concurrent
-open DiffSharp
 open DiffSharp.ShapeChecking
+open Microsoft.Z3
 
 type ShapeCheckingBackendSymbolStatics() =
     inherit BackendSymbolStatics()
-    override _.GetSymbolScope() = SymbolScopeImpl() :> _
+    override _.CreateSymContext() = SymContextImpl() :> _
 
 [<AutoOpen>]
 module internal Util = 
@@ -22,128 +21,158 @@ module internal Util =
         | m -> Some m
 
 [<RequireQualifiedAccess>]
-type SymbolImpl =
-    | Const of syms: SymbolScope * obj // e.g. a constant integer, Dtype, Device
-    | Var of var: SymbolVar
-    | App of syms: SymbolScope * func: string * args: Symbol list
+type Sym =
+    | Const of syms: SymContextImpl * value: obj * z3Expr: Expr // e.g. a constant integer, Dtype, Device
+    | Var of var: SymVar
+    | App of syms: SymContextImpl * func: string * args: Sym[]  * z3Expr: Expr
 
-    interface Symbol with 
-      member sym.SymbolScope =
+    member sym.SymContext =
         match sym with
-        | Const (syms, _) -> syms
-        | Var v -> v.SymbolScope
-        | App(syms, _, _) -> syms
+        | Const (syms, _, _) -> syms
+        | Var v -> v.SymContext
+        | App(syms, _, _, _) -> syms
+
+    /// Constrain the two symbols to be equal
+    member sym1.Solve(sym2: ISym) : bool =
+        sym1.SymContext.Constrain("eq", [|sym1; sym2|])
+
+    member sym.Z3Expr =
+        match sym with 
+        | Const (_, _, a) -> a
+        | Var v -> v.Z3Expr
+        | App (_, _, _, a) -> a
+
+    override sym.ToString() = 
+        let parenIf c s = if c then "(" + s + ")" else s
+        let rec print prec (s: Expr) =
+            if s.IsAdd then parenIf (prec<=3) (s.Args |> Array.map (print 5) |> String.concat "+")
+            elif s.IsMul then parenIf (prec<=5) (s.Args |> Array.map (print 3) |> String.concat "*")
+            elif s.IsIDiv then parenIf (prec<=5) (s.Args |> Array.map (print 3) |> String.concat "/")
+            elif s.IsSub then parenIf (prec<=5) (s.Args |> Array.map (print 5) |> String.concat "-")
+            elif s.IsApp && s.Args.Length > 0 then parenIf (prec<=2) (s.FuncDecl.Name.ToString() + "(" + (s.Args |> Array.map (print 5) |> String.concat ",") + ")")
+            else s.ToString()
+        let simp = sym.Z3Expr.Simplify()
+        print 6 simp
+        //match sym with
+        //| Const (_, v, _) -> v.ToString()
+        //| Var v -> v.Name
+        //| App(_, f, args, _) -> f + "(" + String.concat "," (Array.map string args) + ")"
 
     /// Check if we have enough information for the two symbols to be equal
-      member sym1.TryKnownToBeEqual(sym2: Symbol) : bool voption =
-        match sym1, (sym2 :?> SymbolImpl) with
-        | Const (_, obj1), Const (_, obj2) -> ValueSome (obj1.Equals(obj2))
-        | Solved sym1, _ -> sym1.TryKnownToBeEqual(sym2)
-        | _, Solved sym2 -> (sym1 :> Symbol).TryKnownToBeEqual(sym2)
-        | Var v1, Var v2 -> if (v1 = v2) then ValueSome true else ValueNone
-        | App(_, f1, args1), App(_, f2, args2) when f1 = f2 ->
-            (ValueSome true, args1, args2) |||> List.fold2 (fun v arg1 arg2 -> if v = ValueSome true then arg1.TryKnownToBeEqual(arg2) else v)
-        | a, b ->
-            printfn "unsure of %A = %A" a b
-            ValueNone
+    member sym1.TryKnownToBeEqual(sym2: Sym) : bool voption =
+        //printfn "------" 
+        //printfn "TryKnownToBeEqual : %O" sym
+        if sym1.SymContext.CheckIfSatisfiable("eq", [|sym1; sym2|]) |> snd then
+            if sym1.SymContext.CheckIfSatisfiable("neq", [|sym1; sym2|]) |> snd then
+                ValueNone
+            else
+                ValueSome true
+        else
+            ValueSome false
 
-      /// Constrain the two symbols to be equal
-      member sym1.Solve(sym2: Symbol) : bool =
-        match sym1, (sym2 :?> SymbolImpl) with
-        | Const (_, obj1), Const (_, obj2) -> obj1.Equals(obj2)
-        | Var v1, _ -> v1.Solve(sym2)
-        | _, Var v2 -> v2.Solve(sym1)
-        // This only applis if 'f1' is equation-free
-        //| App(_, f1, args1), App(_, f2, args2) when f1 = f2 && args1.Length = args2.Length ->
-        //    (args1, args2) ||> List.forall2 (fun arg1 arg2 -> arg1.Solve(arg2))
-        | a, b ->
-            // TODO the real work
-            printfn "equation: %O = %O" a b
-            true
+    interface ISym with 
+      member sym.SymContext = (sym:Sym).SymContext :> SymContext
+
+      member sym1.TryKnownToBeEqual(sym2: ISym) = sym1.TryKnownToBeEqual(sym2 :?> Sym)
 
       member sym.GetVarName() =
         match sym with
         | Var v -> v.Name
-        | _ -> failwith "not a variable"
+        | _ -> printfn "not a variable"; "?"
 
-      member sym.GetVarId() =
-        match sym with
-        | Var v -> v.Id
-        | _ -> failwith "not a variable"
+      member sym.TryEvaluate() = ValueNone
 
-      member sym.TryGetSolution() : Symbol voption =
-        match sym with
-        | Const (_, _) -> ValueNone
-        | Var v -> v.TryGetSolution()
-        | App(_, _, _) -> ValueNone
+[<AutoOpen>]
+module SymbolPatterns =
+    let (|Sym|) (x: ISym) : Sym = (x :?> Sym)
 
-      member sym.TryEvaluate() =
-        match sym with 
-        | SymbolImpl.Const (_, (:? int as n)) -> ValueSome (box n)
-        | Solved sym -> sym.TryEvaluate()
-        | SymbolImpl.App(_, "add", [a;b]) ->  
-            match a.TryEvaluate(), b.TryEvaluate() with
-            | ValueSome (:? int as av), ValueSome (:? int as bv) -> ValueSome (box (av + bv))
-            | _ -> ValueNone
-        | SymbolImpl.App(_, "sub", [a;b]) ->  
-            match a.TryEvaluate(), b.TryEvaluate() with
-            | ValueSome (:? int as av), ValueSome (:? int as bv) -> ValueSome (box (av - bv))
-            | _ -> ValueNone
-        | SymbolImpl.App(_, "mul", [a;b]) ->  
-            match a.TryEvaluate(), b.TryEvaluate() with
-            | ValueSome (:? int as av), ValueSome (:? int as bv) -> ValueSome (box (av * bv))
-            | _ -> ValueNone
-        | SymbolImpl.App(_, "div", [a;b]) ->  
-            match a.TryEvaluate(), b.TryEvaluate() with
-            | ValueSome (:? int as av), ValueSome (:? int as bv) -> ValueSome (box (av / bv))
-            | _ -> ValueNone
-        | SymbolImpl.App(_, "mod", [a;b]) ->  
-            match a.TryEvaluate(), b.TryEvaluate() with
-            | ValueSome (:? int as av), ValueSome (:? int as bv) -> ValueSome (box (av % bv))
-            | _ -> ValueNone
-        | SymbolImpl.App(_, "neg", [a]) ->  
-            match a.TryEvaluate() with
-            | ValueSome (:? int as av) -> ValueSome (box (-av))
-            | _ -> ValueNone
-        | _ -> ValueNone
-
-    override sym.ToString() =
-        match sym with
-        | Const (_, v) -> v.ToString()
-        | Var v -> v.Name
-        | App(_, f, args) -> f + "(" + String.concat "," (List.map string args) + ")"
-
-
-type SymbolVar(syms: SymbolScope, code: int, name: string) =
-    member _.SymbolScope = syms
-    member _.Id = code   
+type SymVar(syms: SymContextImpl, name: string, z3Expr: Expr) =
+    member _.SymContext = syms
     member _.Name = name
+    member _.Z3Expr = z3Expr
     override _.ToString() = "?" + name
-    member v.Solve(sym2:Symbol) = (syms :?> SymbolScopeImpl).Solve(v, sym2)
-    member v.TryGetSolution() : Symbol voption = (syms :?> SymbolScopeImpl).TryGetSolution(v)
 
-type SymbolScopeImpl() =
-    inherit SymbolScope()
+type SymContextImpl() =
+    inherit SymContext()
     
-    let mutable last = 777000000
-    let mapping = ConcurrentDictionary<int, string>()
-    let solutions = ConcurrentDictionary<int, Symbol>()
-    let constraints = ConcurrentQueue<(string * Symbol list)>()
+    let zctx = new Context()
+    let solver = zctx.MkSolver()
+    //let zparams = zctx.MkParams()
+    //let mutable last = 777000000
+    //let mapping = ConcurrentDictionary<int, string>()
+    //let solutions = ConcurrentDictionary<int, ISym>()
+    //let constraints = ResizeArray<BoolExpr>()
 
     /// Create a symbol var with the given name and constrain it to be equal to the 
     /// given constant value
-    override syms.CreateConst (v: obj) : Symbol =
-       SymbolImpl.Const(syms, v) :> Symbol
+    override syms.CreateConst (v: obj) : ISym =
+       
+       let zsym = 
+           match v with 
+           | :? int as n -> zctx.MkInt(n) :> Expr
+           | :? string as s -> zctx.MkString(s) :> Expr
+           | _ -> failwithf "unknown constant %O or type %A" v (v.GetType())
+       Sym.Const(syms, v, zsym) :> ISym
 
-    override syms.CreateApp (f: string, args: Symbol list) : Symbol =
-       SymbolImpl.App(syms, f, args) :> Symbol
+    member syms.Create (f: string, args: Sym[]) : Sym =
+        let zsym = 
+           match f with 
+           | "add" -> 
+               let zargs = args |> Array.map (fun x -> x.Z3Expr :?> ArithExpr)
+               zctx.MkAdd(zargs) :> Expr
+           | "mul" -> 
+               let zargs = args |> Array.map (fun x -> x.Z3Expr :?> ArithExpr)
+               zctx.MkMul(zargs) :> Expr
+           | "sub" -> 
+               let zargs = args |> Array.map (fun x -> x.Z3Expr :?> ArithExpr)
+               zctx.MkSub(zargs) :> Expr
+           | "div" -> 
+               let zargs = args |> Array.map (fun x -> x.Z3Expr :?> ArithExpr)
+               solver.Assert(zctx.MkGt(zargs.[1], zctx.MkInt(0)))
+               let res = zctx.MkDiv(zargs.[0], zargs.[1]) :> Expr
+               printfn "res.IsDiv = %b" res.IsDiv
+               printfn "res.IsIDiv = %b" res.IsIDiv
+               res
+           | "mod" -> 
+               let zargs = args |> Array.map (fun x -> x.Z3Expr :?> IntExpr)
+               zctx.MkMod(zargs.[0], zargs.[1]) :> Expr
+           | "leq" ->
+               let zargs = args |> Array.map (fun x -> x.Z3Expr :?> ArithExpr)
+               zctx.MkLe(zargs.[0], zargs.[1]) :> Expr
+           | "lt" ->
+               let zargs = args |> Array.map (fun x -> x.Z3Expr :?> ArithExpr)
+               zctx.MkLt(zargs.[0], zargs.[1]) :> Expr
+           | "geq" ->
+               let zargs = args |> Array.map (fun x -> x.Z3Expr :?> ArithExpr)
+               zctx.MkGe(zargs.[0], zargs.[1]) :> Expr
+           | "gt" ->
+               let zargs = args |> Array.map (fun x -> x.Z3Expr :?> ArithExpr)
+               zctx.MkGt(zargs.[0], zargs.[1]) :> Expr
+           | "eq" ->
+               let zargs = args |> Array.map (fun x -> x.Z3Expr)
+               zctx.MkEq(zargs.[0], zargs.[1]) :> Expr
+           | "neq" ->
+               let zargs = args |> Array.map (fun x -> x.Z3Expr)
+               zctx.MkNot (zctx.MkEq(zargs.[0], zargs.[1])) :> Expr
+           | s -> 
+               printfn "assuming %s is uninterpreted" s
+               // TODO: string sorts and others
+               let funcDecl = zctx.MkFuncDecl(s,[| for _x in args -> zctx.IntSort :> Sort |], (zctx.IntSort :> Sort))
+               let zargs = args |> Array.map (fun x -> x.Z3Expr)
+               zctx.MkApp(funcDecl, zctx.MkEq(zargs.[0], zargs.[1]))
+       
+        Sym.App(syms, f, args, zsym)
 
-    override syms.CreateVar (name: string) : Symbol =
-        let code = last
-        let sym = SymbolVar(syms, code, name)
-        last <- last + 1
-        mapping.[code] <- name
-        SymbolImpl.Var sym :> Symbol
+    override syms.CreateApp (f: string, args: ISym[]) : ISym =
+        let args = args |> Array.map (fun (Sym x) -> x)
+        syms.Create(f, args) :> ISym
+
+    override syms.CreateVar (name: string) : ISym =
+        let zsym = zctx.MkConst(name, zctx.IntSort)
+        let sym = SymVar(syms, name, zsym)
+        //last <- last + 1
+        //mapping.[code] <- name
+        Sym.Var sym :> ISym
 
     /// Injects a symbol into a .NET type via a call to .Symbolic on type or partner module.
     override syms.CreateInjected<'T> (name: string) : 'T =
@@ -160,20 +189,37 @@ type SymbolScopeImpl() =
         | _ ->
             failwithf "no static 'ShapeChecking' method found in type '%s' or a partner module of the same name" t.FullName
 
-    override _.Constrain(func: string, args: Symbol list) =
-        printfn "constraint: %s(%s)" func (String.concat "," (List.map string args))
-        constraints.Enqueue((func, args))
-        true
+    override ctxt.Constrain(func: string, args: ISym[]) =
+        //printfn "------" 
+        let args = args |> Array.map (fun (Sym x) -> x)
+        //printfn "constraint: %s(%s)" func (String.concat "," (Array.map string args))
+        let zexpr, res = ctxt.CheckIfSatisfiable(func, args)
+        if res then 
+            //printfn "constraint ok!: %s(%s)" func (String.concat "," (Array.map string args))
+            solver.Assert(zexpr)
+        //else
+            //printfn "constraint not ok --> %s(%s)" func (String.concat "," (Array.map string args))
+        //constraints.Add(zexpr)
+        res
 
-    member _.Solve(v1: SymbolVar, sym2: Symbol) =
-        match v1.TryGetSolution() with 
-        | ValueSome sym1 -> sym1.Solve(sym2)
-        | ValueNone _ -> 
-            solutions.[v1.Id] <- sym2
-            true
+    member syms.CheckIfSatisfiable(func: string, args: Sym[]) : BoolExpr * bool =
+        
+        //printfn "check: %s(%s)" func (String.concat "," (Array.map string args))
+        let expr = syms.Create(func, args)
+        let zexpr = expr.Z3Expr :?> BoolExpr
+        solver.Push()
+        solver.Assert(zexpr)
+        let res = solver.Check()
+        solver.Pop()
+        match res with
+        | Status.UNSATISFIABLE -> 
+            //printfn "  --> not ok"
+            zexpr, false
+        | Status.SATISFIABLE -> 
+            //printfn "  --> ok"
+            zexpr, true
+        | _ -> 
+            //printfn "  --> unknown"
+            zexpr, true
 
-    member _.TryGetSolution(v: SymbolVar) =
-        match solutions.TryGetValue(v.Id) with 
-        | true, res -> ValueSome res
-        | _ -> ValueNone
 #endif

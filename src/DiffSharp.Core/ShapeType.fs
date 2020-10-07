@@ -15,7 +15,7 @@ open DiffSharp.Util
 ///  it can always be assumed that the symbol is empty.
 /// </remarks>
 [<Struct; CustomEquality; CustomComparison>]
-type Int internal (n: int, sym: Symbol) = 
+type Int internal (n: int, sym: ISym) = 
 
     static member inline internal unop (x: Int) f1 f2 =
         match x.TryGetValue() with 
@@ -27,21 +27,21 @@ type Int internal (n: int, sym: Symbol) =
         | ValueSome xv, ValueSome yv -> f1 xv yv
         | ValueNone, ValueNone -> f2 x.SymbolRaw y.SymbolRaw
         | ValueSome _, ValueNone ->
-            let symX = x.AsSymbol(y.SymbolRaw.SymbolScope)
+            let symX = x.AsSymbol(y.SymbolRaw.SymContext)
             f2 symX y.SymbolRaw
         | ValueNone, ValueSome _ ->
-            let symY = y.AsSymbol(x.SymbolRaw.SymbolScope)
+            let symY = y.AsSymbol(x.SymbolRaw.SymContext)
             f2 x.SymbolRaw symY
 
     new (n: int) = Int(n, Unchecked.defaultof<_>)
 
-    static member FromSymbol (sym: Symbol) = Int(0, sym)
+    static member FromSymbol (sym: ISym) = Int(0, sym)
 
-    member internal x.SymbolRaw : Symbol = sym
+    member internal x.SymbolRaw : ISym = sym
 
-    member x.AsSymbol(syms: SymbolScope) =
+    member x.AsSymbol(syms: SymContext) =
         match box sym with 
-        | null  -> syms.CreateConst(x)
+        | null  -> syms.CreateConst(n)
         | _ -> sym
 
     member x.TryGetName() =
@@ -54,7 +54,7 @@ type Int internal (n: int, sym: Symbol) =
         | null -> ValueSome n
         | _ -> Int.TryEvaluate(sym)
 
-    static member TryEvaluate(sym: Symbol) =
+    static member TryEvaluate(sym: ISym) =
         match sym.TryEvaluate() with 
         | ValueSome (:? int as n) -> ValueSome n
         | _ -> ValueNone
@@ -62,7 +62,7 @@ type Int internal (n: int, sym: Symbol) =
     /// Return the value, exception if symbolic
     member x.Value =
         match x.TryGetValue() with 
-        | ValueNone -> failwithf "can't simulate value of symbolic integer expressoin %s" (sym.ToString())
+        | ValueNone -> failwithf "can't simulate value of symbolic integer expression %s" (sym.ToString())
         | ValueSome v -> v
 
     /// Return the value, or '1' if this has no definite solution, normally to get a representative value
@@ -71,36 +71,42 @@ type Int internal (n: int, sym: Symbol) =
         | ValueNone -> 1
         | ValueSome v -> v
 
+    static member Max (a:Int, b:Int) : Int =
+        Int.binop a b (fun a b -> Int (max a b)) (fun a b -> Int.FromSymbol (ISym.binop "max" a b))
+
+    static member Min (a:Int, b:Int) : Int =
+        Int.binop a b (fun a b -> Int (min a b)) (fun a b -> Int.FromSymbol (ISym.binop "min" a b))
+
     static member (+) (a:Int, b:Int) : Int =
-        Int.binop a b (fun a b -> Int (a+b)) (fun a b -> Int.FromSymbol (Symbol.binop "add" a b))
+        Int.binop a b (fun a b -> Int (a+b)) (fun a b -> Int.FromSymbol (ISym.binop "add" a b))
 
     static member (+) (a:Int, b:int) : Int = a + Int b
 
     static member (+) (a:int, b:Int) : Int = Int a + b
 
     static member (-) (a:Int, b:Int) : Int =
-        Int.binop a b (fun a b -> Int (a-b)) (fun a b -> Int.FromSymbol (Symbol.binop "sub" a b))
+        Int.binop a b (fun a b -> Int (a-b)) (fun a b -> Int.FromSymbol (ISym.binop "sub" a b))
 
     static member (-) (a:Int, b:int) : Int = a - Int b
 
     static member (-) (a:int, b:Int) : Int = Int a - b
 
     static member (%) (a:Int,b:Int) : Int =
-        Int.binop a b (fun a b -> Int (a%b)) (fun a b -> Int.FromSymbol (Symbol.binop "mod" a b))
+        Int.binop a b (fun a b -> Int (a%b)) (fun a b -> Int.FromSymbol (ISym.binop "mod" a b))
 
     static member (%) (a:Int, b:int) : Int = a % Int b
 
     static member (%) (a:int, b:Int) : Int = Int a % b
 
     static member (*) (a:Int,b:Int) : Int = 
-        Int.binop a b (fun a b -> Int (a*b)) (fun a b -> Int.FromSymbol (Symbol.binop "mul" a b))
+        Int.binop a b (fun a b -> Int (a*b)) (fun a b -> Int.FromSymbol (ISym.binop "mul" a b))
 
     static member (*) (a:Int, b:int) : Int = a * Int b
 
     static member (*) (a:int, b:Int) : Int = Int a * b
 
     static member (/) (a:Int,b:Int) : Int = 
-        Int.binop a b (fun a b -> Int (a/b)) (fun a b -> Int.FromSymbol (Symbol.binop "div" a b))
+        Int.binop a b (fun a b -> Int (a/b)) (fun a b -> Int.FromSymbol (ISym.binop "div" a b))
 
     static member (/) (a:Int, b:int) : Int = a / Int b
 
@@ -108,7 +114,7 @@ type Int internal (n: int, sym: Symbol) =
 
     /// Negation operator
     static member (~-) (a:Int) : Int = 
-        Int.unop a (fun a -> Int (-a)) (fun a -> Int.FromSymbol (Symbol.unop "neg" a))
+        Int.unop a (fun a -> Int (-a)) (fun a -> Int.FromSymbol (ISym.unop "neg" a))
 
     /// Constraint equality
     static member (=~=) (a:Int,b:Int) : bool = 
@@ -116,7 +122,19 @@ type Int internal (n: int, sym: Symbol) =
 
     /// Constraint less-than-or-equal. Returns true if no contradiciton was detected when the constraint was asserted.
     static member (<=~) (a:Int,b:Int) : bool = 
-        Int.binop a b (fun a b -> a <= b) (fun a b -> a.SymbolScope.Constrain("<=", [a;b]))
+        Int.binop a b (fun a b -> a <= b) (fun a b -> a.SymContext.Constrain("leq", [|a;b|]))
+
+    /// Constraint less-than. Returns true if no contradiciton was detected when the constraint was asserted.
+    static member (<~) (a:Int,b:Int) : bool = 
+        Int.binop a b (fun a b -> a < b) (fun a b -> a.SymContext.Constrain("lt", [|a;b|]))
+
+    /// Constraint greater-than. Returns true if no contradiciton was detected when the constraint was asserted.
+    static member (>~) (a:Int,b:Int) : bool = 
+        Int.binop a b (fun a b -> a > b) (fun a b -> a.SymContext.Constrain("gt", [|a;b|]))
+
+    /// Constraint greater-than. Returns true if no contradiciton was detected when the constraint was asserted.
+    static member (>=~) (a:Int,b:Int) : bool = 
+        Int.binop a b (fun a b -> a >= b) (fun a b -> a.SymContext.Constrain("geq", [|a;b|]))
 
     static member Zero = Int 0
 
@@ -127,7 +145,7 @@ type Int internal (n: int, sym: Symbol) =
     member _.IsInvalid = (n < -1)
 
     /// Allow injection of symbol variables
-    static member Symbolic (sym: Symbol) = Int.FromSymbol sym
+    static member Symbolic (sym: ISym) = Int.FromSymbol sym
 
     override x.GetHashCode() =
         match x.TryGetValue() with 
@@ -168,7 +186,11 @@ type Shape internal (values: int[], dims: Int[]) =
     new (values: int[]) = Shape(values, null)
 
     /// Creates a possibly-symbolic shape from an array of possibly-symbolic integers
-    new (arr: Int[]) = Shape(null, arr)
+    new (arr: Int[]) =
+        // assert all are either syntactically -1 placeholders or constrained > 0
+        for d in arr do
+           (d = Int -1 || d >~ Int 0) |> ignore
+        Shape(null, arr)
 
     /// Get the number of dimensions in the shape
     member _.Length =
