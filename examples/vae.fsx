@@ -1,5 +1,6 @@
 (*** condition: prepare ***)
 #I "../tests/DiffSharp.Tests/bin/Debug/netcoreapp3.0"
+#r "Microsoft.Z3.dll"
 #r "DiffSharp.Core.dll"
 #r "DiffSharp.Backends.Torch.dll"
 (*** condition: fsx ***)
@@ -172,11 +173,13 @@ dsharp.ones(shape:Shape, ...)   <-- added overload
 
 *)
 
+open DiffSharp.ShapeChecking
 
-module Model =
-    open DiffSharp.ShapeChecking
+open Microsoft.Z3
 
-    let checkAndPrintShapes<'T when 'T :> Model> () =
+type Model with
+
+    static member Analyse<'T when 'T :> DiffSharp.Model.Model> (?inputShape: Shape) =
       let dflt = Backend.Default
       try
         Backend.Default <- Backend.ShapeChecking
@@ -189,17 +192,17 @@ module Model =
                     let pt = p.ParameterType.ToString()
                     pt.Contains("DiffSharp.Int")))
             |> function 
-               | None -> failwith "couldn't find a model constructor taking Int parameter"
+               | None -> ctors.[0] // failwith "couldn't find a model constructor taking Int parameter"
                | Some c -> c
         let args =
             ctor.GetParameters() |> Array.map (fun p -> 
                 let pty = p.ParameterType
                 let pts = pty.ToString()
                 if pts = "DiffSharp.Int" then
-                   printfn "making symbolic for model parameter %s" p.Name
+                   //printfn "making symbolic for model parameter %s" p.Name
                    syms.CreateInjected<Int>(p.Name) |> box
                 elif pts = "Microsoft.FSharp.Core.FSharpOption`1[DiffSharp.Int]" then 
-                   printfn "making symbolic for option model parameter %s" p.Name
+                   //printfn "making symbolic for option model parameter %s" p.Name
                    Some(syms.CreateInjected<Int>(p.Name)) |> box                   
                 elif pts.StartsWith("Microsoft.FSharp.Core.FSharpOption`1[") then 
                    null // None
@@ -217,36 +220,140 @@ module Model =
                    box v
                 else failwithf "unknown model parameter type %O" p.ParameterType
              )
-        let model = ctor.Invoke(args) :?> Model
+        let model = ctor.Invoke(args) :?> DiffSharp.Model.Model
         let transfers =
-            [ for ndim in 0 .. 5 do
-                let input = dsharp.zeros(Shape [| for d in 1 .. ndim -> syms.CreateInjected<Int>("N" + string d) |])
+            match inputShape with
+            | None -> 
+                [ for ndim in 0 .. 5 do
+                    let input = dsharp.zeros(Shape [| for d in 1 .. ndim -> syms.CreateInjected<Int>("?N" + string d) |])
+                    let res = try Ok (model.forward(input)) with  e -> Error e
+                    yield (input, res) ]
+            | Some shape -> 
+                let input = dsharp.zeros(shape)
                 let res = try Ok (model.forward(input)) with  e -> Error e
-                yield (input, res) ]
+                [ (input, res)]
 
         printfn ""
         printfn "---------------------"
         printfn "Model shape summary for %s" typeof<'T>.FullName
         
         for (KeyValue(a,b)) in model.parametersDict.values |> Seq.toArray |> Seq.sortBy (fun (KeyValue(a,b)) -> a) do
-           printfn "   %s : %O" a b.value.shapex
+            printfn "   %s : %O" a b.value.shapex
 
         // Probe the forward function for shape behaviour
-        printfn "   forward(...):"
         for (input, res) in transfers do
             match res with 
             | Ok res -> 
-                printfn "      %O --> %O" input.shapex res.shapex
+                printfn "   forward(%O) : %O" input.shapex res.shapex
             | Error e -> 
-                printfn "      %O --> fails\n%s" input.shapex (e.ToString().Split('\r','\n') |> Array.map (fun s -> "        " + s) |> String.concat "\n")
+                printfn "      %O --> %s" input.shapex e.Message
+                //printfn "      %O --> fails\n%s" input.shapex (e.ToString().Split('\r','\n') |> Array.map (fun s -> "        " + s) |> String.concat "\n")
                 () 
       finally
         Backend.Default <- dflt
 
 
 
-Model.checkAndPrintShapes<Linear>()
-Model.checkAndPrintShapes<VAE>()
-Model.checkAndPrintShapes<Conv1d>()
-Model.checkAndPrintShapes<Conv2d>()
-Model.checkAndPrintShapes<Conv3d>()
+Model.Analyse<Linear> ()
+Model.Analyse<VAE> ()
+Model.Analyse<Conv1d> ()
+Model.Analyse<Conv2d> ()
+Model.Analyse<Conv3d> ()
+Model.Analyse<ConvTranspose1d> ()
+Model.Analyse<ConvTranspose2d> ()
+Model.Analyse<ConvTranspose3d> ()
+Model.Analyse<Dropout> (Shape [| 30; 40; |] )
+Model.Analyse<Dropout> ()
+Model.Analyse<Dropout2d> ()
+Model.Analyse<Dropout3d> ()
+Model.Analyse<BatchNorm1d> ()
+Model.Analyse<BatchNorm2d> ()
+Model.Analyse<BatchNorm3d> ()
+
+
+(*
+#r "Microsoft.Z3.dll"
+open Microsoft.Z3
+
+let ctx = new Context()
+
+let a = ctx.MkConst("A", ctx.IntSort) :?> ArithExpr
+let b = ctx.MkConst("B", ctx.IntSort) :?> ArithExpr
+let c = ctx.MkConst("C", ctx.IntSort) :?> ArithExpr
+
+let solver = ctx.MkSolver()
+
+solver.Assert(ctx.MkEq(a, b))
+
+printfn "res = %A" (solver.Check())
+printfn "help: %A" (ctx.SimplifyHelp())
+printfn "a = %A" (a.Simplify())
+printfn "b = %A" (b.Simplify())
+printfn "a = %A" (a.Simplify(ctx.MkParams().Add("local_ctx", true)))
+printfn "b = %A" (b.Simplify(ctx.MkParams().Add("local_ctx", true)))
+
+ctx.TacticDescription
+
+//solver.AssertAndTrack
+printfn "solver.UnsatCore = %A" solver.UnsatCore
+
+printfn "solver.Assertions = %A" solver.Assertions
+
+
+let status, consequences = solver.Consequences( [|ctx.MkEq(a, b) |], [| a; b |]) //ctx.MkEq(a, b))
+printfn "status = %A" status
+printfn "consequences = %A" consequences
+//printfn "solver.Cube = %A" (solver.Cube() |>Seq.toArray)
+//printfn "solver.CubeVariables = %A" solver.CubeVariables
+
+
+let one = ctx.MkInt(3)
+printfn "one.IsConst = %b" one.IsConst
+
+
+printfn "isFreeIn a a = %b" (isFreeIn a a)
+printfn "isFreeIn a b = %b" (isFreeIn a b)
+printfn "isFreeIn b b = %b" (isFreeIn b b)
+printfn "isFreeIn b a = %b" (isFreeIn b a)
+printfn "isFreeIn b (a+a) = %b" (isFreeIn b (ctx.MkAdd(a,a)))
+printfn "isFreeIn b (a+b) = %b" (isFreeIn b (ctx.MkAdd(a,b)))
+
+
+printfn "getGaussianElim solver = %A"   (getGaussianElim solver)
+
+printfn "canonicalize solver a = %A"   (canonicalize solver a)
+printfn "canonicalize solver b = %A"   (canonicalize solver b)
+
+
+printfn "canonicalize solver (a=a) |- a --> %A" (canonicalizeWrt [| (a, a) |]  a)
+printfn "canonicalize solver (a=b) |- a --> %A" (canonicalizeWrt [| (a, b) |]  a)
+printfn "canonicalize solver (b=a) |- a --> %A" (canonicalizeWrt [| (b, a) |]  a)
+printfn "canonicalize solver (b=a) |- b --> %A" (canonicalizeWrt [| (b, a) |]  a)
+printfn "canonicalize solver (a=b) |- a --> %A" (canonicalizeWrt [| (a, b) |]  (ctx.MkAdd(a,a)))
+printfn "canonicalize solver (a=b;b=a) |- a --> %A" (canonicalizeWrt [| (a, b); (b,a) |]  (ctx.MkAdd(a,b)))
+printfn "canonicalize solver (a=b;b=c) |- a --> %A" (canonicalizeWrt [| (a, b); (b,c) |]  (ctx.MkAdd(a,b)))
+
+printfn "isFreeIn a a = %b" (isFreeIn a a)
+printfn "isFreeIn a b = %b" (isFreeIn a b)
+printfn "isFreeIn b b = %b" (isFreeIn b b)
+printfn "isFreeIn b a = %b" (isFreeIn b a)
+printfn "isFreeIn b (a+a) = %b" (isFreeIn b (ctx.MkAdd(a,a)))
+printfn "isFreeIn b (a+b) = %b" (isFreeIn b (ctx.MkAdd(a,b)))
+
+printfn "getGaussianElim solver = %A"   (getGaussianElim solver)
+printfn "isFreeIn a a = %b" (isFreeIn a a)
+printfn "isFreeIn a b = %b" (isFreeIn a b)
+printfn "isFreeIn b b = %b" (isFreeIn b b)
+printfn "isFreeIn b a = %b" (isFreeIn b a)
+printfn "isFreeIn b (a+a) = %b" (isFreeIn b (ctx.MkAdd(a,a)))
+printfn "isFreeIn b (a+b) = %b" (isFreeIn b (ctx.MkAdd(a,b)))
+
+printfn "getGaussianElim solver = %A"   (getGaussianElim solver)
+printfn "isFreeIn a a = %b" (isFreeIn a a)
+printfn "isFreeIn a b = %b" (isFreeIn a b)
+printfn "isFreeIn b b = %b" (isFreeIn b b)
+printfn "isFreeIn b a = %b" (isFreeIn b a)
+printfn "isFreeIn b (a+a) = %b" (isFreeIn b (ctx.MkAdd(a,a)))
+printfn "isFreeIn b (a+b) = %b" (isFreeIn b (ctx.MkAdd(a,b)))
+printfn "getGaussianElim solver = %A"   (getGaussianElim solver)
+*)

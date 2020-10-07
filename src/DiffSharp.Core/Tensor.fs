@@ -1295,14 +1295,18 @@ type Tensor =
        let res =
         if dim = 0 && a.dim = 0 then a
         else
-            if dim >= a.dim || dim < 0 then failwithf "Expecting dim to be between 0 and %A" a.dim
+          if dim >= a.dim || dim < 0 then failwithf "Expecting dim to be between 0 and %A" a.dim
+          // Note: symbolics skip this
+          if a.symbolic then 
+              let outputShape = Array.copy a.shapex.Dims
+              outputShape.[dim] <- Int 1
+              a.zerosLike(shape=Shape outputShape)
+          else
             let sBounds = Array2D.init a.dim 3 (fun i j -> if j=0 then Int 0 elif j=1 then a.shapex.[i]-1 else Int 0)
             sBounds.[dim, 1] <- Int 0
             sBounds.[dim, 2] <- Int 1
             let mutable s = a.zerosLike(dtype=a.dtype.SummationType).GetSlice(sBounds)
-            // Note: symbolics skip this
-            if not a.symbolic then 
-              for i=0 to a.shape.[dim]-1 do
+            for i=0 to a.shape.[dim]-1 do
                 sBounds.[dim,0] <- Int i
                 sBounds.[dim,1] <- Int i
                 sBounds.[dim,2] <- Int 1

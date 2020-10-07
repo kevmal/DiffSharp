@@ -142,8 +142,7 @@ module Shape =
         let inputLengthAfterPadding = inputLength + 2*padding
         if not (shape2.[1] =~= inputChannels) then failwithf "Input and filters have different number of channels: %A, %A" inputChannels filtersChannels
         if not (kernelLength <=~ inputLengthAfterPadding) then failwithf "Expecting kernelLength (%A) <= inputLengthAfterPadding (%A)" kernelLength inputLengthAfterPadding
-        // TODO symbolic formula for convolution size
-        let outputSize = Int (int (floor (float (inputLengthAfterPadding - kernelLength).Value/(float stride))) + 1)
+        let outputSize = (inputLengthAfterPadding - kernelLength)/stride + Int 1
         let outputShape = Shape [|batchSize; outputChannels; outputSize|]
         batchSize, inputChannels, kernelLength, outputChannels, outputSize, outputShape
 
@@ -172,9 +171,8 @@ module Shape =
         if not (filtersChannels =~= inputChannels) then failwithf "Input and filters have different number of channels: %A, %A" inputChannels filtersChannels
         if not (kernelHeight <=~ inputHeightAfterPadding) then failwithf "Expecting kernelHeight (%A) <= inputHeightAfterPadding (%A)" kernelHeight inputHeightAfterPadding
         if not (kernelWidth <=~ inputWidthAfterPadding) then failwithf "Expecting kernelWidth (%A) <= inputWidthAfterPadding (%A)" kernelWidth inputWidthAfterPadding
-        // TODO symbolic formula for convolution size
-        let outputHeight = Int (int (floor (float (inputHeightAfterPadding - kernelHeight).Value/(float strides.[0]))) + 1)
-        let outputWidth = Int (int (floor (float (inputWidthAfterPadding - kernelWidth).Value/(float strides.[1]))) + 1)
+        let outputHeight = (inputHeightAfterPadding - kernelHeight)/strides.[0] + Int 1
+        let outputWidth = (inputWidthAfterPadding - kernelWidth)/strides.[1] + Int 1
         let outputShape = Shape [|batchSize; outputChannels; outputHeight; outputWidth|]
         batchSize, inputChannels, (kernelHeight, kernelWidth), (outputChannels, outputHeight, outputWidth), outputShape
 
@@ -207,10 +205,9 @@ module Shape =
         if not (kernelDepth <=~ inputDepthAfterPadding) then failwithf "Expecting kernelDepth (%A) <= inputDepthAfterPadding (%A)" kernelDepth inputDepthAfterPadding
         if not (kernelHeight <=~ inputHeightAfterPadding) then failwithf "Expecting kernelHeight (%A) <= inputHeightAfterPadding (%A)" kernelHeight inputHeightAfterPadding
         if not (kernelWidth <=~ inputWidthAfterPadding) then failwithf "Expecting kernelWidth (%A) <= inputWidthAfterPadding (%A)" kernelWidth inputWidthAfterPadding
-        // TODO symbolic formula for convolution size
-        let outputDepth = Int (int (floor (float (inputDepthAfterPadding - kernelDepth).Value/(float strides.[0]))) + 1)
-        let outputHeight = Int (int (floor (float (inputHeightAfterPadding - kernelHeight).Value/(float strides.[1]))) + 1)
-        let outputWidth = Int (int (floor (float (inputWidthAfterPadding - kernelWidth).Value/(float strides.[2]))) + 1)
+        let outputDepth = (inputDepthAfterPadding - kernelDepth)/strides.[0] + Int 1
+        let outputHeight = (inputHeightAfterPadding - kernelHeight)/strides.[1] + Int 1
+        let outputWidth = (inputWidthAfterPadding - kernelWidth)/strides.[2] + Int 1
         let outputShape = Shape [|batchSize; outputChannels; outputDepth; outputHeight; outputWidth|]
         batchSize, inputChannels, (kernelDepth, kernelHeight, kernelWidth), (outputChannels, outputDepth, outputHeight, outputWidth), outputShape
 
@@ -558,8 +555,11 @@ module Shape =
             let mn = mx - min n1 n2
             Array.init mx (fun i ->
                 if i < mn then (if n1 > n2 then shape1.[i] else shape2.[i])
-                elif n1 > n2 then Int.Max (shape1.[i], shape2.[i-mn])
-                else Int.Max (shape1.[i-mn], shape2.[i]))
+                elif n1 > n2 then 
+                    if shape1.[i] = Int 1 then shape2.[i-mn] else shape1.[i]
+                else 
+                    if shape2.[i] = Int 1 then shape1.[i-mn] else shape2.[i]
+            )
             |> Shape
         else failwithf "shapes %A and %A are not related by broadcasting - each dimension must either be extra, equal, expand from 1" shape1 shape2
 

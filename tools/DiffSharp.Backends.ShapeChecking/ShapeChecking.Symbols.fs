@@ -20,6 +20,47 @@ module internal Util =
         | null -> None
         | m -> Some m
 
+    let rec isFreeIn (v: Expr) (tm: Expr) =
+       if v = tm then true
+       else if tm.IsApp then tm.Args |> Array.exists (fun arg -> isFreeIn v arg)
+       else false
+
+    let betterName (a: string) (b: string) = 
+        b.StartsWith("?") && not (a.StartsWith("?"))
+
+    let getGaussianElim (solver: Solver) =
+
+        // Find the equations 
+        let eqns = solver.Assertions |> Array.filter (fun x -> x.IsEq) |> Array.map (fun x -> x.Args.[0], x.Args.[1])
+
+        // Find the equations defining variables, prefering a nicer name in a = b
+        let veqns = 
+            eqns 
+            |> Array.choose (fun (a,b) -> 
+                if a.IsConst && b.IsConst && betterName (a.ToString()) (b.ToString()) then Some(b,a) 
+                elif a.IsConst then Some(a,b) 
+                elif b.IsConst then Some(b,a) 
+                else None)
+
+        // Iteratively find all the equations where the rhs don't use any of the variables, e.g. "x = 1"
+        // and normalise the e.h.s. of the other equations with respect to these
+        let rec loop (veqns: (Expr * Expr)[])  (vs: Expr[]) acc =
+            //printfn "vs = %A, acc = %A"  vs acc
+            let relv, irrel = veqns |> Array.partition (fun (_,rhs) -> not (vs |> Array.exists (fun v2 -> isFreeIn v2 rhs)))
+            if relv.Length = 0 then acc 
+            else 
+               let vsnew = Array.map fst relv
+               let relv = relv |> Array.map (fun (v,b) -> (v, b.Substitute(Array.map fst acc, Array.map snd acc)))
+               loop irrel (Array.except vsnew vs) (Array.append relv acc)
+        loop veqns (Array.map fst veqns) [| |]
+
+    /// Canonicalise an expression w.r.t. the equations in Solver
+    ///
+    /// TODO: cache the 'getGaussianElim' though it needs to be updated after each new equation
+    let canonicalize (solver: Solver) (expr: Expr) =
+        let shell = getGaussianElim solver
+        expr.Substitute(Array.map fst shell, Array.map snd shell)
+
 [<RequireQualifiedAccess>]
 type Sym =
     | Const of syms: SymContextImpl * value: obj * z3Expr: Expr // e.g. a constant integer, Dtype, Device
@@ -49,9 +90,10 @@ type Sym =
             elif s.IsMul then parenIf (prec<=5) (s.Args |> Array.map (print 3) |> String.concat "*")
             elif s.IsIDiv then parenIf (prec<=5) (s.Args |> Array.map (print 3) |> String.concat "/")
             elif s.IsSub then parenIf (prec<=5) (s.Args |> Array.map (print 5) |> String.concat "-")
+            elif s.IsRemainder then parenIf (prec<=5) (s.Args |> Array.map (print 5) |> String.concat "%")
             elif s.IsApp && s.Args.Length > 0 then parenIf (prec<=2) (s.FuncDecl.Name.ToString() + "(" + (s.Args |> Array.map (print 5) |> String.concat ",") + ")")
             else s.ToString()
-        let simp = sym.Z3Expr.Simplify()
+        let simp = sym.Z3Expr.Simplify() |> canonicalize sym.SymContext.Solver
         print 6 simp
         //match sym with
         //| Const (_, v, _) -> v.ToString()
@@ -128,14 +170,14 @@ type SymContextImpl() =
                zctx.MkSub(zargs) :> Expr
            | "div" -> 
                let zargs = args |> Array.map (fun x -> x.Z3Expr :?> ArithExpr)
-               solver.Assert(zctx.MkGt(zargs.[1], zctx.MkInt(0)))
-               let res = zctx.MkDiv(zargs.[0], zargs.[1]) :> Expr
-               printfn "res.IsDiv = %b" res.IsDiv
-               printfn "res.IsIDiv = %b" res.IsIDiv
-               res
+               //solver.Assert(zctx.MkGt(zargs.[1], zctx.MkInt(0)))
+               zctx.MkDiv(zargs.[0], zargs.[1]) :> Expr
            | "mod" -> 
                let zargs = args |> Array.map (fun x -> x.Z3Expr :?> IntExpr)
                zctx.MkMod(zargs.[0], zargs.[1]) :> Expr
+           //| "max" -> 
+           //    let zargs = args |> Array.map (fun x -> x.Z3Expr :?> ArithExpr)
+           //    zctx.M .MkSub(zargs) :> Expr
            | "leq" ->
                let zargs = args |> Array.map (fun x -> x.Z3Expr :?> ArithExpr)
                zctx.MkLe(zargs.[0], zargs.[1]) :> Expr
@@ -159,7 +201,7 @@ type SymContextImpl() =
                // TODO: string sorts and others
                let funcDecl = zctx.MkFuncDecl(s,[| for _x in args -> zctx.IntSort :> Sort |], (zctx.IntSort :> Sort))
                let zargs = args |> Array.map (fun x -> x.Z3Expr)
-               zctx.MkApp(funcDecl, zctx.MkEq(zargs.[0], zargs.[1]))
+               zctx.MkApp(funcDecl, zargs)
        
         Sym.App(syms, f, args, zsym)
 
@@ -222,4 +264,5 @@ type SymContextImpl() =
             //printfn "  --> unknown"
             zexpr, true
 
+    member _.Solver = solver
 #endif

@@ -542,25 +542,24 @@ type BatchNorm1d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
                     value.mean(0), value.variance(0, unbiased=false)
                 else
                     _mean.value, _variance.value
-            if m.mode = Mode.Train && trackRunningStats then 
+            if not value.symbolic && m.mode = Mode.Train && trackRunningStats then 
                 let batchSize = value.shape.[0]
                 m.updateStats mean var batchSize
             let res = (value - mean) / (var + eps).sqrt()
             if affine then res * w.value + b.value else res
         elif value.dim = 3 then
             if not (value.shapex.[1] =~= numFeatures) then failwithf "Expecting value to have shape NxCxL (batchSize x numFeatures x length) where numFeatures=%A, received value with shape %A" numFeatures value.shape
-            let numFeatures = numFeatures.Value
-            let vt = value.transpose(0,1).view([numFeatures;-1])
+            let vt = value.transpose(0,1).view(Shape [| numFeatures; Int -1 |])
             let mean, var =
                 if m.mode = Mode.Train || (m.mode = Mode.Eval && not trackRunningStats) then
                     vt.mean(1), vt.variance(1, unbiased=false)
                 else
                     _mean.value, _variance.value
-            if m.mode = Mode.Train && trackRunningStats then
+            if not value.symbolic && m.mode = Mode.Train && trackRunningStats then
                 let n = vt.shape.[1]
                 m.updateStats mean var n
-            let res = (value - mean.view([1;numFeatures;1])) / (var.view([1;numFeatures;1]) + eps).sqrt()
-            if affine then res * w.value.view([1;numFeatures;1]) + b.value.view([1;numFeatures;1]) else res
+            let res = (value - mean.view(Shape[|Int 1;numFeatures;Int 1 |])) / (var.view(Shape [| Int 1;numFeatures;Int 1|]) + eps).sqrt()
+            if affine then res * w.value.view(Shape [| Int 1;numFeatures;Int 1|]) + b.value.view(Shape [| Int 1;numFeatures;Int 1|]) else res
         else failwithf "Expecting value to have shape NxL (batchSize x Length) or NxCxL (batchSize x numChannels x Length), received value with shape %A" value.shape
 
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
@@ -612,8 +611,7 @@ type BatchNorm2d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
     /// <summary>TBD</summary>
     override m.forward(value) =
         if value.dim <> 4 || not (value.shapex.[1] =~= numFeatures) then failwithf "Expecting value to have shape NxCxHxW (batchSize x numFeatures x height x width) where numFeatures=%A, received value with shape %A" numFeatures value.shape
-        let numFeatures = numFeatures.Value
-        let vt = value.transpose(0,1).view([numFeatures;-1])
+        let vt = value.transpose(0,1).view(Shape [| numFeatures;Int -1 |])
         let mean, var =
             if m.mode = Mode.Train || (m.mode = Mode.Eval && not trackRunningStats) then
                 vt.mean(1), vt.variance(1, unbiased=false)
@@ -622,8 +620,8 @@ type BatchNorm2d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
         if m.mode = Mode.Train && trackRunningStats then
             let n = vt.shape.[1]
             m.updateStats mean var n
-        let res = (value - mean.view([1;numFeatures;1;1])) / (var.view([1;numFeatures;1;1]) + eps).sqrt()
-        if affine then res * w.value.view([1;numFeatures;1;1]) + b.value.view([1;numFeatures;1;1]) else res
+        let res = (value - mean.view(Shape [|Int 1;numFeatures;Int 1;Int 1 |])) / (var.view(Shape [| Int 1;numFeatures;Int 1;Int 1|]) + eps).sqrt()
+        if affine then res * w.value.view(Shape [| Int 1;numFeatures;Int 1;Int 1|]) + b.value.view(Shape [| Int 1;numFeatures;Int 1;Int 1 |]) else res
 
     /// <summary>TBD</summary>
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
@@ -675,18 +673,17 @@ type BatchNorm3d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
     /// <summary>TBD</summary>
     override m.forward(value) =
         if value.dim <> 5 || not (value.shapex.[1] =~= numFeatures) then failwithf "Expecting value to have shape NxCxDxHxW (batchSize x numFeatures x depth x height x width) where numFeatures=%A, received value with shape %A" numFeatures value.shape
-        let numFeatures = numFeatures.Value
-        let vt = value.transpose(0,1).view([numFeatures;-1])
+        let vt = value.transpose(0,1).view(Shape [|numFeatures; Int -1 |])
         let mean, var =
             if m.mode = Mode.Train || (m.mode = Mode.Eval && not trackRunningStats) then
                 vt.mean(1), vt.variance(1, unbiased=false)
             else
                 _mean.value, _variance.value
-        if m.mode = Mode.Train && trackRunningStats then
+        if not value.symbolic && m.mode = Mode.Train && trackRunningStats then
             let n = vt.shape.[1]
             m.updateStats mean var n
-        let res = (value - mean.view([1;numFeatures;1;1;1])) / (var.view([1;numFeatures;1;1;1]) + eps).sqrt()
-        if affine then res * w.value.view([1;numFeatures;1;1;1]) + b.value.view([1;numFeatures;1;1;1]) else res        
+        let res = (value - mean.view(Shape [| Int 1;numFeatures;Int 1;Int 1;Int 1 |])) / (var.view(Shape [| Int 1;numFeatures;Int 1;Int 1;Int 1|]) + eps).sqrt()
+        if affine then res * w.value.view(Shape [| Int 1;numFeatures;Int 1;Int 1;Int 1 |]) + b.value.view(Shape [| Int 1;numFeatures;Int 1;Int 1; Int 1 |]) else res        
 
     /// <summary>TBD</summary>
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
