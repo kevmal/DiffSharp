@@ -179,7 +179,8 @@ open Microsoft.Z3
 
 type Model with
 
-    static member Analyse<'T when 'T :> DiffSharp.Model.Model> (?inputShape: Shape) =
+    static member AnalyseShapes<'T when 'T :> DiffSharp.Model.Model> (?inputShape: Shape, ?optionals: bool) =
+      let optionals = defaultArg optionals true
       let dflt = Backend.Default
       try
         Backend.Default <- Backend.ShapeChecking
@@ -201,7 +202,7 @@ type Model with
                 if pts = "DiffSharp.Int" then
                    //printfn "making symbolic for model parameter %s" p.Name
                    syms.CreateInjected<Int>(p.Name) |> box
-                elif pts = "Microsoft.FSharp.Core.FSharpOption`1[DiffSharp.Int]" then 
+                elif optionals && pts = "Microsoft.FSharp.Core.FSharpOption`1[DiffSharp.Int]" then 
                    //printfn "making symbolic for option model parameter %s" p.Name
                    Some(syms.CreateInjected<Int>(p.Name)) |> box                   
                 elif pts.StartsWith("Microsoft.FSharp.Core.FSharpOption`1[") then 
@@ -218,7 +219,7 @@ type Model with
                    let v = true
                    printfn "assuming sample value '%b' for model parameter %s" v p.Name
                    box v
-                elif pts = "Microsoft.FSharp.Core.FSharpOption`1[System.Boolean]" then 
+                elif optionals && pts = "Microsoft.FSharp.Core.FSharpOption`1[System.Boolean]" then 
                    let v = true
                    printfn "assuming sample value '%b' for model parameter %s" v p.Name
                    box (Some v)
@@ -226,7 +227,9 @@ type Model with
              )
         let model = ctor.Invoke(ctorArgs) :?> DiffSharp.Model.Model
         let run f input = 
-            try Ok (f input)
+            try 
+                printfn "simulating shapes..."
+                Ok (f input)
             with  e -> Error e
         let transfers =
             match inputShape with
@@ -273,22 +276,28 @@ type Model with
 
 
 
-Model.Analyse<Linear> ()
-Model.Analyse<VAE> ()
-Model.Analyse<Conv1d> ()
-Model.Analyse<Conv2d> ()
-Model.Analyse<Conv3d> ()
-Model.Analyse<ConvTranspose1d> ()
-Model.Analyse<ConvTranspose2d> ()
-Model.Analyse<ConvTranspose3d> (Shape.symbolic [| sym?N; sym?C; sym?D; sym?H; sym?W; |])
-Model.Analyse<ConvTranspose3d> ()
-Model.Analyse<Dropout> (Shape [| 30; 40; |] )
-Model.Analyse<Dropout> ()
-Model.Analyse<Dropout2d> ()
-Model.Analyse<Dropout3d> ()
-Model.Analyse<BatchNorm1d> ()
-Model.Analyse<BatchNorm2d> ()
-Model.Analyse<BatchNorm3d> ()
+Model.AnalyseShapes<Linear> ()
+Model.AnalyseShapes<Linear> (Shape.symbolic [| sym?N; sym?M; |])
+Model.AnalyseShapes<VAE> ()
+Model.AnalyseShapes<Conv1d> (Shape.symbolic [| sym?N; sym?C; sym?L; |])
+Model.AnalyseShapes<Conv2d> (Shape.symbolic [| sym?N; sym?C; sym?H; sym?W; |])
+Model.AnalyseShapes<Conv3d> (Shape.symbolic [| sym?N; sym?C; sym?D; sym?H; sym?W; |])
+Model.AnalyseShapes<ConvTranspose1d> (Shape.symbolic [| sym?N; sym?C; sym?L; |])
+Model.AnalyseShapes<ConvTranspose2d> (Shape.symbolic [| sym?N; sym?C; sym?H; sym?W; |])
+Model.AnalyseShapes<ConvTranspose3d> (Shape.symbolic [| sym?N; sym?C; sym?D; sym?H; sym?W; |])
+Model.AnalyseShapes<Conv1d> (Shape.symbolic [| sym?N; sym?C; sym?L; |], optionals=false)
+Model.AnalyseShapes<Conv2d> (Shape.symbolic [| sym?N; sym?C; sym?H; sym?W; |], optionals=false)
+Model.AnalyseShapes<Conv3d> (Shape.symbolic [| sym?N; sym?C; sym?D; sym?H; sym?W; |], optionals=false)
+Model.AnalyseShapes<ConvTranspose1d> (Shape.symbolic [| sym?N; sym?C; sym?L; |], optionals=false)
+Model.AnalyseShapes<ConvTranspose2d> (Shape.symbolic [| sym?N; sym?C; sym?H; sym?W; |], optionals=false)
+Model.AnalyseShapes<ConvTranspose3d> (Shape.symbolic [| sym?N; sym?C; sym?D; sym?H; sym?W; |], optionals=false)
+Model.AnalyseShapes<Dropout> (Shape [| 30; 40; |] )
+Model.AnalyseShapes<Dropout> ()
+Model.AnalyseShapes<Dropout2d> ()
+Model.AnalyseShapes<Dropout3d> ()
+Model.AnalyseShapes<BatchNorm1d> ()
+Model.AnalyseShapes<BatchNorm2d> ()
+Model.AnalyseShapes<BatchNorm3d> ()
 
 
 (*

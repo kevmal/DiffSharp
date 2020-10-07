@@ -257,11 +257,30 @@ type SymContextImpl() =
 
     member _.Format(sym: Sym) = 
         let parenIf c s = if c then "(" + s + ")" else s
+        let (|Mul|_|) (s:Expr) = if s.IsMul then Some (s.Args) else None
+        let (|IntNum|_|) (s:Expr) = if s.IsIntNum then Some ((s :?> IntNum).Int) else None
+        let isNegSummand (s: Expr) =
+           match s with 
+           | Mul [| IntNum n; _arg|] when n < 0 -> true
+           | IntNum n when n < 0 -> true
+           | _ -> false
         let rec print prec (zsym: Expr) =
-            if zsym.IsAdd then parenIf (prec<=3) (zsym.Args |> Array.map (print 5) |> String.concat "+")
+            if zsym.IsAdd then
+                // put negative summands at the end
+                let args = zsym.Args |> Array.sortBy (fun arg -> if isNegSummand arg then 1 else 0)
+                let argsText =
+                   args 
+                   |> Array.mapi (fun i arg -> 
+                       match arg with 
+                       | IntNum n when n < 0 -> string n
+                       | Mul [| IntNum -1; arg|] -> "-"+print 6 arg
+                       | Mul [| IntNum n; arg|] when n < 0 -> "-"+print 6 (zctx.MkMul(zctx.MkInt(-n),(arg :?> ArithExpr)))
+                       | _ -> (if i = 0 then "" else "+") + print 6 arg)
+                   |> String.concat ""
+                parenIf (prec<=3) argsText 
+            elif zsym.IsSub then parenIf (prec<=3) (zsym.Args |> Array.map (print 5) |> String.concat "-")
             elif zsym.IsMul then parenIf (prec<=5) (zsym.Args |> Array.map (print 3) |> String.concat "*")
             elif zsym.IsIDiv then parenIf (prec<=5) (zsym.Args |> Array.map (print 3) |> String.concat "/")
-            elif zsym.IsSub then parenIf (prec<=5) (zsym.Args |> Array.map (print 5) |> String.concat "-")
             elif zsym.IsRemainder then parenIf (prec<=5) (zsym.Args |> Array.map (print 5) |> String.concat "%")
             elif zsym.IsApp && zsym.Args.Length > 0 then parenIf (prec<=2) (zsym.FuncDecl.Name.ToString() + "(" + (zsym.Args |> Array.map (print 5) |> String.concat ",") + ")")
             elif zsym.IsConst then 
