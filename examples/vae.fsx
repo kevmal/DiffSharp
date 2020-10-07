@@ -183,7 +183,7 @@ type Model with
       let dflt = Backend.Default
       try
         Backend.Default <- Backend.ShapeChecking
-        let syms = BackendSymbolStatics.Get().CreateSymContext()
+        let syms = sym //BackendSymbolStatics.Get().CreateSymContext()
         let ctors = typeof<'T>.GetConstructors()
         let ctor = 
             ctors 
@@ -194,7 +194,7 @@ type Model with
             |> function 
                | None -> ctors.[0] // failwith "couldn't find a model constructor taking Int parameter"
                | Some c -> c
-        let args =
+        let ctorArgs =
             ctor.GetParameters() |> Array.map (fun p -> 
                 let pty = p.ParameterType
                 let pts = pty.ToString()
@@ -218,24 +218,42 @@ type Model with
                    let v = true
                    printfn "assuming sample value '%b' for model parameter %s" v p.Name
                    box v
+                elif pts = "Microsoft.FSharp.Core.FSharpOption`1[System.Boolean]" then 
+                   let v = true
+                   printfn "assuming sample value '%b' for model parameter %s" v p.Name
+                   box (Some v)
                 else failwithf "unknown model parameter type %O" p.ParameterType
              )
-        let model = ctor.Invoke(args) :?> DiffSharp.Model.Model
+        let model = ctor.Invoke(ctorArgs) :?> DiffSharp.Model.Model
+        let run f input = 
+            try Ok (f input)
+            with  e -> Error e
         let transfers =
             match inputShape with
             | None -> 
                 [ for ndim in 0 .. 5 do
                     let input = dsharp.zeros(Shape [| for d in 1 .. ndim -> syms.CreateInjected<Int>("?N" + string d) |])
-                    let res = try Ok (model.forward(input)) with  e -> Error e
+                    let res = run model.forward input
                     yield (input, res) ]
             | Some shape -> 
                 let input = dsharp.zeros(shape)
-                let res = try Ok (model.forward(input)) with  e -> Error e
+                let res = run model.forward input
                 [ (input, res)]
 
         printfn ""
         printfn "---------------------"
-        printfn "Model shape summary for %s" typeof<'T>.FullName
+        let argText = 
+            (ctor.GetParameters(), ctorArgs) 
+            ||> Array.zip
+            |> Array.filter (fun (p, arg) -> arg <> null) // filter out 'None'
+            |> Array.map (fun (p, arg) -> 
+                // get rid of the Some for F# optional arguments
+                p, (if arg.GetType().FullName.StartsWith("Microsoft.FSharp.Core.FSharpOption`1[") then 
+                      (snd (Reflection.FSharpValue.GetUnionFields(arg, arg.GetType()))).[0] 
+                    else arg)) // filter out 'None'
+            |> Array.map (fun (p, arg) -> if p.IsOptional then p.Name+"="+string arg else string arg)
+            |> String.concat ","
+        printfn "%s(%s)" typeof<'T>.FullName argText
         
         for (KeyValue(a,b)) in model.parametersDict.values |> Seq.toArray |> Seq.sortBy (fun (KeyValue(a,b)) -> a) do
             printfn "   %s : %O" a b.value.shapex
@@ -246,7 +264,8 @@ type Model with
             | Ok res -> 
                 printfn "   forward(%O) : %O" input.shapex res.shapex
             | Error e -> 
-                printfn "      %O --> %s" input.shapex e.Message
+                if inputShape.IsSome then 
+                   printfn "   forward(%O) // Error: %s" input.shapex e.Message
                 //printfn "      %O --> fails\n%s" input.shapex (e.ToString().Split('\r','\n') |> Array.map (fun s -> "        " + s) |> String.concat "\n")
                 () 
       finally
@@ -261,6 +280,7 @@ Model.Analyse<Conv2d> ()
 Model.Analyse<Conv3d> ()
 Model.Analyse<ConvTranspose1d> ()
 Model.Analyse<ConvTranspose2d> ()
+Model.Analyse<ConvTranspose3d> (Shape.symbolic [| sym?N; sym?C; sym?D; sym?H; sym?W; |])
 Model.Analyse<ConvTranspose3d> ()
 Model.Analyse<Dropout> (Shape [| 30; 40; |] )
 Model.Analyse<Dropout> ()

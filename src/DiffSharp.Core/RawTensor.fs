@@ -422,13 +422,13 @@ type RawTensor() =
     abstract member MatMulT2T2: t2: RawTensor -> RawTensor
 
     /// Returns the 1D maxpool of a tensor and its chosen maximum indices
-    abstract member MaxPool1D: kernelSize: int * stride: int * padding: int -> RawTensor * RawTensor
+    abstract member MaxPool1D: kernelSize: Int * stride: Int * padding: Int -> RawTensor * RawTensor
 
     /// Returns the 2D maxpool of a tensor and its chosen maximum indices
-    abstract member MaxPool2D: kernelSize: int[] * strides: int[] * padding: int[] -> RawTensor * RawTensor
+    abstract member MaxPool2D: kernelSize: Int[] * strides: Int[] * padding: Int[] -> RawTensor * RawTensor
 
     /// Returns the 3D maxpool of a tensor and its chosen maximum indices
-    abstract member MaxPool3D: kernelSize: int[] * strides: int[] * padding: int[] -> RawTensor * RawTensor
+    abstract member MaxPool3D: kernelSize: Int[] * strides: Int[] * padding: Int[] -> RawTensor * RawTensor
 
     /// Returns the 1D maxunpool of a tensor using the given indices for locations of maximums
     abstract member MaxUnpool1D: indices: RawTensor * outputSize: Int[] -> RawTensor
@@ -440,13 +440,13 @@ type RawTensor() =
     abstract member MaxUnpool3D: indices: RawTensor * outputSize: Int[] -> RawTensor
 
     /// Returns the 1D convolution of the tensor
-    abstract member Conv1D: kernel: RawTensor * stride: int * padding: int -> RawTensor
+    abstract member Conv1D: kernel: RawTensor * stride: Int * padding: Int -> RawTensor
 
     /// Returns the 2D convolution of the tensor
-    abstract member Conv2D: kernel: RawTensor * strides: int[] * padding: int[] -> RawTensor
+    abstract member Conv2D: kernel: RawTensor * strides: Int[] * padding: Int[] -> RawTensor
 
     /// Returns the 3D convolution of the tensor
-    abstract member Conv3D: kernel: RawTensor * strides: int[] * padding: int[] -> RawTensor
+    abstract member Conv3D: kernel: RawTensor * strides: Int[] * padding: Int[] -> RawTensor
 
     /// Returns the element-wise negation of the tensor
     abstract member NegT : unit -> RawTensor

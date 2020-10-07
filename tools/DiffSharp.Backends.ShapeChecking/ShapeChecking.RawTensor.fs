@@ -51,7 +51,7 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
     override t.Expand(newShape) = t.MakeLike(newShape)
 
     override t.ToValues() =
-        printfn "ToValues not available for symbolic"
+        printfn "-----------------\nToValues not available for symbolic, stack trace:\n%s\n------------------\n"  (System.Diagnostics.StackTrace(fNeedFileInfo=true).ToString())
         match t.Dim with
         | 0 -> box sample
         | _ -> 

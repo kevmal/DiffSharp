@@ -316,7 +316,6 @@ type Tensor =
     /// Returns the tensor after standardization (z-score normalization)
     member t.standardize() =
         let stddev = t.stddev()
-        print stddev
         if stddev = t.zeroLike() || stddev.hasnan() then
             t.zerosLike()
         else
@@ -811,6 +810,7 @@ type Tensor =
             Tensor(RawTensor.Create(value, ?dtype=dtype, ?device=device, ?backend=backend))        
 
     /// <summary>Returns a 2-D tensor with ones on the diagonal and zeros elsewhere.</summary>
+    // TODO: int should be symbolic
     static member eye(rows:int, ?cols:int, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
         let cols = defaultArg cols rows
         if rows <= 0 || cols <= 0 then Tensor.create([], ?dtype=dtype, ?device=device, ?backend=backend)
@@ -1423,6 +1423,9 @@ type Tensor =
         let mutable probs = probs
         if normalize then probs <- probs / probs.sum(-1, keepDim=true)
         if probs.dim = 1 then
+            // skip the dice throwing for symbolics
+            if probs.symbolic then probs.zerosLike(Shape [| Int numSamples |]) else
+
             let p = 
                 match probs.dtype with
                 | Dtype.Float32 -> probs.toArray() :?> float32[] |> Array.map Convert.ToDouble
@@ -1430,6 +1433,9 @@ type Tensor =
                 | _ -> failwithf "Expecting probs to have dtype Float32 or Float64, received %A" probs.dtype
             Tensor.create(Random.Multinomial(p, numSamples), dtype=dtype, device=device, backend=backend)
         else
+            // skip the dice throwing for symbolics
+            if probs.symbolic then probs.zerosLike(Shape [|probs.shapex.[0]; Int numSamples|]) else
+
             let p = 
                 match probs.dtype with
                 | Dtype.Float32 -> probs.toArray() :?> float32[,] |> Array2D.map Convert.ToDouble
@@ -1444,6 +1450,8 @@ type Tensor =
         let dtype = defaultArg dtype probs.dtype
         let device = defaultArg device probs.device
         let backend = defaultArg backend probs.backend
+        // skip the dice throwing for symbolics
+        if probs.symbolic then probs.zerosLike(probs.shapex) else
         if probs.dim = 0 then
             let b = Random.Bernoulli (float probs)
             Tensor.create(b, dtype=dtype, device=device, backend=backend).viewx(probs.shapex)
@@ -2027,25 +2035,28 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member a.maxpool1di(kernelSize:int, ?stride:int, ?padding:int) =
+        a.maxpool1dix(Int kernelSize, ?stride=optInt stride, ?padding=optInt padding) 
+
+    member internal a.maxpool1dix(kernelSize:Int, ?stride:Int, ?padding:Int) =
         let stride = defaultArg stride kernelSize
-        let padding = defaultArg padding 0
+        let padding = defaultArg padding (Int 0)
         Shape.checkCanMaxpool1d a.dtype a.shapex kernelSize stride padding  |> ignore
         match a with
         | Tensor(ap)           -> let result, indices = ap.MaxPool1D(kernelSize, stride, padding) in Tensor(result), Tensor(indices)
-        | TensorF(ap,ad,at)    -> let result, indices = ap.maxpool1di(kernelSize, stride, padding) in TensorF(result, ad.gather(dim=2, indices=indices), at), indices
-        | TensorR(ap,_,_,_,at) -> let result, indices = ap.maxpool1di(kernelSize, stride, padding) in TensorR(result, ref (a.zeroLike()), MaxPool1DT(a, indices, kernelSize), ref 0u, at), indices
+        | TensorF(ap,ad,at)    -> let result, indices = ap.maxpool1dix(kernelSize, stride, padding) in TensorF(result, ad.gather(dim=2, indices=indices), at), indices
+        | TensorR(ap,_,_,_,at) -> let result, indices = ap.maxpool1dix(kernelSize, stride, padding) in TensorR(result, ref (a.zeroLike()), MaxPool1DT(a, indices, kernelSize), ref 0u, at), indices
 
     /// <summary>TBD</summary>
     member a.maxpool1d(kernelSize:int, ?stride:int, ?padding:int) = a.maxpool1di(kernelSize, ?stride=stride, ?padding=padding) |> fst
 
     /// <summary>TBD</summary>
     member a.maxunpool1d(indices:Tensor, kernelSize:int, ?stride:int, ?padding:int, ?outputSize:seq<int>) =
-        a.maxunpool1dx(indices, kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?outputSize=Option.map (Seq.map Int) outputSize)
+        a.maxunpool1dx(indices, kernelSize=Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?outputSize=optInts outputSize)
 
     /// <summary>TBD</summary>
-    member internal a.maxunpool1dx(indices:Tensor, kernelSize:int, ?stride:int, ?padding:int, ?outputSize:seq<Int>) =
+    member internal a.maxunpool1dx(indices:Tensor, kernelSize:Int, ?stride:Int, ?padding:Int, ?outputSize:seq<Int>) =
         let stride = defaultArg stride kernelSize
-        let padding = defaultArg padding 0
+        let padding = defaultArg padding (Int 0)
         let outputSize = 
             match outputSize with
             | Some o -> let o = o |> Array.ofSeq in if o.Length <> 3 then failwithf "Expecting outputSize to be 3-dimensional" else o
@@ -2061,6 +2072,9 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member a.maxpool2di(?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) =
+        a.maxpool2dix(?kernelSize=optInt kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings)
+
+    member internal a.maxpool2dix(?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
         let kernelSizes =
             match kernelSize, kernelSizes with
             | Some _, Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
@@ -2078,22 +2092,22 @@ type Tensor =
             | Some _, Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
-            | _ -> [|0; 0|]
+            | _ -> [|Int 0; Int 0|]
         Shape.checkCanMaxpool2d a.dtype a.shapex kernelSizes strides paddings  |> ignore
         match a with
         | Tensor(ap)           -> let result, indices = ap.MaxPool2D(kernelSizes, strides, paddings) in Tensor(result), Tensor(indices)
-        | TensorF(ap,ad,at)    -> let result, indices = ap.maxpool2di(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorF(result, ad.flatten(startDim=2).gather(dim=2, indices=indices.flatten(startDim=2)).viewAs(indices), at), indices
-        | TensorR(ap,_,_,_,at) -> let result, indices = ap.maxpool2di(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorR(result, ref (a.zeroLike()), MaxPool2DT(a, indices, kernelSizes), ref 0u, at), indices
+        | TensorF(ap,ad,at)    -> let result, indices = ap.maxpool2dix(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorF(result, ad.flatten(startDim=2).gather(dim=2, indices=indices.flatten(startDim=2)).viewAs(indices), at), indices
+        | TensorR(ap,_,_,_,at) -> let result, indices = ap.maxpool2dix(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorR(result, ref (a.zeroLike()), MaxPool2DT(a, indices, kernelSizes), ref 0u, at), indices
 
     /// <summary>TBD</summary>
     member a.maxpool2d(?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) = a.maxpool2di(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings) |> fst
 
     /// <summary>TBD</summary>
     member a.maxunpool2d(indices:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?outputSize:seq<int>) =
-        a.maxunpool2dx(indices, ?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings, ?outputSize=Option.map (Seq.map Int) outputSize)
+        a.maxunpool2dx(indices, ?kernelSize=optInt kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?outputSize=optInts outputSize)
 
     /// <summary>TBD</summary>
-    member internal a.maxunpool2dx(indices:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?outputSize:seq<Int>) =
+    member internal a.maxunpool2dx(indices:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>, ?outputSize:seq<Int>) =
         let kernelSizes =
             match kernelSize, kernelSizes with
             | Some _, Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
@@ -2111,7 +2125,7 @@ type Tensor =
             | Some _, Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
-            | _ -> [|0; 0|]
+            | _ -> [|Int 0; Int 0|]
         let outputSize = 
             match outputSize with
             | Some o -> let o = o |> Array.ofSeq in if o.Length <> 4 then failwithf "Expecting outputSize to be 4-dimensional" else o
@@ -2128,6 +2142,9 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member a.maxpool3di(?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) =
+        a.maxpool3dix(?kernelSize=optInt kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings)
+
+    member internal a.maxpool3dix(?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
         let kernelSizes =
             match kernelSize, kernelSizes with
             | Some _, Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
@@ -2145,22 +2162,22 @@ type Tensor =
             | Some _, Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
-            | _ -> [|0; 0; 0|]
+            | _ -> [|Int 0; Int 0; Int 0|]
         Shape.checkCanMaxpool3d a.dtype a.shapex kernelSizes strides paddings |> ignore
         match a with
         | Tensor(ap)           -> let result, indices = ap.MaxPool3D(kernelSizes, strides, paddings) in Tensor(result), Tensor(indices)
-        | TensorF(ap,ad,at)    -> let result, indices = ap.maxpool3di(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorF(result, ad.flatten(startDim=2).gather(dim=2, indices=indices.flatten(startDim=2)).viewAs(indices), at), indices
-        | TensorR(ap,_,_,_,at) -> let result, indices = ap.maxpool3di(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorR(result, ref (a.zeroLike()), MaxPool3DT(a, indices, kernelSizes), ref 0u, at), indices
+        | TensorF(ap,ad,at)    -> let result, indices = ap.maxpool3dix(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorF(result, ad.flatten(startDim=2).gather(dim=2, indices=indices.flatten(startDim=2)).viewAs(indices), at), indices
+        | TensorR(ap,_,_,_,at) -> let result, indices = ap.maxpool3dix(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorR(result, ref (a.zeroLike()), MaxPool3DT(a, indices, kernelSizes), ref 0u, at), indices
 
     /// <summary>TBD</summary>
     member a.maxpool3d(?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) = a.maxpool3di(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings) |> fst
 
     /// <summary>TBD</summary>
     member a.maxunpool3d(indices:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?outputSize:seq<int>) =
-        a.maxunpool3dx(indices, ?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings, ?outputSize=Option.map (Seq.map Int) outputSize)
+        a.maxunpool3dx(indices, ?kernelSize=optInt kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?outputSize=optInts outputSize)
 
     /// <summary>TBD</summary>
-    member internal a.maxunpool3dx(indices:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?outputSize:seq<Int>) =
+    member internal a.maxunpool3dx(indices:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>, ?outputSize:seq<Int>) =
         let kernelSizes =
             match kernelSize, kernelSizes with
             | Some _, Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
@@ -2178,7 +2195,7 @@ type Tensor =
             | Some _, Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
-            | _ -> [|0; 0; 0|]
+            | _ -> [|Int 0; Int 0; Int 0|]
         let outputSize = 
             match outputSize with
             | Some o -> let o = o |> Array.ofSeq in if o.Length <> 5 then failwithf "Expecting outputSize to be 5-dimensional" else o
@@ -2196,19 +2213,22 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member a.conv1d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int) =
+        a.conv1dx(b, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation)
+
+    member internal a.conv1dx(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int) =
         // a: input, b: filter
-        let stride = defaultArg stride 1
-        let padding = defaultArg padding 0
+        let stride = defaultArg stride (Int 1)
+        let padding = defaultArg padding (Int 0)
         let dilation = defaultArg dilation 1
         Shape.checkCanConv1d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex stride padding dilation |> ignore
         let mutable b = b
         if dilation > 1 then
             b <- b.dilate([|1;1;dilation|])
         let fRaw(a:RawTensor,b) = a.Conv1D(b, stride, padding)
-        let fTensor(a:Tensor,b) = a.conv1d(b, stride, padding)
-        let dfTensorFwdTT(cp,ap:Tensor,ad:Tensor,bp:Tensor,bd:Tensor) = ad.conv1d(bp, stride, padding) + ap.conv1d(bd, stride, padding)
-        let dfTensorFwdTC(cp,ap,ad:Tensor) = ad.conv1d(b, stride, padding)
-        let dfTensorFwdCT(cp,bp,bd) = a.conv1d(bd, stride, padding)
+        let fTensor(a:Tensor,b) = a.conv1dx(b, stride, padding)
+        let dfTensorFwdTT(cp,ap:Tensor,ad:Tensor,bp:Tensor,bd:Tensor) = ad.conv1dx(bp, stride, padding) + ap.conv1dx(bd, stride, padding)
+        let dfTensorFwdTC(cp,ap,ad:Tensor) = ad.conv1dx(b, stride, padding)
+        let dfTensorFwdCT(cp,bp,bd) = a.conv1dx(bd, stride, padding)
         let dfTensorRevTT(a,b) = Conv1DTT(a,b, stride, padding)
         let dfTensorRevTC(a,b) = Conv1DTTConst(a,b, stride, padding)
         let dfTensorRevCT(a,b) = Conv1DTConstT(a,b, stride, padding)
@@ -2217,10 +2237,12 @@ type Tensor =
     // a: input, NxCxI (batchSize x inputChannels x inputLength)
     // b: filters, KxCxF (outputChannels x inputChannels x kernelLength)
     // t: output, NxKxL (batchSize x outputChannels x outputLength)
-    static member internal conv1dReverseDiff(a: Tensor, b:Tensor, cderivative:Tensor, aConst:bool, bConst:bool, stride:int, padding:int) =
+    static member internal conv1dReverseDiff(a: Tensor, b:Tensor, cderivative:Tensor, aConst:bool, bConst:bool, stride:Int, padding:Int) =
         let a = if aConst then a else a.primal
         let b = if bConst then b else b.primal
-        if a.symbolic then a.zeroLike(), b.zeroLike() else
+        if a.symbolic then a, b else
+        let stride = stride.Value
+        let padding = padding.Value
         let batchSize = cderivative.shape.[0]
         let outputChannels = cderivative.shape.[1]
         let inputChannels = a.shape.[1]
@@ -2264,10 +2286,13 @@ type Tensor =
     
     /// <summary>TBD</summary>
     member a.convTranspose1d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int) =
-        let stride = defaultArg stride 1
-        let padding = defaultArg padding 0
+        a.convTranspose1dx(b, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?outputPadding=optInt outputPadding)
+
+    member internal a.convTranspose1dx(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int) =
+        let stride = defaultArg stride (Int 1)
+        let padding = defaultArg padding (Int 0)
         let dilation = defaultArg dilation 1
-        let outputPadding = defaultArg outputPadding 0
+        let outputPadding = defaultArg outputPadding (Int 0)
 
         let _, _, _, _, _, outputShape =
             Shape.checkCanConvTranspose1d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex stride padding dilation outputPadding
@@ -2282,19 +2307,22 @@ type Tensor =
         aderivative
 
     /// <summary>TBD</summary>
-    member a.conv2d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>) =
+    member a.conv2d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?strides:seq<int>, ?paddings: seq<int>, ?dilations:seq<int>) =
+        a.conv2dx(b, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations)
+
+    member internal a.conv2dx(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>) =
         let strides = 
             match stride, strides with
             | Some _, Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s|]
             | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 2 then failwithf "Expecting strides to be 2-dimensional" else s
-            | _ -> [|1; 1|]
+            | _ -> [|Int 1; Int 1|]
         let paddings = 
             match padding, paddings with
             | Some _ , Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
-            | _ -> [|0; 0|]
+            | _ -> [|Int 0; Int 0|]
         let dilations = 
             match dilation, dilations with
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
@@ -2306,10 +2334,10 @@ type Tensor =
         if dilations.[0] > 1 || dilations.[1] > 1 then
             b <- b.dilate([|1; 1; dilations.[0]; dilations.[1]|])
         let fRaw(a:RawTensor,b) = a.Conv2D(b, strides, paddings)
-        let fTensor(a:Tensor,b) = a.conv2d(b, strides=strides, paddings=paddings)
-        let dfTensorFwdTT(cp,ap:Tensor,ad:Tensor,bp,bd) = ad.conv2d(bp, strides=strides, paddings=paddings) + ap.conv2d(bd, strides=strides, paddings=paddings)
-        let dfTensorFwdTC(cp,ap,ad:Tensor) = ad.conv2d(b, strides=strides, paddings=paddings)
-        let dfTensorFwdCT(cp,bp,bd) = a.conv2d(bd, strides=strides, paddings=paddings)
+        let fTensor(a:Tensor,b) = a.conv2dx(b, strides=strides, paddings=paddings)
+        let dfTensorFwdTT(cp,ap:Tensor,ad:Tensor,bp,bd) = ad.conv2dx(bp, strides=strides, paddings=paddings) + ap.conv2dx(bd, strides=strides, paddings=paddings)
+        let dfTensorFwdTC(cp,ap,ad:Tensor) = ad.conv2dx(b, strides=strides, paddings=paddings)
+        let dfTensorFwdCT(cp,bp,bd) = a.conv2dx(bd, strides=strides, paddings=paddings)
         let dfTensorRevTT(a,b) = Conv2DTT(a,b, strides, paddings)
         let dfTensorRevTC(a,b) = Conv2DTTConst(a,b, strides, paddings)
         let dfTensorRevCT(a,b) = Conv2DTConstT(a,b, strides, paddings)
@@ -2319,10 +2347,12 @@ type Tensor =
     // a: input, NxCxHxW (batchSize x inputChannels x inputHeight x inputWidth)
     // b: filters, KxCxFxG (outputChannels x inputChannels x kernelHeight x kernelWidth)
     // t: output, NxKxLxM (batchSize x outputChannels x outputHeight x outputWidth)
-    static member internal conv2dReverseDiff(a: Tensor, b:Tensor, cderivative:Tensor, aConst:bool, bConst:bool, strides:int[], paddings:int[]) =
+    static member internal conv2dReverseDiff(a: Tensor, b:Tensor, cderivative:Tensor, aConst:bool, bConst:bool, strides:Int[], paddings:Int[]) =
         let a = if aConst then a else a.primal
         let b = if bConst then b else b.primal
-        if a.symbolic then a.zeroLike(), b.zeroLike() else
+        if a.symbolic then a, b else
+        let strides = strides |> Int.values
+        let paddings = paddings |> Int.values
         let batchSize = cderivative.shape.[0]
         let outputChannels = cderivative.shape.[1]
         let inputChannels = a.shape.[1]
@@ -2373,18 +2403,21 @@ type Tensor =
     
     /// <summary>TBD</summary>
     member a.convTranspose2d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?outputPaddings:seq<int>) =
+        a.convTranspose2dx(b, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?outputPadding=optInt outputPadding, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?outputPaddings=optInts outputPaddings)
+
+    member internal a.convTranspose2dx(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) =
         let strides = 
             match stride, strides with
             | Some _, Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s|]
             | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 2 then failwithf "Expecting strides to be 2-dimensional" else s
-            | _ -> [|1; 1|]
+            | _ -> [|Int 1; Int 1|]
         let paddings = 
             match padding, paddings with
             | Some _ , Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
-            | _ -> [|0; 0|]
+            | _ -> [|Int 0; Int 0|]
         let dilations = 
             match dilation, dilations with
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
@@ -2396,11 +2429,11 @@ type Tensor =
             | Some _ , Some _ -> failwithf "Expecting only one of outputPadding, outputPaddings"
             | Some p, None -> [|p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting outputPaddings to be 2-dimensional" else p
-            | _ -> [|0; 0|]
+            | _ -> [|Int 0; Int 0|]
 
-        let batchSize, inputChannels, (kernelHeight, kernelWidth), (outputChannels, outputHeight, outputWidth), outputShape =
+        let _, _, _, _, outputShape =
             Shape.checkCanConvTranspose2d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations outputPaddings
-        print outputShape
+        //print outputShape
         let mutable b = b
         if dilations.[0] > 1 || dilations.[1] > 1 then
             b <- b.dilate([|1; 1; dilations.[0]; dilations.[1]|])
@@ -2411,19 +2444,22 @@ type Tensor =
         aderivative
 
     /// <summary>TBD</summary>
-    member a.conv3d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>) =
+    member a.conv3d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?strides:seq<int>, ?paddings: seq<int>, ?dilations:seq<int>) =
+        a.conv3dx(b, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations)
+
+    member a.conv3dx(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>) =
         let strides = 
             match stride, strides with
             | Some _ , Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s; s|]
             | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 3 then failwithf "Expecting strides to be 3-dimensional" else s
-            | _ -> [|1; 1; 1|]
+            | _ -> [|Int 1; Int 1; Int 1|]
         let paddings = 
             match padding, paddings with
             | Some _ , Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
-            | _ -> [|0; 0; 0|]
+            | _ -> [|Int 0; Int 0; Int 0|]
         let dilations = 
             match dilation, dilations with
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
@@ -2435,10 +2471,10 @@ type Tensor =
         if dilations.[0] > 1 || dilations.[1] > 1 || dilations.[2] > 1 then
             b <- b.dilate([|1; 1; dilations.[0]; dilations.[1]; dilations.[2]|])
         let fRaw(a:RawTensor,b) = a.Conv3D(b, strides, paddings)
-        let fTensor(a:Tensor,b) = a.conv3d(b, strides=strides, paddings=paddings)
-        let dfTensorFwdTT(cp,ap:Tensor,ad:Tensor,bp,bd) = ad.conv3d(bp, strides=strides, paddings=paddings) + ap.conv3d(bd, strides=strides, paddings=paddings)
-        let dfTensorFwdTC(cp,ap,ad:Tensor) = ad.conv3d(b, strides=strides, paddings=paddings)
-        let dfTensorFwdCT(cp,bp,bd) = a.conv3d(bd, strides=strides, paddings=paddings)
+        let fTensor(a:Tensor,b) = a.conv3dx(b, strides=strides, paddings=paddings)
+        let dfTensorFwdTT(cp,ap:Tensor,ad:Tensor,bp,bd) = ad.conv3dx(bp, strides=strides, paddings=paddings) + ap.conv3dx(bd, strides=strides, paddings=paddings)
+        let dfTensorFwdTC(cp,ap,ad:Tensor) = ad.conv3dx(b, strides=strides, paddings=paddings)
+        let dfTensorFwdCT(cp,bp,bd) = a.conv3dx(bd, strides=strides, paddings=paddings)
         let dfTensorRevTT(a,b) = Conv3DTT(a,b, strides, paddings)
         let dfTensorRevTC(a,b) = Conv3DTTConst(a,b, strides, paddings)
         let dfTensorRevCT(a,b) = Conv3DTConstT(a,b, strides, paddings)
@@ -2448,13 +2484,15 @@ type Tensor =
     // a: input, NxCxDxHxW (batchSize x inputChannels x inputDepth x inputHeight x inputWidth)
     // b: filters, KxCxExFxG (outputChannels x inputChannels x kernelDepth x kernelHeight x kernelWidth)
     // t: output, NxKxLxMxN (batchSize x outputChannels x outputDepth x outputHeight x outputWidth)
-    static member internal conv3dReverseDiff(a: Tensor, b:Tensor, cderivative:Tensor, aConst:bool, bConst:bool, strides:int[], paddings:int[]) =
+    static member internal conv3dReverseDiff(a: Tensor, b:Tensor, cderivative:Tensor, aConst:bool, bConst:bool, strides:Int[], paddings:Int[]) =
         let a = if aConst then a else a.primal
         let b = if bConst then b else b.primal
 
         // Symbolics skip this
-        if a.symbolic then a.zeroLike(), b.zeroLike() else
+        if a.symbolic then a, b else
 
+        let strides = strides |> Int.values
+        let paddings = paddings |> Int.values
         let batchSize = cderivative.shape.[0]
         let outputChannels = cderivative.shape.[1]
         let inputChannels = a.shape.[1]
@@ -2509,18 +2547,21 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member a.convTranspose3d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?outputPaddings:seq<int>) =
+        a.convTranspose3dx(b, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?outputPadding=optInt outputPadding, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?outputPaddings=optInts outputPaddings)
+
+    member internal a.convTranspose3dx(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) =
         let strides = 
             match stride, strides with
             | Some _ , Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s; s|]
             | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 3 then failwithf "Expecting strides to be 3-dimensional" else s
-            | _ -> [|1; 1; 1|]
+            | _ -> [|Int 1; Int 1; Int 1|]
         let paddings = 
             match padding, paddings with
             | Some _ , Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
-            | _ -> [|0; 0; 0|]
+            | _ -> [|Int 0; Int 0; Int 0|]
         let dilations = 
             match dilation, dilations with
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
@@ -2532,11 +2573,10 @@ type Tensor =
             | Some _ , Some _ -> failwithf "Expecting only one of outputPadding, outputPaddings"
             | Some p, None -> [|p; p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting outputPaddings to be 3-dimensional" else p
-            | _ -> [|0; 0; 0|]
+            | _ -> [|Int 0; Int 0; Int 0|]
 
         let _, _, _, _, outputShape =
             Shape.checkCanConvTranspose3d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations outputPaddings
-        print outputShape
         let mutable b = b
         if dilations.[0] > 1 || dilations.[1] > 1 || dilations.[2] > 1 then
             b <- b.dilate([|1; 1; dilations.[0]; dilations.[1]; dilations.[2]|])
@@ -2893,26 +2933,26 @@ and TensorOp =
     | MatMulT2T2Const of Tensor * Tensor
     | MatMulT2ConstT2 of Tensor * Tensor
 
-    | MaxPool1DT of Tensor * Tensor * int
+    | MaxPool1DT of Tensor * Tensor * Int
     | MaxUnpool1DT of Tensor * Tensor
 
-    | MaxPool2DT of Tensor * Tensor * int[]
+    | MaxPool2DT of Tensor * Tensor * Int[]
     | MaxUnpool2DT of Tensor * Tensor
 
-    | MaxPool3DT of Tensor * Tensor * int[]
+    | MaxPool3DT of Tensor * Tensor * Int[]
     | MaxUnpool3DT of Tensor * Tensor
 
-    | Conv1DTT of Tensor * Tensor * int * int
-    | Conv1DTTConst of Tensor * Tensor * int * int
-    | Conv1DTConstT of Tensor * Tensor * int * int
+    | Conv1DTT of Tensor * Tensor * Int * Int
+    | Conv1DTTConst of Tensor * Tensor * Int * Int
+    | Conv1DTConstT of Tensor * Tensor * Int * Int
 
-    | Conv2DTT of Tensor * Tensor * int[] * int[]
-    | Conv2DTTConst of Tensor * Tensor * int[] * int[]
-    | Conv2DTConstT of Tensor * Tensor * int[] * int[]
+    | Conv2DTT of Tensor * Tensor * Int[] * Int[]
+    | Conv2DTTConst of Tensor * Tensor * Int[] * Int[]
+    | Conv2DTConstT of Tensor * Tensor * Int[] * Int[]
 
-    | Conv3DTT of Tensor * Tensor * int[] * int[]
-    | Conv3DTTConst of Tensor * Tensor * int[] * int[]
-    | Conv3DTConstT of Tensor * Tensor * int[] * int[]
+    | Conv3DTT of Tensor * Tensor * Int[] * Int[]
+    | Conv3DTTConst of Tensor * Tensor * Int[] * Int[]
+    | Conv3DTConstT of Tensor * Tensor * Int[] * Int[]
 
     | AddTTSlice of Tensor * Int[] * Tensor
     | AddTTConstSlice of Tensor

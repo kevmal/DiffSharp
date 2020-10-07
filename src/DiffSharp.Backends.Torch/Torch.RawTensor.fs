@@ -101,7 +101,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
 
     override t.GetSlice(fullBounds:Int[,]) =
         let newShape = Shape.checkCanGetSlice t.Shape fullBounds
-        let fullBounds = fullBounds |> Array2D.map Int.eval
+        let fullBounds = fullBounds |> Array2D.map Int.value
         let mutable res = tt
         let mutable dim = 0 
         for i=0 to (fullBounds.GetLength(0) - 1) do
@@ -271,7 +271,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
     override t.SplitT(sizes, dim) =
         let shape = t.Shape
         let outShapes = Shape.checkCanSplit shape sizes dim
-        let sizes = sizes |> Array.map Int.eval
+        let sizes = sizes |> Int.values
         let results = tt.SplitWithSizes(int64s sizes, dim)
         (results, outShapes) ||> Array.map2 (fun rvalues outShape -> 
             t.MakeLike(rvalues, shape=outShape))
@@ -456,7 +456,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
 
     override t1.AddTTSlice(location:Int[], t2) =
         Shape.checkCanAddSlice t1.Shape location t2.Shape
-        let location = location |> Array.map Int.eval
+        let location = location |> Int.values
         let shape1 = t1.Shape
         let shape2 = t2.Shape
         let expandedShape2 = Shape.unsqueezeAs shape2 shape1
@@ -558,8 +558,10 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
         t1.MakeLike(result, Shape [| t1.Shape.[0]; t2.Shape.[1] |])
 
     override t1.Conv1D(t2, stride, padding) = // TODO: bias, dilation and groups
-        let _batchSize, _inputChannels, _kernelSize, _outputChannels, _outputSize, outputShape =
+        let _, _, _, _, _, outputShape =
             Shape.checkCanConv1d t1.DeviceType t2.DeviceType dtype t2.Dtype t1.Shape t2.Shape stride padding 1
+        let stride = stride.Value
+        let padding = padding.Value
         let resultt =
             // "conv1d for CUDA tensors only supports floating-point types."
             match t1.DeviceType, dtype with 
@@ -570,8 +572,10 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
         t1.MakeLike(resultt, shape=outputShape)
 
     override t1.Conv2D(t2, strides, paddings) = // TODO: bias, dilation and groups
-        let _batchSize, _inputChannels, _kernelDimensions, _outputDimensions, outputShape =
+        let _, _, _, _, outputShape =
             Shape.checkCanConv2d t1.DeviceType t2.DeviceType dtype t2.Dtype t1.Shape t2.Shape strides paddings [| 1;1 |]
+        let strides = strides |> Int.values
+        let paddings = paddings |> Int.values
         let resultt =
             // "conv2d for CUDA tensors only supports floating-point types."
             match t1.DeviceType, dtype with 
@@ -582,8 +586,10 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
         t1.MakeLike(resultt, shape=outputShape)
 
     override t1.Conv3D(t2, strides, paddings) = // TODO: bias, dilation and groups
-        let _batchSize, _inputChannels, _kernelDimensions, _outputDimensions, outputShape =
+        let _, _, _, _, outputShape =
             Shape.checkCanConv3d t1.DeviceType t2.DeviceType dtype t2.Dtype  t1.Shape t2.Shape strides paddings [| 1;1;1 |]
+        let strides = strides |> Int.values
+        let paddings = paddings |> Int.values
         let resultt =
             // "conv2d for CUDA tensors only supports floating-point types."
             match t1.DeviceType, dtype with 
@@ -594,8 +600,8 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
         t1.MakeLike(resultt, shape=outputShape)
 
     override t1.MaxPool1D(kernelSize, stride, padding) = 
-        let _batchSize, _channels, _inputSize, _outputSize, outputShape =
-            Shape.checkCanMaxpool1d dtype t1.Shape kernelSize stride padding
+        let _, _, _, _, outputShape = Shape.checkCanMaxpool1d dtype t1.Shape kernelSize stride padding
+        let kernelSize, stride, padding = kernelSize.Value, stride.Value, padding.Value
         match dtype with 
         | Dtype.Bool | Dtype.Integral -> opNotSupported "MaxPool1D" dtype
         | _ ->
@@ -608,6 +614,9 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
     override t1.MaxPool2D(kernelSize, strides, paddings) = 
         let _batchSize, _channels, _inputDimensions, _kernelDimensions, _outputDimensions, outputShape =
             Shape.checkCanMaxpool2d dtype t1.Shape kernelSize strides paddings
+        let kernelSize = kernelSize |> Int.values
+        let strides = strides |> Int.values
+        let paddings = paddings |> Int.values
         let struct (resultt, indicest) = tt.MaxPool2DWithIndices(int64s kernelSize, strides=int64s strides, padding=int64s paddings)
         // NOTE: DiffSharp currently expects indices as an Int32 tensor, Torch wants Int64
         let indices = t1.MakeLike(indicest, shape=outputShape, dtype=Dtype.Int64).Cast(Dtype.Int32)
@@ -617,6 +626,9 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
     override t1.MaxPool3D(kernelSize, strides, paddings) = 
         let _batchSize, _channels, _inputDimensions, _kernelDimensions, _outputDimensions, outputShape =
             Shape.checkCanMaxpool3d dtype t1.Shape kernelSize strides paddings
+        let kernelSize = kernelSize |> Int.values
+        let strides = strides |> Int.values
+        let paddings = paddings |> Int.values
         let struct (resultt, indicest) = tt.MaxPool3DWithIndices(int64s kernelSize, strides=int64s strides, padding=int64s paddings)
         
         // NOTE: DiffSharp currently expects indices as an Int32 tensor
@@ -642,7 +654,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
 
         // note, LibTorch only wants the last two elements of the output size passsed in
         // "There should be exactly two elements (height, width) in output_size (max_unpooling2d_shape_check at ...)"
-        let outputSize = outputSize.[2..3] |> Array.map Int.eval
+        let outputSize = outputSize.[2..3] |> Int.values
         
         // TODO: consider switching to the torch::nn module for MaxUnpool2d
 
@@ -657,7 +669,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
 
         // note, LibTorch only wants the last three elements of the output size passsed in
         // "There should be exactly three elements (depth, height, width) in output_size (max_unpooling3d_shape_check at ..\..\aten\src\ATen\native\MaxUnpooling.cpp:231)"
-        let outputSize = outputSize.[2..4] |> Array.map Int.eval
+        let outputSize = outputSize.[2..4] |> Int.values
         
         // NOTE: strides and padding must always be specified for torch::max_unpool3d C++ entry
         // TODO: consider switching to the torch::nn module for MaxUnpool

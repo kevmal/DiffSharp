@@ -80,6 +80,11 @@ type SymContext() =
     /// <summary>Allows <c>sym?Name</c> notation for symbols in test code, avoiding lots of pesky strings</summary>
     static member op_Dynamic (x: SymContext, name: string) : 'T = x.CreateInjected<'T>(name)
 
+    /// Checkpoint the solver state
+    abstract Push: unit -> unit
+    /// Revert the solver state
+    abstract Pop: unit -> unit
+
 //[<AutoOpen>]
 //module SymbolsAutoOpens =
     

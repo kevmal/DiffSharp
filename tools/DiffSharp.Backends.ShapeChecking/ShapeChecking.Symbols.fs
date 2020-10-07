@@ -2,6 +2,7 @@
 
 #if SYMBOLIC_SHAPES
 open System
+open System.Collections.Concurrent
 open System.Reflection
 open DiffSharp.ShapeChecking
 open Microsoft.Z3
@@ -28,7 +29,7 @@ module internal Util =
     let betterName (a: string) (b: string) = 
         b.StartsWith("?") && not (a.StartsWith("?"))
 
-    let getGaussianElim (solver: Solver) =
+    let getEliminationMatrix (solver: Solver) =
 
         // Find the equations 
         let eqns = solver.Assertions |> Array.filter (fun x -> x.IsEq) |> Array.map (fun x -> x.Args.[0], x.Args.[1])
@@ -44,61 +45,34 @@ module internal Util =
 
         // Iteratively find all the equations where the rhs don't use any of the variables, e.g. "x = 1"
         // and normalise the e.h.s. of the other equations with respect to these
-        let rec loop (veqns: (Expr * Expr)[])  (vs: Expr[]) acc =
-            //printfn "vs = %A, acc = %A"  vs acc
-            let relv, irrel = veqns |> Array.partition (fun (_,rhs) -> not (vs |> Array.exists (fun v2 -> isFreeIn v2 rhs)))
-            if relv.Length = 0 then acc 
-            else 
-               let vsnew = Array.map fst relv
-               let relv = relv |> Array.map (fun (v,b) -> (v, b.Substitute(Array.map fst acc, Array.map snd acc)))
-               loop irrel (Array.except vsnew vs) (Array.append relv acc)
-        loop veqns (Array.map fst veqns) [| |]
+        let rec loop (veqns: (Expr * Expr)[]) acc =
+            //printfn "veqns = %A"  veqns
+            //printfn "acc = %A"  acc
+            let relv, others = veqns |> Array.partition (fun (v,rhs) -> not (isFreeIn v rhs))
+            //printfn "relv = %A"  relv
+            match Array.toList relv with 
+            | [] -> Array.ofList (List.rev acc)
+            | (relv, rele)::others2 -> 
+               //printfn "relv = %A, rele = %A"  relv rele
+               let others = Array.append (Array.ofList others2) others
+               let others = others |> Array.map (fun (v,b) -> (v.Substitute(relv, rele), b.Substitute(relv, rele)))
+               //printfn "others = %A"  others
+               loop others ((relv, rele) :: acc)
+        loop veqns [ ]
 
-    /// Canonicalise an expression w.r.t. the equations in Solver
-    ///
-    /// TODO: cache the 'getGaussianElim' though it needs to be updated after each new equation
-    let canonicalize (solver: Solver) (expr: Expr) =
-        let shell = getGaussianElim solver
-        expr.Substitute(Array.map fst shell, Array.map snd shell)
 
 [<RequireQualifiedAccess>]
-type Sym =
-    | Const of syms: SymContextImpl * value: obj * z3Expr: Expr // e.g. a constant integer, Dtype, Device
-    | Var of var: SymVar
-    | App of syms: SymContextImpl * func: string * args: Sym[]  * z3Expr: Expr
+type Sym(syms: SymContextImpl, z3Expr: Expr) =
 
-    member sym.SymContext =
-        match sym with
-        | Const (syms, _, _) -> syms
-        | Var v -> v.SymContext
-        | App(syms, _, _, _) -> syms
+    member sym.SymContext = syms
 
     /// Constrain the two symbols to be equal
     member sym1.Solve(sym2: ISym) : bool =
         sym1.SymContext.Constrain("eq", [|sym1; sym2|])
 
-    member sym.Z3Expr =
-        match sym with 
-        | Const (_, _, a) -> a
-        | Var v -> v.Z3Expr
-        | App (_, _, _, a) -> a
+    member sym.Z3Expr = z3Expr
 
-    override sym.ToString() = 
-        let parenIf c s = if c then "(" + s + ")" else s
-        let rec print prec (s: Expr) =
-            if s.IsAdd then parenIf (prec<=3) (s.Args |> Array.map (print 5) |> String.concat "+")
-            elif s.IsMul then parenIf (prec<=5) (s.Args |> Array.map (print 3) |> String.concat "*")
-            elif s.IsIDiv then parenIf (prec<=5) (s.Args |> Array.map (print 3) |> String.concat "/")
-            elif s.IsSub then parenIf (prec<=5) (s.Args |> Array.map (print 5) |> String.concat "-")
-            elif s.IsRemainder then parenIf (prec<=5) (s.Args |> Array.map (print 5) |> String.concat "%")
-            elif s.IsApp && s.Args.Length > 0 then parenIf (prec<=2) (s.FuncDecl.Name.ToString() + "(" + (s.Args |> Array.map (print 5) |> String.concat ",") + ")")
-            else s.ToString()
-        let simp = sym.Z3Expr.Simplify() |> canonicalize sym.SymContext.Solver
-        print 6 simp
-        //match sym with
-        //| Const (_, v, _) -> v.ToString()
-        //| Var v -> v.Name
-        //| App(_, f, args, _) -> f + "(" + String.concat "," (Array.map string args) + ")"
+    override sym.ToString() = sym.SymContext.Format(sym)
 
     /// Check if we have enough information for the two symbols to be equal
     member sym1.TryKnownToBeEqual(sym2: Sym) : bool voption =
@@ -117,10 +91,7 @@ type Sym =
 
       member sym1.TryKnownToBeEqual(sym2: ISym) = sym1.TryKnownToBeEqual(sym2 :?> Sym)
 
-      member sym.GetVarName() =
-        match sym with
-        | Var v -> v.Name
-        | _ -> printfn "not a variable"; "?"
+      member sym.GetVarName() = (sym:Sym).SymContext.GetVarName(sym)
 
       member sym.TryEvaluate() = ValueNone
 
@@ -139,9 +110,10 @@ type SymContextImpl() =
     
     let zctx = new Context()
     let solver = zctx.MkSolver()
+    let mutable elimCache = None
     //let zparams = zctx.MkParams()
     //let mutable last = 777000000
-    //let mapping = ConcurrentDictionary<int, string>()
+    let mapping = ConcurrentDictionary<uint32, string>()
     //let solutions = ConcurrentDictionary<int, ISym>()
     //let constraints = ResizeArray<BoolExpr>()
 
@@ -154,7 +126,7 @@ type SymContextImpl() =
            | :? int as n -> zctx.MkInt(n) :> Expr
            | :? string as s -> zctx.MkString(s) :> Expr
            | _ -> failwithf "unknown constant %O or type %A" v (v.GetType())
-       Sym.Const(syms, v, zsym) :> ISym
+       Sym(syms, zsym) :> ISym
 
     member syms.Create (f: string, args: Sym[]) : Sym =
         let zsym = 
@@ -203,18 +175,18 @@ type SymContextImpl() =
                let zargs = args |> Array.map (fun x -> x.Z3Expr)
                zctx.MkApp(funcDecl, zargs)
        
-        Sym.App(syms, f, args, zsym)
+        Sym(syms, zsym)
 
     override syms.CreateApp (f: string, args: ISym[]) : ISym =
         let args = args |> Array.map (fun (Sym x) -> x)
         syms.Create(f, args) :> ISym
 
     override syms.CreateVar (name: string) : ISym =
-        let zsym = zctx.MkConst(name, zctx.IntSort)
-        let sym = SymVar(syms, name, zsym)
+        let zsym = zctx.MkFreshConst(name, zctx.IntSort)
         //last <- last + 1
         //mapping.[code] <- name
-        Sym.Var sym :> ISym
+        mapping.[zsym.Id] <- name
+        Sym (syms, zsym) :> ISym
 
     /// Injects a symbol into a .NET type via a call to .Symbolic on type or partner module.
     override syms.CreateInjected<'T> (name: string) : 'T =
@@ -238,6 +210,7 @@ type SymContextImpl() =
         let zexpr, res = ctxt.CheckIfSatisfiable(func, args)
         if res then 
             //printfn "constraint ok!: %s(%s)" func (String.concat "," (Array.map string args))
+            elimCache <- None
             solver.Assert(zexpr)
         //else
             //printfn "constraint not ok --> %s(%s)" func (String.concat "," (Array.map string args))
@@ -264,5 +237,40 @@ type SymContextImpl() =
             //printfn "  --> unknown"
             zexpr, true
 
+    override _.Push() = solver.Push()
+    override _.Pop() = solver.Pop()
     member _.Solver = solver
+
+    /// Canonicalise an expression w.r.t. the equations in Solver
+    member _.EliminateVarEquations (expr: Expr) =
+        let elim = 
+            match elimCache with 
+            | None -> let res = getEliminationMatrix solver in elimCache <- Some res; res
+            | Some e -> e
+        //printfn "expr = %O, shell = %A"  expr elim
+        expr.Substitute(Array.map fst elim, Array.map snd elim)
+
+    member _.GetVarName(sym: Sym) = 
+        match mapping.TryGetValue sym.Z3Expr.Id with
+        | true, v -> v
+        | _ -> "?"
+
+    member _.Format(sym: Sym) = 
+        let parenIf c s = if c then "(" + s + ")" else s
+        let rec print prec (zsym: Expr) =
+            if zsym.IsAdd then parenIf (prec<=3) (zsym.Args |> Array.map (print 5) |> String.concat "+")
+            elif zsym.IsMul then parenIf (prec<=5) (zsym.Args |> Array.map (print 3) |> String.concat "*")
+            elif zsym.IsIDiv then parenIf (prec<=5) (zsym.Args |> Array.map (print 3) |> String.concat "/")
+            elif zsym.IsSub then parenIf (prec<=5) (zsym.Args |> Array.map (print 5) |> String.concat "-")
+            elif zsym.IsRemainder then parenIf (prec<=5) (zsym.Args |> Array.map (print 5) |> String.concat "%")
+            elif zsym.IsApp && zsym.Args.Length > 0 then parenIf (prec<=2) (zsym.FuncDecl.Name.ToString() + "(" + (zsym.Args |> Array.map (print 5) |> String.concat ",") + ")")
+            elif zsym.IsConst then 
+                match mapping.TryGetValue zsym.Id with
+                | true, v -> v
+                | _ -> zsym.ToString()
+            else zsym.ToString()
+        let simp = sym.Z3Expr.Simplify()
+        let simp2 = simp |> sym.SymContext.EliminateVarEquations
+        print 6 simp2
+
 #endif

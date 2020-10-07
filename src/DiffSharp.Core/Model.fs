@@ -304,11 +304,11 @@ type Linear(inFeatures:Int, outFeatures:Int, ?bias:bool) =
        Linear(Int inFeatures, Int outFeatures, ?bias=bias)
 
 /// <summary>TBD</summary>
-type Conv1d(inChannels:Int, outChannels:Int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
+type Conv1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:Int, ?padding:Int, ?dilation:int, ?bias:bool) =
     inherit Model()
     let bias = defaultArg bias true
     let k = 1./ sqrt (float (inChannels*kernelSize).ValueOrOne)
-    let w = Parameter <| Weight.uniform(Shape [|outChannels; inChannels; Int kernelSize|], k)
+    let w = Parameter <| Weight.uniform(Shape [|outChannels; inChannels; kernelSize|], k)
     let b = Parameter <| if bias then Weight.uniform(Shape [|outChannels|], k) else dsharp.zero()
     do base.add([w;b],["Conv1d__weight";"Conv1d__bias"])
 
@@ -322,20 +322,20 @@ type Conv1d(inChannels:Int, outChannels:Int, kernelSize:int, ?stride:int, ?paddi
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
-        Conv1d(Int inChannels, Int outChannels, kernelSize, ?stride=stride, ?padding=padding, ?dilation=dilation, ?bias=bias)
+        Conv1d(Int inChannels, Int outChannels, Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?bias=bias)
 
 /// <summary>TBD</summary>
-type Conv2d(inChannels:Int, outChannels:Int, ?kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
+type Conv2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?dilation:int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?bias:bool) =
     inherit Model()
     let kernelSizes = 
         match kernelSize, kernelSizes with
         | Some _ , Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
         | Some k, None -> [|k; k|]
         | None, Some k -> let k = k |> Array.ofSeq in if k.Length <> 2 then failwithf "Expecting kernelSizes to have length two" else k
-        | _ -> [|1; 1|]
+        | _ -> [|Int 1; Int 1|]
     let bias = defaultArg bias true
-    let k = 1./ sqrt (float (inChannels.ValueOrOne*kernelSizes.[0]*kernelSizes.[1]))
-    let w = Parameter <| Weight.uniform(Shape [|outChannels; inChannels; Int kernelSizes.[0]; Int kernelSizes.[1]|], k)
+    let k = 1./ sqrt (float (inChannels*kernelSizes.[0]*kernelSizes.[1]).ValueOrOne)
+    let w = Parameter <| Weight.uniform(Shape [|outChannels; inChannels; kernelSizes.[0]; kernelSizes.[1]|], k)
     let b = Parameter <| if bias then Weight.uniform(Shape [|outChannels|], k) else dsharp.zero()
     do base.add([w;b],["Conv2d__weight";"Conv2d__bias"])
 
@@ -348,21 +348,21 @@ type Conv2d(inChannels:Int, outChannels:Int, ?kernelSize:int, ?stride:int, ?padd
         if bias then f + b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1; Int 1 |]) else f
 
     /// <summary>TBD</summary>
-    new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
-        Conv2d(Int inChannels, Int outChannels, kernelSize, ?stride=stride, ?padding=padding, ?dilation=dilation, ?bias=bias)
+    new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
+        Conv2d(Int inChannels, Int outChannels, Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?bias=bias)
 
 /// <summary>TBD</summary>
-type Conv3d(inChannels:Int, outChannels:Int, ?kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
+type Conv3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?dilation:int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?bias:bool) =
     inherit Model()
     let kernelSizes = 
         match kernelSize, kernelSizes with
         | Some _ , Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
         | Some k, None -> [|k; k; k|]
         | None, Some k -> let k = k |> Array.ofSeq in if k.Length <> 3 then failwithf "Expecting kernelSizes to have length three" else k
-        | _ -> [|1; 1; 1|]
+        | _ -> [|Int 1; Int 1; Int 1|]
     let bias = defaultArg bias true
-    let k = 1./ sqrt (float (inChannels.ValueOrOne*kernelSizes.[0]*kernelSizes.[1]*kernelSizes.[2]))
-    let w = Parameter <| Weight.uniform(Shape [|outChannels; inChannels; Int kernelSizes.[0]; Int kernelSizes.[1]; Int kernelSizes.[2]|], k)
+    let k = 1./ sqrt (float (inChannels.ValueOrOne*kernelSizes.[0]*kernelSizes.[1]*kernelSizes.[2]).ValueOrOne)
+    let w = Parameter <| Weight.uniform(Shape [|outChannels; inChannels; kernelSizes.[0]; kernelSizes.[1]; kernelSizes.[2]|], k)
     let b = Parameter <| if bias then Weight.uniform(Shape [|outChannels|], k) else dsharp.zero()
     do base.add([w;b],["Conv3d__weight";"Conv3d__bias"])
 
@@ -375,16 +375,16 @@ type Conv3d(inChannels:Int, outChannels:Int, ?kernelSize:int, ?stride:int, ?padd
         if bias then f + b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1; Int 1; Int 1 |]) else f
 
     /// <summary>TBD</summary>
-    new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
-        Conv3d(Int inChannels, Int outChannels, kernelSize, ?stride=stride, ?padding=padding, ?dilation=dilation, ?bias=bias)
+    new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
+        Conv3d(Int inChannels, Int outChannels, Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?bias=bias)
 
 
 /// <summary>TBD</summary>
-type ConvTranspose1d(inChannels:Int, outChannels:Int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
+type ConvTranspose1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:Int, ?padding:Int, ?dilation:int, ?bias:bool) =
     inherit Model()
     let bias = defaultArg bias true
-    let k = 1./ sqrt (float (inChannels.ValueOrOne*kernelSize))
-    let w = Parameter <| Weight.uniform(Shape [|inChannels; outChannels; Int kernelSize|], k)
+    let k = 1./ sqrt (float (inChannels*kernelSize).ValueOrOne)
+    let w = Parameter <| Weight.uniform(Shape [|inChannels; outChannels; kernelSize|], k)
     let b = Parameter <| if bias then Weight.uniform(Shape [|outChannels|], k) else dsharp.zero()
     do base.add([w;b],["ConvTranspose1d__weight";"ConvTranspose1d__bias"])
 
@@ -394,24 +394,25 @@ type ConvTranspose1d(inChannels:Int, outChannels:Int, kernelSize:int, ?stride:in
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.convTranspose1d(value, w.value, ?stride=stride, ?padding=padding, ?dilation=dilation)
+        let tm2 = b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1 |])
         if bias then f + b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1 |]) else f
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
-        ConvTranspose1d(Int inChannels, Int outChannels, kernelSize, ?stride=stride, ?padding=padding, ?dilation=dilation, ?bias=bias)
+        ConvTranspose1d(Int inChannels, Int outChannels, Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?bias=bias)
 
 /// <summary>TBD</summary>
-type ConvTranspose2d(inChannels:Int, outChannels:Int, ?kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
+type ConvTranspose2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?dilation:int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?bias:bool) =
     inherit Model()
     let kernelSizes = 
         match kernelSize, kernelSizes with
         | Some _ , Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
         | Some k, None -> [|k; k|]
         | None, Some k -> let k = k |> Array.ofSeq in if k.Length <> 2 then failwithf "Expecting kernelSizes to have length two" else k
-        | _ -> [|1; 1|]
+        | _ -> [|Int 1; Int 1|]
     let bias = defaultArg bias true
-    let k = 1./ sqrt (float (inChannels.ValueOrOne*kernelSizes.[0]*kernelSizes.[1]))
-    let w = Parameter <| Weight.uniform(Shape [|inChannels; outChannels; Int kernelSizes.[0]; Int kernelSizes.[1]|], k)
+    let k = 1./ sqrt (float (inChannels*kernelSizes.[0]*kernelSizes.[1]).ValueOrOne)
+    let w = Parameter <| Weight.uniform(Shape [|inChannels; outChannels; kernelSizes.[0]; kernelSizes.[1]|], k)
     let b = Parameter <| if bias then Weight.uniform(Shape [|outChannels|], k) else dsharp.zero()
     do base.add([w;b],["ConvTranspose2d__weight";"ConvTranspose2d__bias"])
 
@@ -424,21 +425,21 @@ type ConvTranspose2d(inChannels:Int, outChannels:Int, ?kernelSize:int, ?stride:i
         if bias then f + b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1; Int 1 |]) else f
 
     /// <summary>TBD</summary>
-    new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
-        ConvTranspose2d(Int inChannels, Int outChannels, kernelSize, ?stride=stride, ?padding=padding, ?dilation=dilation, ?bias=bias)
+    new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
+        ConvTranspose2d(Int inChannels, Int outChannels, Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?bias=bias)
 
 /// <summary>TBD</summary>
-type ConvTranspose3d(inChannels:Int, outChannels:Int, ?kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
+type ConvTranspose3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?dilation:int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?bias:bool) =
     inherit Model()
     let kernelSizes = 
         match kernelSize, kernelSizes with
         | Some _ , Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
         | Some k, None -> [|k; k; k|]
         | None, Some k -> let k = k |> Array.ofSeq in if k.Length <> 3 then failwithf "Expecting kernelSizes to have length three" else k
-        | _ -> [|1; 1; 1|]
+        | _ -> [|Int 1; Int 1; Int 1|]
     let bias = defaultArg bias true
-    let k = 1./ sqrt (float (inChannels.ValueOrOne*kernelSizes.[0]*kernelSizes.[1]*kernelSizes.[2]))
-    let w = Parameter <| Weight.uniform(Shape [|inChannels; outChannels; Int kernelSizes.[0]; Int kernelSizes.[1]; Int kernelSizes.[2]|], k)
+    let k = 1./ sqrt (float (inChannels*kernelSizes.[0]*kernelSizes.[1]*kernelSizes.[2]).ValueOrOne)
+    let w = Parameter <| Weight.uniform(Shape [|inChannels; outChannels; kernelSizes.[0]; kernelSizes.[1]; kernelSizes.[2]|], k)
     let b = Parameter <| if bias then Weight.uniform(Shape [|outChannels|], k) else dsharp.zero()
     do base.add([w;b],["ConvTranspose3d__weight";"ConvTranspose3d__bias"])
 
@@ -451,8 +452,8 @@ type ConvTranspose3d(inChannels:Int, outChannels:Int, ?kernelSize:int, ?stride:i
         if bias then f + b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1; Int 1; Int 1 |]) else f
 
     /// <summary>TBD</summary>
-    new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
-        ConvTranspose3d(Int inChannels, Int outChannels, kernelSize, ?stride=stride, ?padding=padding, ?dilation=dilation, ?bias=bias)
+    new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
+        ConvTranspose3d(Int inChannels, Int outChannels, Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?bias=bias)
 
 /// <summary>TBD</summary>
 type Dropout(?p:double) =
@@ -617,7 +618,7 @@ type BatchNorm2d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
                 vt.mean(1), vt.variance(1, unbiased=false)
             else
                 _mean.value, _variance.value
-        if m.mode = Mode.Train && trackRunningStats then
+        if not value.symbolic && m.mode = Mode.Train && trackRunningStats then
             let n = vt.shape.[1]
             m.updateStats mean var n
         let res = (value - mean.view(Shape [|Int 1;numFeatures;Int 1;Int 1 |])) / (var.view(Shape [| Int 1;numFeatures;Int 1;Int 1|]) + eps).sqrt()

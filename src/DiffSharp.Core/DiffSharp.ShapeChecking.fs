@@ -96,57 +96,57 @@ module ShapedInferenceAutoOpens =
         /// <summary>TBD</summary>
         static member view(a:Tensor, shape:Shape) = a.viewx(shape)
 
-        // /// <summary>TBD</summary>
-        //static member maxpool1d(a:Tensor, kernelSize:int, ?stride:int, ?padding:int) = a.maxpool1d(kernelSize, ?stride=stride, ?padding=padding)
-
-        // /// <summary>TBD</summary>
-        //static member maxpool1di(a:Tensor, kernelSize:int, ?stride:int, ?padding:int) = a.maxpool1di(kernelSize, ?stride=stride, ?padding=padding)
-
-        // /// <summary>TBD</summary>
-        //static member maxpool2d(a:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) = a.maxpool2d(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings)
-
-        // /// <summary>TBD</summary>
-        //static member maxpool2di(a:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) = a.maxpool2di(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings)
-
-        // /// <summary>TBD</summary>
-        //static member maxpool3d(a:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) = a.maxpool3d(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings)
-
-        // /// <summary>TBD</summary>
-        //static member maxpool3di(a:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) = a.maxpool3di(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings)
+        /// <summary>TBD</summary>
+        static member maxpool1d(a:Tensor, kernelSize:Int, ?stride:Int, ?padding:Int) = a.maxpool1dix(kernelSize, ?stride=stride, ?padding=padding) |> fst
 
         /// <summary>TBD</summary>
-        static member maxunpool1d(a:Tensor, indices:Tensor, outputSize:seq<Int>, kernelSize:int, ?stride:int, ?padding:int) =
+        static member maxpool1di(a:Tensor, kernelSize:Int, ?stride:Int, ?padding:Int) = a.maxpool1dix(kernelSize, ?stride=stride, ?padding=padding)
+
+        /// <summary>TBD</summary>
+        static member maxpool2d(a:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) = a.maxpool2dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings) |> fst
+
+        /// <summary>TBD</summary>
+        static member maxpool2di(a:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) = a.maxpool2dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings)
+
+        /// <summary>TBD</summary>
+        static member maxpool3d(a:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) = a.maxpool3dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings) |> fst
+
+        /// <summary>TBD</summary>
+        static member maxpool3di(a:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) = a.maxpool3dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings)
+
+        /// <summary>TBD</summary>
+        static member maxunpool1d(a:Tensor, indices:Tensor, outputSize:seq<Int>, kernelSize:Int, ?stride:Int, ?padding:Int) =
             a.maxunpool1dx(indices, kernelSize, ?stride=stride, ?padding=padding, outputSize=outputSize)
 
         /// <summary>TBD</summary>
-        static member maxunpool2d(a:Tensor, indices:Tensor, outputSize:seq<Int>, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) =
+        static member maxunpool2d(a:Tensor, indices:Tensor, outputSize:seq<Int>, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
             a.maxunpool2dx(indices, ?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings, outputSize=outputSize)
 
         /// <summary>TBD</summary>
-        static member maxunpool3d(a:Tensor, indices:Tensor, outputSize:seq<Int>, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) =
+        static member maxunpool3d(a:Tensor, indices:Tensor, outputSize:seq<Int>, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
             a.maxunpool3dx(indices, ?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings, outputSize=outputSize)
 
-        // /// <summary>TBD</summary>
-        //static member conv1d(a:Tensor, b:Tensor, ?stride:int, ?padding:int, ?dilation:int) =
-        //    a.conv1d(b, ?stride=stride, ?padding=padding, ?dilation=dilation)
+        /// <summary>TBD</summary>
+        static member conv1d(a:Tensor, b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int) =
+            a.conv1dx(b, ?stride=stride, ?padding=padding, ?dilation=dilation)
 
-        // /// <summary>TBD</summary>
-        //static member conv2d(a:Tensor, b:Tensor, ?stride:int, ?strides:seq<int>, ?padding:int, ?paddings:seq<int>, ?dilation:int, ?dilations:seq<int>) =
-        //    a.conv2d(b, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
+        /// <summary>TBD</summary>
+        static member conv2d(a:Tensor, b:Tensor, ?stride:Int, ?strides:seq<Int>, ?padding:Int, ?paddings:seq<Int>, ?dilation:int, ?dilations:seq<int>) =
+            a.conv2dx(b, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
 
-        // /// <summary>TBD</summary>
-        //static member conv3d(a:Tensor, b:Tensor, ?stride:int, ?strides:seq<int>, ?padding:int, ?paddings:seq<int>, ?dilation:int, ?dilations:seq<int>) =
-        //    a.conv3d(b, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
+        /// <summary>TBD</summary>
+        static member conv3d(a:Tensor, b:Tensor, ?stride:Int, ?strides:seq<Int>, ?padding:Int, ?paddings:seq<Int>, ?dilation:int, ?dilations:seq<int>) =
+            a.conv3dx(b, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
 
-        // /// <summary>TBD</summary>
-        //static member convTranspose1d(a:Tensor, b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int) =
-        //    a.convTranspose1d(b, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding)
+        /// <summary>TBD</summary>
+        static member convTranspose1d(a:Tensor, b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int) =
+            a.convTranspose1dx(b, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding)
 
-        // /// <summary>TBD</summary>
-        //static member convTranspose2d(a:Tensor, b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?outputPaddings:seq<int>) = a.convTranspose2d(b, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
+        /// <summary>TBD</summary>
+        static member convTranspose2d(a:Tensor, b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) = a.convTranspose2dx(b, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
 
-        // /// <summary>TBD</summary>
-        //static member convTranspose3d(a:Tensor, b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?outputPaddings:seq<int>) = a.convTranspose3d(b, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
+        /// <summary>TBD</summary>
+        static member convTranspose3d(a:Tensor, b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) = a.convTranspose3dx(b, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
 
         // /// <summary>TBD</summary>
         // static member pad(a:Tensor, paddings:seq<int>) = a.pad(paddings)

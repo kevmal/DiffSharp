@@ -136,6 +136,11 @@ type Int internal (n: int, sym: ISym) =
     static member (>=~) (a:Int,b:Int) : bool = 
         Int.binop a b (fun a b -> a >= b) (fun a b -> a.SymContext.Constrain("geq", [|a;b|]))
 
+    static member (<~) (a:Int,b:int) : bool = a <~ Int b
+    static member (<=~) (a:Int,b:int) : bool = a <=~ Int b
+    static member (>=~) (a:Int,b:int) : bool = a >=~ Int b
+    static member (>~) (a:Int,b:int) : bool = a >~ Int b
+
     static member Zero = Int 0
 
     static member Abs(dim: Int) = Int (abs dim.Value)

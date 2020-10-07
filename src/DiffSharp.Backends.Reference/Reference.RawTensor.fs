@@ -59,7 +59,7 @@ type RawTensorCPU<'T when 'T : equality>(values: 'T[], shape: Shape, dtype: Dtyp
 
     override t.GetSlice(fullBounds:Int[,]) =
         let shape = Shape.checkCanGetSlice t.Shape fullBounds
-        let fullBounds = fullBounds |> Array2D.map Int.eval
+        let fullBounds = fullBounds |> Array2D.map Int.value
         // printfn "rfullBounds\n%A" fullBounds
         // printfn "rshape\n%A" shape
         let array = Array.zeroCreate (shapeLength shape)
@@ -449,7 +449,7 @@ module internal RawTensorCPU =
 
     let inline internal AddTTSlice(plus, t1: RawTensorCPU< ^T >, location:Int[], t2: RawTensor) : (^T[] * Shape) =
         Shape.checkCanAddSlice t1.Shape location t2.Shape
-        let location = location |> Array.map Int.eval
+        let location = location |> Int.values
         let t1value = t1.Values
         let t2 = t2 :?> RawTensorCPU< ^T >
         let result = Array.copy t1value
@@ -548,10 +548,13 @@ module internal RawTensorCPU =
                 result.[i*t2cols + j] <- acc
         (result,Shape.constant [| t1rows; t2cols |])
     
-    let inline MaxPool1D(t1: RawTensorCPU< ^T >, kernelSize, stride, padding) : RawTensorCPU< ^T > * RawTensorCPU< int > =
+    let inline MaxPool1D(t1: RawTensorCPU< ^T >, kernelSize:Int, stride:Int, padding:Int) : RawTensorCPU< ^T > * RawTensorCPU< int > =
         let batchSize, channels, inputSize, outputSize, outputShape =
             Shape.checkCanMaxpool1d t1.Dtype t1.Shape kernelSize stride padding
         let batchSize, channels, inputSize, outputSize = batchSize.Value, channels.Value, inputSize.Value, outputSize.Value
+        let kernelSize = kernelSize.Value
+        let stride = stride.Value
+        let padding = padding.Value
         let result = t1.ZerosLike(outputShape) :?> RawTensorCPU<'T>
         let indices = t1.ZerosLike(outputShape, dtype=Int32) :?> RawTensorCPU<int>
         let minValue = t1.[t1.MinIndexT()] - one
@@ -571,11 +574,15 @@ module internal RawTensorCPU =
                     indices.[[|n; c; v|]] <- maxindex
         result, indices
 
-    let inline MaxPool2D(t1: RawTensorCPU< ^T >, kernelSize, stride, padding) : RawTensorCPU< ^T > * RawTensorCPU< int > =
+    let inline MaxPool2D(t1: RawTensorCPU< ^T >, kernelSize:Int[], stride:Int[], padding:Int[]) : RawTensorCPU< ^T > * RawTensorCPU< int > =
         let batchSize, channels, (inputHeight, inputWidth), (kernelHeight, kernelWidth), (outputHeight, outputWidth), outputShape =
             Shape.checkCanMaxpool2d t1.Dtype t1.Shape kernelSize stride padding
         let batchSize, channels, inputHeight, inputWidth, outputHeight, outputWidth =
             batchSize.Value, channels.Value, inputHeight.Value, inputWidth.Value, outputHeight.Value, outputWidth.Value
+        let kernelHeight = kernelHeight.Value
+        let kernelWidth = kernelWidth.Value
+        let stride = stride |> Int.values
+        let padding = padding |> Int.values
         let result = t1.ZerosLike(outputShape) :?> RawTensorCPU<'T>
         let indices = t1.ZerosLike(outputShape, dtype=Int32) :?> RawTensorCPU<int>
         let minValue = t1.[t1.MinIndexT()] - one
@@ -605,6 +612,11 @@ module internal RawTensorCPU =
             Shape.checkCanMaxpool3d t1.Dtype t1.Shape kernelSize stride padding
         let batchSize, channels, inputDepth, inputHeight, inputWidth, outputDepth, outputHeight, outputWidth =
             batchSize.Value, channels.Value, inputDepth.Value, inputHeight.Value, inputWidth.Value, outputDepth.Value, outputHeight.Value, outputWidth.Value
+        let kernelDepth = kernelDepth.Value
+        let kernelHeight = kernelHeight.Value
+        let kernelWidth = kernelWidth.Value
+        let stride = stride |> Int.values
+        let padding = padding |> Int.values
         let result = t1.ZerosLike(outputShape) :?> RawTensorCPU<'T>
         let indices = t1.ZerosLike(outputShape, dtype=Int32) :?> RawTensorCPU<int>
         let minValue = t1.[t1.MinIndexT()] - one
@@ -675,12 +687,13 @@ module internal RawTensorCPU =
                             result.[[|n; c; i.[0]; i.[1]; i.[2]|]] <- t1.[[|n; c; u0; u1; u2|]]
         result
 
-    let inline Conv1D(t1: RawTensorCPU< ^T >, t2: RawTensor, stride, padding) : RawTensorCPU< ^T > =
+    let inline Conv1D(t1: RawTensorCPU< ^T >, t2: RawTensor, stride: Int, padding: Int) : RawTensorCPU< ^T > =
         // t1: input, NxCxI (batchSize x inputChannels x inputLength)
         // t2: filters, KxCxF (outputChannels x inputChannels x kernelLength)
         let batchSize, inputChannels, kernelSize, outputChannels, outputSize, outputShape =
             Shape.checkCanConv1d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding 1
         let batchSize, inputChannels, kernelSize, outputChannels, outputSize = batchSize.Value, inputChannels.Value, kernelSize.Value, outputChannels.Value, outputSize.Value
+        let stride, padding = stride.Value, padding.Value
         let result = t1.ZerosLike(outputShape) :?> RawTensorCPU<'T>
         let t1 =
             if padding = 0 then
@@ -701,13 +714,15 @@ module internal RawTensorCPU =
                     result.[[|n; k; v|]] <- value
         result
 
-    let inline Conv2D(t1: RawTensorCPU< ^T >, t2: RawTensor, stride: int[], padding: int[]) : RawTensorCPU< ^T > =
+    let inline Conv2D(t1: RawTensorCPU< ^T >, t2: RawTensor, stride: Int[], padding: Int[]) : RawTensorCPU< ^T > =
         // t1: input, NxCxHxW (batchSize x inputChannels x inputHeight x inputWidth)
         // t2: filters, KxCxFxG (outputChannels x inputChannels x kernelHeight x kernelWidth)
         let batchSize, inputChannels, (kernelHeight, kernelWidth), (outputChannels, outputHeight, outputWidth), outputShape =
             Shape.checkCanConv2d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|1;1|]
         let batchSize, inputChannels, kernelHeight, kernelWidth, outputChannels, outputHeight, outputWidth =
             batchSize.Value, inputChannels.Value, kernelHeight.Value, kernelWidth.Value, outputChannels.Value, outputHeight.Value, outputWidth.Value
+        let stride = stride |> Int.values
+        let padding = padding |> Int.values
         let result = t1.ZerosLike(outputShape) :?> RawTensorCPU< ^T>
         let t1 =
             if padding.[0] = 0 && padding.[1] = 0 then
@@ -731,13 +746,15 @@ module internal RawTensorCPU =
                         result.[[|n; k; v0; v1|]] <- value
         result
 
-    let inline Conv3D(t1: RawTensorCPU< ^T >, t2: RawTensor, stride: int[], padding: int[]) : RawTensorCPU< ^T > =
+    let inline Conv3D(t1: RawTensorCPU< ^T >, t2: RawTensor, stride: Int[], padding: Int[]) : RawTensorCPU< ^T > =
         // t1: input, NxCxDxHxW (batchSize x inputChannels x inputDepth x inputHeight x inputWidth)
         // t2: filters, KxCxExFxG (outputChannels x inputChannels x kernelDepth x kernelHeight x kernelWidth)
         let batchSize, inputChannels, (kernelDepth, kernelHeight, kernelWidth), (outputChannels, outputDepth, outputHeight, outputWidth), outputShape = 
             Shape.checkCanConv3d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|1;1;1|]  
         let batchSize, inputChannels, kernelDepth, kernelHeight, kernelWidth, outputChannels, outputDepth, outputHeight, outputWidth =
             batchSize.Value, inputChannels.Value, kernelDepth.Value, kernelHeight.Value, kernelWidth.Value, outputChannels.Value, outputDepth.Value, outputHeight.Value, outputWidth.Value
+        let stride = stride |> Int.values
+        let padding = padding |> Int.values
         let result = t1.ZerosLike(outputShape) :?> RawTensorCPU< ^T>
         let t1 =
             if padding.[0] = 0 && padding.[1] = 0 && padding.[2] = 0 then
