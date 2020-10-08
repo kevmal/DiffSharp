@@ -53,7 +53,7 @@ type Dtype =
         | dt -> dt
 
 #if SYMBOLIC_SHAPES
-    member t.AsSymbol(syms: SymContext) =
+    member t.AsSymbol(syms: ISymScope) =
         match t with
         | Sym sym -> sym
         | _ ->

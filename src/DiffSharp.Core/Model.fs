@@ -169,10 +169,12 @@ type Model() =
         and set parameters = m.parametersDict.unflatten(parameters)
 
     /// <summary>TBD</summary>
-    member m.allModels
-        with get () =
-            if m.SubModelsDict.Count = 0 then [m]
-            else [for sm in m.SubModelsDict.Values do yield! sm.allModels]
+    member m.allModels =
+        if m.SubModelsDict.Count = 0 then [m]
+        else m.subModels
+
+    /// <summary>TBD</summary>
+    member m.subModels = [for sm in m.SubModelsDict.Values do yield! sm.allModels]
 
     /// <summary>TBD</summary>
     member m.add(parameters:seq<obj>, ?names:seq<string>) =
@@ -229,7 +231,7 @@ type Model() =
     override m.ToString() =
         let sb = System.Text.StringBuilder()
         sb.Append("Model(\n") |> ignore
-        for model in m.allModels do sb.Append(sprintf "%A\n" model) |> ignore
+        for model in m.subModels do sb.Append(sprintf "%A\n" model) |> ignore
         sb.Append(")") |> ignore
         sb.ToString()
 
@@ -394,7 +396,6 @@ type ConvTranspose1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:In
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.convTranspose1d(value, w.value, ?stride=stride, ?padding=padding, ?dilation=dilation)
-        let tm2 = b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1 |])
         if bias then f + b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1 |]) else f
 
     /// <summary>TBD</summary>
@@ -689,5 +690,4 @@ type BatchNorm3d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
     /// <summary>TBD</summary>
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
         BatchNorm3d(Int numFeatures, ?eps=eps, ?momentum=momentum, ?affine=affine, ?trackRunningStats=trackRunningStats, ?reversible=reversible)
-
 

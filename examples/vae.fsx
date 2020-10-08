@@ -201,10 +201,10 @@ type Model with
                 let pts = pty.ToString()
                 if pts = "DiffSharp.Int" then
                    //printfn "making symbolic for model parameter %s" p.Name
-                   syms.CreateInjected<Int>(p.Name) |> box
+                   syms.Int(p.Name) |> box
                 elif optionals && pts = "Microsoft.FSharp.Core.FSharpOption`1[DiffSharp.Int]" then 
                    //printfn "making symbolic for option model parameter %s" p.Name
-                   Some(syms.CreateInjected<Int>(p.Name)) |> box                   
+                   Some(syms.Int(p.Name)) |> box                   
                 elif pts.StartsWith("Microsoft.FSharp.Core.FSharpOption`1[") then 
                    null // None
                 elif pts = "System.Int32" then 
@@ -228,14 +228,18 @@ type Model with
         let model = ctor.Invoke(ctorArgs) :?> DiffSharp.Model.Model
         let run f input = 
             try 
-                printfn "simulating shapes..."
-                Ok (f input)
-            with  e -> Error e
+                try 
+                    syms.Push()
+                    Ok (f input)
+                with  e -> Error e
+            finally
+                syms.Pop()
+
         let transfers =
             match inputShape with
             | None -> 
                 [ for ndim in 0 .. 5 do
-                    let input = dsharp.zeros(Shape [| for d in 1 .. ndim -> syms.CreateInjected<Int>("?N" + string d) |])
+                    let input = dsharp.zeros(Shape [| for d in 1 .. ndim -> syms.Int("?N" + string d) |])
                     let res = run model.forward input
                     yield (input, res) ]
             | Some shape -> 
@@ -274,8 +278,10 @@ type Model with
       finally
         Backend.Default <- dflt
 
+[<LiveCheck>]
+let x = VAE(sym?xDim, sym?yDim) //.forward(dsharp.zeros (Shape.symbolic [| sym?N; sym?M; |]))
 
-
+(*
 Model.AnalyseShapes<Linear> ()
 Model.AnalyseShapes<Linear> (Shape.symbolic [| sym?N; sym?M; |])
 Model.AnalyseShapes<VAE> ()
@@ -298,6 +304,7 @@ Model.AnalyseShapes<Dropout3d> ()
 Model.AnalyseShapes<BatchNorm1d> ()
 Model.AnalyseShapes<BatchNorm2d> ()
 Model.AnalyseShapes<BatchNorm3d> ()
+*)
 
 
 (*

@@ -43,13 +43,16 @@ module ShapedInferenceAutoOpens =
         // static member onehot(length:int, hot:int, ?dtype:Dtype, ?device:Device, ?backend:Backend) = dsharp.zero(?dtype=dtype, ?device=device, ?backend=backend).onehotLike(length, hot)
 
         /// <summary>TBD</summary>
-        static member rand(shape:Shape, ?dtype:Dtype, ?device:Device, ?backend:Backend) = Tensor(RawTensor.Random(shape, ?dtype=dtype, ?device=device, ?backend=backend))
+        static member rand(shape:Shape, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            Tensor(RawTensor.Random(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
         /// <summary>TBD</summary>
-        static member randn(shape:Shape, ?dtype:Dtype, ?device:Device, ?backend:Backend) = Tensor(RawTensor.RandomNormal(shape, ?dtype=dtype, ?device=device, ?backend=backend))
+        static member randn(shape:Shape, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            Tensor(RawTensor.RandomNormal(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
         /// <summary>TBD</summary>
-        static member randint(low:int, high:int, shape:Shape, ?dtype:Dtype, ?device:Device, ?backend:Backend) = Tensor(RawTensor.RandomInt(shape, low, high, ?dtype=dtype, ?device=device, ?backend=backend))
+        static member randint(low:int, high:int, shape:Shape, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            Tensor(RawTensor.RandomInt(shape, low, high, ?dtype=dtype, ?device=device, ?backend=backend))
 
         // /// <summary>TBD</summary>
         // static member multinomial(probs:Tensor, numSamples:int, ?dtype:Dtype, ?device:Device, ?backend:Backend) = probs.multinomial(numSamples, ?dtype=dtype, ?device=device, ?backend=backend)
@@ -73,13 +76,16 @@ module ShapedInferenceAutoOpens =
         // static member onehotLike(a:Tensor, length:int, hot:int, ?dtype, ?device, ?backend) = a.onehotLike(length, hot, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>TBD</summary>
-        static member randLike(a:Tensor, shape:Shape, ?dtype, ?device, ?backend) = a.randLike(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+        static member randLike(a:Tensor, shape:Shape, ?dtype, ?device, ?backend) =
+            a.randLike(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>TBD</summary>
-        static member randnLike(a:Tensor, shape:Shape, ?dtype, ?device, ?backend) = a.randnLike(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+        static member randnLike(a:Tensor, shape:Shape, ?dtype, ?device, ?backend) =
+            a.randnLike(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>TBD</summary>
-        static member randintLike(a:Tensor, low:int, high:int, shape:Shape, ?dtype, ?device, ?backend) = a.randintLike(low=low, high=high, shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+        static member randintLike(a:Tensor, low:int, high:int, shape:Shape, ?dtype, ?device, ?backend) =
+            a.randintLike(low=low, high=high, shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>TBD</summary>
         static member fullshape(a:Tensor) = a.shapex
@@ -97,22 +103,28 @@ module ShapedInferenceAutoOpens =
         static member view(a:Tensor, shape:Shape) = a.viewx(shape)
 
         /// <summary>TBD</summary>
-        static member maxpool1d(a:Tensor, kernelSize:Int, ?stride:Int, ?padding:Int) = a.maxpool1dix(kernelSize, ?stride=stride, ?padding=padding) |> fst
+        static member maxpool1d(a:Tensor, kernelSize:Int, ?stride:Int, ?padding:Int) =
+            a.maxpool1dix(kernelSize, ?stride=stride, ?padding=padding) |> fst
 
         /// <summary>TBD</summary>
-        static member maxpool1di(a:Tensor, kernelSize:Int, ?stride:Int, ?padding:Int) = a.maxpool1dix(kernelSize, ?stride=stride, ?padding=padding)
+        static member maxpool1di(a:Tensor, kernelSize:Int, ?stride:Int, ?padding:Int) =
+            a.maxpool1dix(kernelSize, ?stride=stride, ?padding=padding)
 
         /// <summary>TBD</summary>
-        static member maxpool2d(a:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) = a.maxpool2dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings) |> fst
+        static member maxpool2d(a:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
+            a.maxpool2dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings) |> fst
 
         /// <summary>TBD</summary>
-        static member maxpool2di(a:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) = a.maxpool2dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings)
+        static member maxpool2di(a:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
+            a.maxpool2dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings)
 
         /// <summary>TBD</summary>
-        static member maxpool3d(a:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) = a.maxpool3dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings) |> fst
+        static member maxpool3d(a:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
+            a.maxpool3dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings) |> fst
 
         /// <summary>TBD</summary>
-        static member maxpool3di(a:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) = a.maxpool3dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings)
+        static member maxpool3di(a:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
+            a.maxpool3dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings)
 
         /// <summary>TBD</summary>
         static member maxunpool1d(a:Tensor, indices:Tensor, outputSize:seq<Int>, kernelSize:Int, ?stride:Int, ?padding:Int) =
@@ -159,15 +171,25 @@ module ShapedInferenceAutoOpens =
     module Device = 
 
         let Symbolic (sym: ISym) : Device =
-            let dt = sym.SymContext.CreateInjected(sym.GetVarName())
+            let dt = DeviceType.Symbolic(sym.SymContext.CreateVar(sym.GetVarName()))
             let device = Device(dt, 0)
             device
 
     let mutable private symscope = None
 
     /// <summary>A global symbol context for shape checking. Allows <c>sym?Name</c> notation for symbols in test code, avoiding lots of pesky strings</summary>
-    let sym<'T> : SymContext = 
+    let sym<'T> : ISymScope = 
         if symscope.IsNone then
             symscope <- Some (BackendSymbolStatics.Get().CreateSymContext())
         symscope.Value
+
+    type ISymScope with 
+        member syms.Device(name:string) = Device.Symbolic (syms.CreateVar(name))
+        member syms.Int(name:string) = Int.FromSymbol (syms.CreateVar(name))
+
+    /// Create a symbol in the global symbol context of the given name
+    let (?) (syms: ISymScope) (name: string) : Int = syms.Int(name)
+
 #endif
+    type LiveCheckAttribute() = inherit System.Attribute()
+

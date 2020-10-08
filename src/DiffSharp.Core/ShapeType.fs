@@ -39,7 +39,7 @@ type Int internal (n: int, sym: ISym) =
 
     member internal x.SymbolRaw : ISym = sym
 
-    member x.AsSymbol(syms: SymContext) =
+    member x.AsSymbol(syms: ISymScope) =
         match box sym with 
         | null  -> syms.CreateConst(n)
         | _ -> sym
@@ -52,10 +52,10 @@ type Int internal (n: int, sym: ISym) =
     member x.TryGetValue() =
         match box sym with 
         | null -> ValueSome n
-        | _ -> Int.TryEvaluate(sym)
+        | _ -> Int.TryGetConst(sym)
 
-    static member TryEvaluate(sym: ISym) =
-        match sym.TryEvaluate() with 
+    static member TryGetConst(sym: ISym) =
+        match sym.TryGetConst() with 
         | ValueSome (:? int as n) -> ValueSome n
         | _ -> ValueNone
 
@@ -122,19 +122,19 @@ type Int internal (n: int, sym: ISym) =
 
     /// Constraint less-than-or-equal. Returns true if no contradiciton was detected when the constraint was asserted.
     static member (<=~) (a:Int,b:Int) : bool = 
-        Int.binop a b (fun a b -> a <= b) (fun a b -> a.SymContext.Constrain("leq", [|a;b|]))
+        Int.binop a b (fun a b -> a <= b) (fun a b -> a.SymContext.Assert("leq", [|a;b|]))
 
     /// Constraint less-than. Returns true if no contradiciton was detected when the constraint was asserted.
     static member (<~) (a:Int,b:Int) : bool = 
-        Int.binop a b (fun a b -> a < b) (fun a b -> a.SymContext.Constrain("lt", [|a;b|]))
+        Int.binop a b (fun a b -> a < b) (fun a b -> a.SymContext.Assert("lt", [|a;b|]))
 
     /// Constraint greater-than. Returns true if no contradiciton was detected when the constraint was asserted.
     static member (>~) (a:Int,b:Int) : bool = 
-        Int.binop a b (fun a b -> a > b) (fun a b -> a.SymContext.Constrain("gt", [|a;b|]))
+        Int.binop a b (fun a b -> a > b) (fun a b -> a.SymContext.Assert("gt", [|a;b|]))
 
     /// Constraint greater-than. Returns true if no contradiciton was detected when the constraint was asserted.
     static member (>=~) (a:Int,b:Int) : bool = 
-        Int.binop a b (fun a b -> a >= b) (fun a b -> a.SymContext.Constrain("geq", [|a;b|]))
+        Int.binop a b (fun a b -> a >= b) (fun a b -> a.SymContext.Assert("geq", [|a;b|]))
 
     static member (<~) (a:Int,b:int) : bool = a <~ Int b
     static member (<=~) (a:Int,b:int) : bool = a <=~ Int b
@@ -149,9 +149,6 @@ type Int internal (n: int, sym: ISym) =
 
     member _.IsInvalid = (n < -1)
 
-    /// Allow injection of symbol variables
-    static member Symbolic (sym: ISym) = Int.FromSymbol sym
-
     override x.GetHashCode() =
         match x.TryGetValue() with 
         | ValueNone -> 0
@@ -159,7 +156,7 @@ type Int internal (n: int, sym: ISym) =
 
     override x.Equals(y:obj) =
           match y with 
-          | :? Int as y -> Int.binop x y (=) (fun xsym ysym -> xsym.KnownToBeEqual(ysym))
+          | :? Int as y -> Int.binop x y (=) (fun xsym ysym -> obj.ReferenceEquals(xsym,ysym))
           | _ -> false
 
     interface System.IComparable with 

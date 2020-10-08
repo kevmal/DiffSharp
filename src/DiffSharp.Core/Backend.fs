@@ -36,7 +36,11 @@ module Backend =
     let Register name = codes.GetOrAdd(name, (fun _ -> incr count; Backend.Other(name, count.Value)))
 
     /// Get or set the default backend used when creating tensors. Note, use <c>dsharp.config(...)</c> instead.
-    let mutable Default = Backend.Reference
+    let mutable Default =
+        if System.Environment.GetEnvironmentVariable("LIVECHECK") <> null then
+            Backend.ShapeChecking
+        else
+            Backend.Reference
 
 type BackendFunctionality<'T>() =
     let mutable last = None
