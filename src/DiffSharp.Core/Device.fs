@@ -33,6 +33,10 @@ type Device =
     member x.DeviceIndex = (let (Device(_,b)) = x in b)
     static member CPU = Device(DeviceType.CPU, -1)
     static member GPU = Device(DeviceType.CUDA, 0)
+    override device.ToString() =
+        match device with
+        | Device(_, -1) -> device.Name
+        | Device(_, n) -> device.Name + ":" + string n
 
     member internal x.Name =
        (match x.DeviceType with

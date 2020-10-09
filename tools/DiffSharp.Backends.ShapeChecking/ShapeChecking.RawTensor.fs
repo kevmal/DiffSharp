@@ -230,7 +230,6 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
     override t.AsinT() = t :> _ 
     override t.AcosT() = t :> _ 
     override t.AtanT() = t :> _ 
-    override t.GetString() = sprintf "tensor(dtype=%A,shape=%A,device=%A)" dtype shape device
 
 type ShapeCheckingBackendTensorStatics() = 
 

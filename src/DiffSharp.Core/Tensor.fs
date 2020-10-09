@@ -362,6 +362,12 @@ type Tensor =
         let ps = parents t 1
         p |> List.rev, ps
 
+    override t.ToString() = 
+        match t with
+        | Tensor(p) -> p.ToString()
+        | TensorF(tp,_,_) -> tp.ToString() + "(F)"
+        | TensorR(tp,_,_,_,_) -> tp.ToString() + "(R)"
+
     override t.Equals(other) =
         match other with
         | :? Tensor as tensor -> t.primalRaw.Equals(tensor.primalRaw)

@@ -279,7 +279,7 @@ type Model with
         Backend.Default <- dflt
 
 [<LiveCheck>]
-let x = VAE(sym?xDim, sym?yDim) //.forward(dsharp.zeros (Shape.symbolic [| sym?N; sym?M; |]))
+let x = VAE(sym?xDim, sym?yDim).forward(dsharp.zeros (Shape.symbolic [| sym?N; sym?M; |]))
 
 (*
 Model.AnalyseShapes<Linear> ()
