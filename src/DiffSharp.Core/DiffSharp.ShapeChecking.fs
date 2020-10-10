@@ -164,16 +164,6 @@ module ShapedInferenceAutoOpens =
         // static member pad(a:Tensor, paddings:seq<int>) = a.pad(paddings)
 
 #if SYMBOLIC_SHAPES    
-    module DeviceType =
-        let Symbolic (s: ISym) : DeviceType = LanguagePrimitives.EnumOfValue (hash (s.GetVarName()))
-
-    /// Contains functions and settings related to device specifications.
-    module Device = 
-
-        let Symbolic (sym: ISym) : Device =
-            let dt = DeviceType.Symbolic(sym.SymContext.CreateVar(sym.GetVarName()))
-            let device = Device(dt, 0)
-            device
 
     let mutable private symscope = None
 
@@ -184,12 +174,17 @@ module ShapedInferenceAutoOpens =
         symscope.Value
 
     type ISymScope with 
-        member syms.Device(name:string) = Device.Symbolic (syms.CreateVar(name))
-        member syms.Int(name:string) = Int.FromSymbol (syms.CreateVar(name))
+        member syms.CreateFreshIntVar(name:string) = Int.FromSymbol (syms.CreateFreshVar(name))
+
+        //member syms.DeviceVar(name:string) =
+        //    let dt = LanguagePrimitives.EnumOfValue (hash (s.GetVarName()))
+        //    DeviceType.Symbolic(sym.SymContext.CreateVar(sym.GetVarName()))
+        //    let device = Device(dt, 0)
+        //    device
+
+        member syms.CreateIntVar(name:string) = Int.FromSymbol (syms.CreateVar(name))
 
     /// Create a symbol in the global symbol context of the given name
-    let (?) (syms: ISymScope) (name: string) : Int = syms.Int(name)
+    let (?) (syms: ISymScope) (name: string) : Int = syms.CreateIntVar(name)
 
 #endif
-    type LiveCheckAttribute() = inherit System.Attribute()
-

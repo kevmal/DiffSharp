@@ -15,7 +15,9 @@ type ShapeCheckingBackendSymbolStatics() =
 module internal Util = 
 
     let (|Mul|_|) (s:Expr) = if s.IsMul then Some (s.Args) else None
+    let (|IDiv|_|) (s:Expr) = if s.IsIDiv then Some (s.Args.[0], s.Args.[1]) else None
     let (|IntNum|_|) (s:Expr) = if s.IsIntNum then Some ((s :?> IntNum).Int) else None
+    let (|Var|_|) (s:Expr) = if s.IsConst then Some s else None
 
     let rec isFreeIn (v: Expr) (tm: Expr) =
        if v = tm then true
@@ -56,6 +58,57 @@ module internal Util =
                loop others ((relv, rele) :: acc)
         loop veqns [ ]
 
+    let combineFactors2 fs1 fs2 =
+        [ for (nt1, t1) in fs1 do
+            match fs2 |> List.tryFind (fun (_, t2) -> t1 = t2) with
+            | None -> yield (nt1, t1)
+            | Some (nt2, _t2) -> yield (nt1+nt2, t1) 
+          for (nt2, t2) in fs2 do
+            if fs1 |> List.forall (fun (_, t1) -> t1 <> t2) then
+                yield (nt2, t2) ]
+
+    let rec remakePow (zctx: Context) (n, t) =
+       match n with 
+       | 0 -> zctx.MkInt(1) :> ArithExpr
+       | 1 -> t 
+       | k when k > 0 -> zctx.MkMul(t, remakePow zctx (k-1, t))
+       | _ -> failwith "fail"
+
+    let remakeFactors2 (zctx: Context) (fs: (int * ArithExpr) list) =
+       fs |> List.map (remakePow zctx)
+
+    let combineFactors (n1, fs1) (n2, fs2) =
+        (n1 * n2, combineFactors2 fs1 fs2)
+
+    let remakeFactors (zctx: Context) (n:int32, fs) =
+       match fs with 
+       | [] -> zctx.MkInt n :> ArithExpr
+       | _ ->
+       let fs = remakeFactors2 zctx fs 
+       let nfs = if n = 1 then fs else (zctx.MkInt n :> ArithExpr) :: fs
+       match nfs  with 
+       | [a] -> a
+       | _ -> zctx.MkMul (Array.ofList nfs)
+
+    let rec normTerm (sym: Expr) =
+        match sym with 
+        | Mul args -> Array.reduce combineFactors (Array.map normTerm args)
+        | IntNum(n) -> (n, [])
+        | _ -> (1, [(1,(sym :?> ArithExpr))])
+
+    let normDivision (zctx: Context) (num, denom) =
+        let (nnum, fsnum) = normTerm num 
+        let (ndenom, fsdenom) = normTerm denom
+        let rnnum, rndenom = if ndenom > 0 && nnum % ndenom = 0 then nnum/ndenom, 1 else nnum, ndenom
+        let rfs = combineFactors2 fsnum (fsdenom |> List.map (fun (n,f) -> (-n,f)))
+        let rfsnum, rfsdenomi = rfs |> List.filter (fun (n, _) -> n <> 0) |> List.partition (fun (n,_) -> n > 0)
+        let rfsdenom = rfsdenomi |> List.map (fun (n,f) -> (-n,f))
+        let rnum = remakeFactors zctx (rnnum, rfsnum)
+        if ndenom = 1 && List.isEmpty rfsdenom then
+            (rnum , None)
+        else
+            let rdenom = remakeFactors zctx (rndenom, rfsdenom)
+            (rnum, Some rdenom)
 
 [<RequireQualifiedAccess>]
 type Sym(syms: SymContextImpl, z3Expr: Expr) =
@@ -107,10 +160,7 @@ type SymContextImpl() =
     let solver = zctx.MkSolver()
     let mutable elimCache = None
     //let zparams = zctx.MkParams()
-    //let mutable last = 777000000
     let mapping = ConcurrentDictionary<uint32, string>()
-    //let solutions = ConcurrentDictionary<int, ISym>()
-    //let constraints = ResizeArray<BoolExpr>()
 
     member syms.Assert(func: string, args: ISym[]) =
         //printfn "------" 
@@ -129,8 +179,15 @@ type SymContextImpl() =
             solver.Assert(zexpr)
             true
 
-    member syms.CreateVar (name: string) : Sym =
+    member syms.CreateFreshVar (name: string) : Sym =
         let zsym = zctx.MkFreshConst(name, zctx.IntSort)
+        //last <- last + 1
+        //mapping.[code] <- name
+        mapping.[zsym.Id] <- name
+        Sym (syms, zsym)
+
+    member syms.CreateVar (name: string) : Sym =
+        let zsym = zctx.MkConst(name, zctx.IntSort)
         //last <- last + 1
         //mapping.[code] <- name
         mapping.[zsym.Id] <- name
@@ -152,10 +209,12 @@ type SymContextImpl() =
         override syms.CreateApp (f: string, args: ISym[]) : ISym =
             let args = args |> Array.map (fun (Sym x) -> x)
             syms.Create(f, args) :> ISym
+        override syms.CreateFreshVar (name: string) : ISym = syms.CreateFreshVar (name) :> ISym
         override syms.CreateVar (name: string) : ISym = syms.CreateVar (name) :> ISym
         override syms.Assert(func: string, args: ISym[]) = syms.Assert(func, args)
         override _.Push() = solver.Push()
         override _.Pop() = solver.Pop()
+        override _.Clear() = solver.Reset()
 
     member syms.Create (f: string, args: Sym[]) : Sym =
         let zsym = 
@@ -198,7 +257,7 @@ type SymContextImpl() =
                let zargs = args |> Array.map (fun x -> x.Z3Expr)
                zctx.MkNot (zctx.MkEq(zargs.[0], zargs.[1])) :> Expr
            | s -> 
-               printfn "assuming %s is uninterpreted" s
+               //printfn "assuming %s is uninterpreted" s
                // TODO: string sorts and others
                let funcDecl = zctx.MkFuncDecl(s,[| for _x in args -> zctx.IntSort :> Sort |], (zctx.IntSort :> Sort))
                let zargs = args |> Array.map (fun x -> x.Z3Expr)
@@ -213,6 +272,14 @@ type SymContextImpl() =
         let zexpr = expr.Z3Expr :?> BoolExpr
         let res = solver.Check(zexpr)
         res <> Status.UNSATISFIABLE
+
+    member syms.CheckAlwaysFalse(zexpr: Expr) : bool =
+        let res = solver.Check(zexpr)
+        res = Status.UNSATISFIABLE
+
+    member syms.CheckAlwaysTrue(zexpr: Expr) : bool =
+        let res = solver.Check(zctx.MkNot(zexpr :?> BoolExpr))
+        res = Status.UNSATISFIABLE
 
     member _.Solver = solver
 
@@ -246,30 +313,50 @@ type SymContextImpl() =
                    |> Array.mapi (fun i arg -> 
                        match arg with 
                        | IntNum n when n < 0 -> string n
-                       | Mul [| IntNum -1; arg|] -> "-"+print 6 arg
-                       | Mul [| IntNum n; arg|] when n < 0 -> "-"+print 6 (zctx.MkMul(zctx.MkInt(-n),(arg :?> ArithExpr)))
-                       | _ -> (if i = 0 then "" else "+") + print 6 arg)
+                       | Mul [| IntNum -1; arg|] -> "-"+print 2 arg
+                       | Mul [| IntNum n; arg|] when n < 0 -> "-"+print 2 (zctx.MkMul(zctx.MkInt(-n),(arg :?> ArithExpr)))
+                       | _ -> (if i = 0 then "" else "+") + print 2 arg)
                    |> String.concat ""
-                parenIf (prec<=3) argsText 
-            elif zsym.IsSub then parenIf (prec<=3) (zsym.Args |> Array.map (print 5) |> String.concat "-")
-            elif zsym.IsMul then parenIf (prec<=5) (zsym.Args |> Array.map (print 3) |> String.concat "*")
+                parenIf (prec>1) argsText 
+            elif zsym.IsSub then
+                parenIf (prec>1) (zsym.Args |> Array.map (print 2) |> String.concat "-")
+            elif zsym.IsMul then 
+                parenIf (prec>4) (zsym.Args |> Array.map (print 4) |> String.concat "*")
             elif zsym.IsIDiv then 
                 match zsym.Args with 
-                // Z3 doesn't simplify integer division of constants for some reason.  Or else
-                // maybe this is after apply equations. Not sure.
+                // Z3 doesn't simplify division, we do in printing
                 // TODO: consider doing this in EliminateVarEquations
-                | [| IntNum n1; IntNum n2 |] when n2 <> 0 && n2 > 0 &&  n1 % n2 = 0 -> string (n1 / n2)
+                | [| num; denom|] ->
+                    printfn "--> normDivsion num = %O, denom = %O" num denom
+                    let nnum, ndenom = normDivision zctx (num, denom)
+                    printfn "<-- normDivsion nnum = %O, ndenom = %O" nnum ndenom
+                    match ndenom with 
+                    | None -> print prec nnum
+                    | Some ndenom -> 
+                        parenIf (prec>3) ([nnum; ndenom] |> List.map (print 3) |> String.concat "/")
                 | _ -> 
-                    parenIf (prec<=5) (zsym.Args |> Array.map (print 3) |> String.concat "/")
-            elif zsym.IsRemainder then parenIf (prec<=5) (zsym.Args |> Array.map (print 5) |> String.concat "%")
-            elif zsym.IsApp && zsym.Args.Length > 0 then parenIf (prec<=2) (zsym.FuncDecl.Name.ToString() + "(" + (zsym.Args |> Array.map (print 5) |> String.concat ",") + ")")
+                    parenIf (prec>3) (zsym.Args |> Array.map (print 3) |> String.concat "/")
+            elif zsym.IsRemainder then 
+                parenIf (prec>3) (zsym.Args |> Array.map (print 3) |> String.concat "%")
+            // simplify conditionals
+            elif zsym.IsApp && zsym.FuncDecl.Name.ToString() = "if" && zsym.Args.Length = 3 && syms.CheckAlwaysTrue(zsym.Args.[0]) then
+                //printfn "simplifying to then"
+                print prec zsym.Args.[1]
+            elif zsym.IsApp && zsym.FuncDecl.Name.ToString() = "if" && zsym.Args.Length = 3 && syms.CheckAlwaysFalse(zsym.Args.[0]) then
+                //printfn "simplifying to else"
+                print prec zsym.Args.[2]
+            elif zsym.IsApp && zsym.Args.Length > 0 then 
+                parenIf (prec>6) (zsym.FuncDecl.Name.ToString() + "(" + (zsym.Args |> Array.map (print 0) |> String.concat ",") + ")")
             elif zsym.IsConst then 
                 match mapping.TryGetValue zsym.Id with
                 | true, v -> v
                 | _ -> zsym.ToString()
             else zsym.ToString()
+        //printfn "pre-simplify %O" sym.Z3Expr
         let simp = sym.Z3Expr.Simplify()
+        //printfn "post-simplify %O" simp
         let simp2 = simp |> sym.SymContext.EliminateVarEquations
-        print 6 simp2
+        //printfn "post-elim%O" simp2
+        print 0 simp2
 
 #endif

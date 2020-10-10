@@ -58,8 +58,11 @@ type ISymScope =
     /// Create an application symbol
     abstract CreateApp: func: string * args: ISym[] -> ISym 
 
-    /// Create a variable symbol
+    /// Create a variable symbol, identical to any other symbol of the same type in this scope
     abstract CreateVar: name: string -> ISym
+
+    /// Create a variable symbol, distinct from any other symbol of the same type in this scope
+    abstract CreateFreshVar: name: string -> ISym
 
     /// Asserts a constraint in the solver state
     abstract Assert: func: string * args: ISym[]  -> bool
@@ -69,6 +72,9 @@ type ISymScope =
 
     /// Revert the solver state
     abstract Pop: unit -> unit
+
+    /// Clear the solver state
+    abstract Clear: unit -> unit
 
 //[<AutoOpen>]
 //module SymbolsAutoOpens =
