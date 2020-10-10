@@ -62,7 +62,14 @@ type Int internal (n: int, sym: ISym) =
     /// Return the value, exception if symbolic
     member x.Value =
         match x.TryGetValue() with 
-        | ValueNone -> failwithf "can't simulate value of symbolic integer expression %s" (sym.ToString())
+        | ValueNone -> 
+            failwithf """A construct required the value of a symbolic integer expression %s. Consider either 
+
+- Changing your livechecks to use concrete inputs, rather than symbolic, or
+- Adjust the construct to propagate symbolic information, or
+- Adjust your model to avoid dynamic dependencies on model inputs.
+
+Call stack: %A""" (sym.ToString()) (System.Diagnostics.StackTrace(fNeedFileInfo=true).ToString())
         | ValueSome v -> v
 
     /// Return the value, or '1' if this has no definite solution, normally to get a representative value

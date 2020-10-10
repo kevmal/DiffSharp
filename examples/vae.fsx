@@ -82,15 +82,15 @@ type VAE(xDim:Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Tensor, ?activ
 
     override _.ToString() = sprintf "VAE(%A, %A, %A)" xDim hDims zDim
 
-    static member loss(xRecon:Tensor, x:Tensor, mu:Tensor, logVar:Tensor) =
-        let bce = dsharp.bceLoss(xRecon, x.view([|-1; 28*28|]), reduction="sum")
+    member m.lossimpl(xRecon:Tensor, x:Tensor, mu:Tensor, logVar:Tensor) =
+        let bce = dsharp.bceLoss(xRecon, x.view(Shape [|Int -1; xDim*xDim|]), reduction="sum")
         let kl = -0.5 * dsharp.sum(1. + logVar - mu.pow(2.) - logVar.exp())
         bce + kl
 
     member m.loss(x: Tensor) =
         //printfn "loss: x.shapex = %A" x.shapex
         let xRecon, mu, logVar = m.encodeDecode x
-        VAE.loss(xRecon, x, mu, logVar)
+        m.lossimpl(xRecon, x, mu, logVar)
 
     member _.sample(?numSamples:Int) = 
         let numSamples = defaultArg numSamples (Int 1)
@@ -98,6 +98,9 @@ type VAE(xDim:Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Tensor, ?activ
 
     new (xDim:int, zDim:int, ?hDims:seq<int>, ?activation:Tensor->Tensor, ?activationLast:Tensor->Tensor) =
         VAE(Int xDim, Int zDim, ?hDims = Option.map (Seq.map Int) hDims, ?activation=activation, ?activationLast=activationLast)
+
+[<LiveCheck>]
+let x = VAE(sym?xDim, sym?yDim).loss(dsharp.zeros (Shape.symbolic [| sym?N; sym?M; |]))
 
 (*
 dsharp.config(backend=Backend.Torch, device=Device.CPU)
@@ -277,9 +280,6 @@ type Model with
                 () 
       finally
         Backend.Default <- dflt
-
-[<LiveCheck>]
-let x = VAE(sym?xDim, sym?yDim).forward(dsharp.zeros (Shape.symbolic [| sym?N; sym?M; |]))
 
 (*
 Model.AnalyseShapes<Linear> ()

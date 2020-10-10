@@ -786,7 +786,7 @@ type Tensor =
         if t.dim = 0 then failwith "Cannot slice a scalar Tensor"
         let fullBounds = Array2D.init t.dim 3 (fun i j -> if j=0 then Int 0 elif j=1 then t.shapex.[i]-1 else Int 0)
         bounds |> Array2D.iteri (fun i j v -> 
-            if j=1 && v >= t.shapex.[i] then failwithf "Index outside the bounds of Tensor shape %A" t.shape
+            if j=1 && v >= t.shapex.[i] then failwithf "Index outside the bounds of Tensor shape %A" t.shapex
             fullBounds.[i, j] <- v)
         // printfn "t.GetSlice fullBounds\n %A" fullBounds
         match t with
@@ -797,6 +797,7 @@ type Tensor =
     /// <summary>Get the item at the given index as a scalar tensor.</summary>
     member t.Item
         with get([<System.ParamArray>] index:int[]) =
+            if t.symbolic then t.zeroLike() else
             if t.dim = 0 then failwith "Cannot index a scalar Tensor"
             if index.Length > t.dim then failwithf "Expecting an index with <=%i dimensions" t.dim
             let bounds = Array2D.init index.Length 3 (fun i j -> if j=2 then Int 1 else Int index.[i])
@@ -1421,7 +1422,7 @@ type Tensor =
     /// <summary>TBD</summary>
     member probs.multinomial(numSamples:int, ?dtype:Dtype, ?device:Device, ?backend:Backend, ?normalize:bool) =
         // TODO: the following may be implemented by RawTensor at a later point
-        if probs.dim < 1 || probs.dim > 2 then failwithf "Expecting 1d or 2d probs, received shape %A" probs.shape
+        if probs.dim < 1 || probs.dim > 2 then failwithf "Expecting 1d or 2d probs, received shape %A" probs.shapex
         let dtype = defaultArg dtype Dtype.Int32
         let device = defaultArg device probs.device
         let backend = defaultArg backend probs.backend
@@ -1931,7 +1932,7 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member input.mseLoss(target:Tensor, ?reduction:string) = 
-        if not (input.shapex =~= target.shapex) then failwithf "Expecting input.shape (%A) and target.shape (%A) to be the same" input.shape target.shape
+        if not (input.shapex =~= target.shapex) then failwithf "Expecting input.shape (%A) and target.shape (%A) to be the same" input.shapex target.shapex
         let reduction = defaultArg reduction "mean"
         if not (reduction = "none" || reduction = "mean" || reduction = "sum") then failwithf "Expecting reduction (%A) to be one of (none, mean, sum)" reduction
         let z = input - target
@@ -1945,13 +1946,13 @@ type Tensor =
 
     /// <summary>TBD</summary>
     member input.bceLoss(target:Tensor, ?weight:Tensor, ?reduction:string) =
-        if not (input.shapex =~= target.shapex) then failwithf "Expecting input.shape (%A) and target.shape (%A) to be the same" input.shape target.shape
-        if target.max() > target.oneLike() || target.min() < target.zeroLike() then failwith "Expecting target values to be between 0 and 1."
+        if not (input.shapex =~= target.shapex) then failwithf "Expecting input.shape (%A) and target.shape (%A) to be the same" input.shapex target.shapex
+        if not input.symbolic && (target.max() > target.oneLike() || target.min() < target.zeroLike()) then failwith "Expecting target values to be between 0 and 1."
         if input.dim < 1 then let ret:Tensor = input.view(-1).bceLoss(target.view(-1), ?weight=weight, ?reduction=reduction) in if ret.dim = 0 then ret else ret.[0]
         else
         let n = input.shapex.[0]
         let weight = defaultArg weight (input.onesLike(shape=Shape[|n|]))
-        if not (weight.shapex.[0] =~= n) then failwithf "Expecting weight to be a vector of size %A, but received %A" n weight.shape.[0]
+        if not (weight.shapex.[0] =~= n) then failwithf "Expecting weight to be a vector of size %A, but received %A" n weight.shapex.[0]
         let reduction = defaultArg reduction "mean"
         if not (reduction = "none" || reduction = "mean" || reduction = "sum") then failwithf "Expecting reduction (%A) to be one of (none, mean, sum)" reduction
         let clampLog = -100
@@ -1971,15 +1972,15 @@ type Tensor =
     member input.nllLoss(target:Tensor, ?weight:Tensor, ?reduction:string) =
         let n, classes, d = 
             if input.dim < 2 
-                then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
+                then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shapex target.shapex
             elif input.dim = 2 then
                 let n, c = input.shapex.[0], input.shapex.[1]
-                if not (target.shapex =~= Shape [|n|]) then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
+                if not (target.shapex =~= Shape [|n|]) then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shapex target.shapex
                 n, c, Shape.scalar
             else
                 let n, c, d = input.shapex.[0], input.shapex.[1], input.shapex.[2..]
-                if not (target.shapex.[0] =~= n) then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
-                if not (d =~= target.shapex.[1..]) then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shape target.shape
+                if not (target.shapex.[0] =~= n) then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shapex target.shapex
+                if not (d =~= target.shapex.[1..]) then failwithf "Expecting either: input with shape (N,C) and target with shape (N); or input with shape (N,C,d1,d2,...,dk) and target with shape (N,d1,d2,...,dk). Received input.shape %A and target.shape %A" input.shapex target.shapex
                 n, c, d
 
         // In symbolics the rest is skipped
@@ -2596,7 +2597,7 @@ type Tensor =
     member t.reverse(?value:Tensor, ?zeroDerivatives:bool) =
         let value = defaultArg value (t.onesLike())
         let zeroDerivatives = defaultArg zeroDerivatives true
-        if not (value.shapex =~= t.shapex) then failwithf "Expecting value.shape (%A) and t.shape (%A) to be the same" value.shape t.shape
+        if not (value.shapex =~= t.shapex) then failwithf "Expecting value.shape (%A) and t.shape (%A) to be the same" value.shape t.shapex
         t.reverseReset(zeroDerivatives)
         t.reversePush(value)
 
@@ -2729,8 +2730,8 @@ type Tensor =
             | (v, t) :: tt ->
                 match t with
                 | TensorR(_,_,o,_,_) ->
-                    // if t.derivative.hasnan() || t.derivative.hasinf() then failwithf "t.derivative has nan, inf, or -inf\n%A\n%A" t.derivative t.derivative.shape
-                    // if v.hasnan() || v.hasinf() then failwithf "v has nan, inf, or -inf\n%A\n%A\n%s" v v.shape (snd (t.parents()))
+                    // if t.derivative.hasnan() || t.derivative.hasinf() then failwithf "t.derivative has nan, inf, or -inf\n%A\n%A" t.derivative t.derivative.shapex
+                    // if v.hasnan() || v.hasinf() then failwithf "v has nan, inf, or -inf\n%A\n%A\n%s" v v.shapex (snd (t.parents()))
                     t.derivative <- t.derivative + v
                     t.fanout <- t.fanout - 1u
                     if t.fanout = 0u then
