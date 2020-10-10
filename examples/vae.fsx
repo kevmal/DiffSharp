@@ -83,7 +83,7 @@ type VAE(xDim:Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Tensor, ?activ
     override _.ToString() = sprintf "VAE(%A, %A, %A)" xDim hDims zDim
 
     member m.lossimpl(xRecon:Tensor, x:Tensor, mu:Tensor, logVar:Tensor) =
-        let bce = dsharp.bceLoss(xRecon, x.view(Shape [|Int -1; xDim*xDim|]), reduction="sum")
+        let bce = dsharp.bceLoss(xRecon, x.view(Shape [|Int -1; Int 28 * Int 28|]), reduction="sum") 
         let kl = -0.5 * dsharp.sum(1. + logVar - mu.pow(2.) - logVar.exp())
         bce + kl
 
@@ -100,8 +100,10 @@ type VAE(xDim:Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Tensor, ?activ
         VAE(Int xDim, Int zDim, ?hDims = Option.map (Seq.map Int) hDims, ?activation=activation, ?activationLast=activationLast)
 
 [<LiveCheck>]
-let x = VAE(sym?xDim, sym?yDim).loss(dsharp.zeros (Shape.symbolic [| sym?N; sym?M; |]))
+let x = VAE(28*28, 16).loss(dsharp.zeros ([ 5; 28; 28; ]))
 
+//[<LiveCheck>]
+//let x = VAE(sym?xDim, sym?yDim).loss(dsharp.zeros (Shape.symbolic [| sym?N; sym?M; |]))
 (*
 dsharp.config(backend=Backend.Torch, device=Device.CPU)
 dsharp.seed(0)

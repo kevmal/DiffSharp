@@ -136,23 +136,22 @@ type SymContextImpl() =
         mapping.[zsym.Id] <- name
         Sym (syms, zsym)
 
+    /// Create a symbol var with the given name and constrain it to be equal to the 
+    /// given constant value
+    member syms.CreateConst (v: obj) : Sym =
+        let zsym = 
+            match v with 
+            | :? int as n -> zctx.MkInt(n) :> Expr
+            | :? string as s -> zctx.MkString(s) :> Expr
+            | _ -> failwithf "unknown constant %O or type %A" v (v.GetType())
+        Sym(syms, zsym)
+
     interface ISymScope with
     
-        /// Create a symbol var with the given name and constrain it to be equal to the 
-        /// given constant value
-        override syms.CreateConst (v: obj) : ISym =
-       
-           let zsym = 
-               match v with 
-               | :? int as n -> zctx.MkInt(n) :> Expr
-               | :? string as s -> zctx.MkString(s) :> Expr
-               | _ -> failwithf "unknown constant %O or type %A" v (v.GetType())
-           Sym(syms, zsym) :> ISym
-
+        override syms.CreateConst (v: obj) : ISym = syms.CreateConst (v) :> ISym
         override syms.CreateApp (f: string, args: ISym[]) : ISym =
             let args = args |> Array.map (fun (Sym x) -> x)
             syms.Create(f, args) :> ISym
-
         override syms.CreateVar (name: string) : ISym = syms.CreateVar (name) :> ISym
         override syms.Assert(func: string, args: ISym[]) = syms.Assert(func, args)
         override _.Push() = solver.Push()
@@ -231,7 +230,7 @@ type SymContextImpl() =
         | true, v -> v
         | _ -> "?"
 
-    member _.Format(sym: Sym) = 
+    member syms.Format(sym: Sym) = 
         let parenIf c s = if c then "(" + s + ")" else s
         let isNegSummand (s: Expr) =
            match s with 
@@ -254,7 +253,14 @@ type SymContextImpl() =
                 parenIf (prec<=3) argsText 
             elif zsym.IsSub then parenIf (prec<=3) (zsym.Args |> Array.map (print 5) |> String.concat "-")
             elif zsym.IsMul then parenIf (prec<=5) (zsym.Args |> Array.map (print 3) |> String.concat "*")
-            elif zsym.IsIDiv then parenIf (prec<=5) (zsym.Args |> Array.map (print 3) |> String.concat "/")
+            elif zsym.IsIDiv then 
+                match zsym.Args with 
+                // Z3 doesn't simplify integer division of constants for some reason.  Or else
+                // maybe this is after apply equations. Not sure.
+                // TODO: consider doing this in EliminateVarEquations
+                | [| IntNum n1; IntNum n2 |] when n2 <> 0 && n2 > 0 &&  n1 % n2 = 0 -> string (n1 / n2)
+                | _ -> 
+                    parenIf (prec<=5) (zsym.Args |> Array.map (print 3) |> String.concat "/")
             elif zsym.IsRemainder then parenIf (prec<=5) (zsym.Args |> Array.map (print 5) |> String.concat "%")
             elif zsym.IsApp && zsym.Args.Length > 0 then parenIf (prec<=2) (zsym.FuncDecl.Name.ToString() + "(" + (zsym.Args |> Array.map (print 5) |> String.concat ",") + ")")
             elif zsym.IsConst then 

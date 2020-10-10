@@ -143,8 +143,8 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
     override t1.GeTT(_t2) = t1.MakeLike(dtype=Bool)
     override t1.EqTT(_t2) = t1.MakeLike(dtype=Bool)
     override t1.NeqTT(_t2) = t1.MakeLike(dtype=Bool)
-    override t.MaxIndexT() = printfn "MaxIndexT"; Array.zeroCreate t.Dim
-    override t.MinIndexT() = printfn "MinIndexT"; Array.zeroCreate t.Dim
+    override t.MaxIndexT() = Array.zeroCreate t.Dim
+    override t.MinIndexT() = Array.zeroCreate t.Dim
     override t1.AddTT(_t2) = t1.MakeLike()
     override t1.AddTT0(_t2) = t1.MakeLike()
     override t1.AddT2T1(_t2) = t1.MakeLike()
