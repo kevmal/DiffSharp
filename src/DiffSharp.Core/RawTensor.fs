@@ -555,22 +555,6 @@ type RawTensor() =
         | _ -> t.NeqTT(t)
 
     default t.GetString() =
-        let sb = System.Text.StringBuilder()
-        if t.Backend = Backend.ShapeChecking then 
-            sb.Append "tensor(shape=" |> ignore
-            sb.Append (t.Shape.ToString()) |> ignore
-            if t.Dtype <> Dtype.Default then
-                sb.Append ",dtype=" |> ignore
-                sb.Append (t.Dtype.ToString()) |> ignore
-            if t.Device <> Device.Default then
-                sb.Append ",device=" |> ignore
-                sb.Append (t.Device.ToString()) |> ignore
-            if t.Backend <> Backend.Default then
-                sb.Append ",backend=" |> ignore
-                sb.Append (t.Backend.ToString()) |> ignore
-            sb.Append ")" |> ignore
-            sb.ToString()
-        else
         // sprintf "RawTensor(Value=%A, Shape=%A, Int=%A, Length=%A)" t.Value t.Shape t.Dim t.Length
         let printVal (x:obj) = 
            match x with 
@@ -587,6 +571,7 @@ type RawTensor() =
         match t.Dim with
         | 0 -> printVal (t.ToScalar())
         | _ ->
+            let sb = System.Text.StringBuilder()
             let rec print (shape:Shape) externalCoords = 
                 if shape.Length = 1 then
                     sb.Append("[") |> ignore

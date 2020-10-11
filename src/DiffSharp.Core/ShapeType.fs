@@ -3,7 +3,7 @@
 open DiffSharp.ShapeChecking
 open DiffSharp.Util
 
-#if SYMBOLIC_SHAPES
+//#if SYMBOLIC_SHAPES
 
 /// <summary>
 ///  Represents an integer that may be symbolic, e.g. the size of one dimension of a tensor,
@@ -27,10 +27,10 @@ type Int internal (n: int, sym: ISym) =
         | ValueSome xv, ValueSome yv -> f1 xv yv
         | ValueNone, ValueNone -> f2 x.SymbolRaw y.SymbolRaw
         | ValueSome _, ValueNone ->
-            let symX = x.AsSymbol(y.SymbolRaw.SymContext)
+            let symX = x.AsSymbol(y.SymbolRaw.SymScope)
             f2 symX y.SymbolRaw
         | ValueNone, ValueSome _ ->
-            let symY = y.AsSymbol(x.SymbolRaw.SymContext)
+            let symY = y.AsSymbol(x.SymbolRaw.SymScope)
             f2 x.SymbolRaw symY
 
     new (n: int) = Int(n, Unchecked.defaultof<_>)
@@ -125,23 +125,23 @@ Call stack: %A""" (sym.ToString()) (System.Diagnostics.StackTrace(fNeedFileInfo=
 
     /// Constraint equality
     static member (=~=) (a:Int,b:Int) : bool = 
-        Int.binop a b (fun a b -> a = b) (fun a b -> a.Solve(b))
+        Int.binop a b (fun a b -> a = b) (fun a b -> a.AssertEqualityConstraint(b))
 
     /// Constraint less-than-or-equal. Returns true if no contradiciton was detected when the constraint was asserted.
     static member (<=~) (a:Int,b:Int) : bool = 
-        Int.binop a b (fun a b -> a <= b) (fun a b -> a.SymContext.Assert("leq", [|a;b|]))
+        Int.binop a b (fun a b -> a <= b) (fun a b -> a.SymScope.AssertConstraint("leq", [|a;b|]))
 
     /// Constraint less-than. Returns true if no contradiciton was detected when the constraint was asserted.
     static member (<~) (a:Int,b:Int) : bool = 
-        Int.binop a b (fun a b -> a < b) (fun a b -> a.SymContext.Assert("lt", [|a;b|]))
+        Int.binop a b (fun a b -> a < b) (fun a b -> a.SymScope.AssertConstraint("lt", [|a;b|]))
 
     /// Constraint greater-than. Returns true if no contradiciton was detected when the constraint was asserted.
     static member (>~) (a:Int,b:Int) : bool = 
-        Int.binop a b (fun a b -> a > b) (fun a b -> a.SymContext.Assert("gt", [|a;b|]))
+        Int.binop a b (fun a b -> a > b) (fun a b -> a.SymScope.AssertConstraint("gt", [|a;b|]))
 
     /// Constraint greater-than. Returns true if no contradiciton was detected when the constraint was asserted.
     static member (>=~) (a:Int,b:Int) : bool = 
-        Int.binop a b (fun a b -> a >= b) (fun a b -> a.SymContext.Assert("geq", [|a;b|]))
+        Int.binop a b (fun a b -> a >= b) (fun a b -> a.SymScope.AssertConstraint("geq", [|a;b|]))
 
     static member (<~) (a:Int,b:int) : bool = a <~ Int b
     static member (<=~) (a:Int,b:int) : bool = a <=~ Int b
@@ -283,7 +283,7 @@ type Shape internal (values: int[], dims: Int[]) =
 
     member internal _.DimsRaw = dims
 
-#else
+#if NO
 /// Represents an integer used in as a dimension, e.g. the size of one dimension of a tensor,
 /// or an index into a tensor.
 [<Struct; CustomEquality; CustomComparison>]

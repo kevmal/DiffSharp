@@ -1,4 +1,4 @@
-(*** condition: prepare ***)
+﻿(*** condition: prepare ***)
 #I "../tests/DiffSharp.Tests/bin/Debug/netcoreapp3.0"
 #r "Microsoft.Z3.dll"
 #r "DiffSharp.Core.dll"
@@ -37,18 +37,53 @@ open DiffSharp.Optim
 open DiffSharp.Data
 open DiffSharp.ShapeChecking
 
-/// Variational auto-encoder example in DiffSharp (shape-aware)
+
 [<LiveCheck>]
+type Math() =
+
+    //[<LiveCheck( [| "NX1"; "NX2" |], [| "NX2" |] ) >]
+    [<LiveCheck( [| 100; 50 |], [| 50 |] ) >]
+    member _.Add(x: Tensor, y: Tensor) = x + y + 1.0
+
+
+    //[<LiveCheck( [| "N"; "C"; "H"; "W" |], [| "K"; "C"; "F"; "G" |] ) >]
+    [<LiveCheck( "N,3,28,28" , "3,3,1,1") >]
+    //[<LiveCheck( [| 100; 50 |], [| 50 |] ) >]
+    member _.Convolutions(x: Tensor, y: Tensor) = 
+        x.conv2d(y).relu().conv2d(y, stride=2).relu().conv2d(y).relu().conv2d(y).relu().conv2d(y).relu().conv2d(y)  
+
+
+
+
+
+
+
+
+
+
+
+
+/// Variational auto-encoder example in DiffSharp (shape-aware)
+//
+// See https://www.compart.com/en/unicode/U+1D44D for nice italic characters
+//[<LiveCheck( "28", "28", "16" )>]
+[<LiveCheck( "𝑋", "𝑌", "𝑍" )>]
 type VAE(xDim:Int, yDim: Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Tensor, ?activationLast:Tensor->Tensor) =
     inherit Model()
     let xyDim = xDim * yDim 
+    do if not (xDim >~ Int 0 ) then failwith "expect xDim > 0"
+    do if not (yDim >~ Int 0 ) then failwith "expect yDim > 0"
+    //do if not (xDim =~= yDim ) then failwith "over constrained"
     let hDims = defaultArg hDims (let d = (xyDim+zDim)/2 in seq [d; d]) |> Array.ofSeq
     let activation = defaultArg activation dsharp.relu
     let activationLast = defaultArg activationLast dsharp.sigmoid
     let dims = [| yield xyDim; yield! hDims; yield zDim |]
             
-    let enc = Array.append [|for i in 0..dims.Length-2 -> Linear(dims.[i], dims.[i+1])|] [|Linear(dims.[dims.Length-2], dims.[dims.Length-1])|]
-    let dec = [|for i in 0..dims.Length-2 -> Linear(dims.[i+1], dims.[i])|] |> Array.rev
+    let ndims = dims.Length
+    let enc = [| for i in 0..ndims-2 do
+                    Linear(dims.[i], dims.[i+1])
+                 Linear(dims.[ndims-2], dims.[ndims-1])|]
+    let dec = [|for i in 0..ndims-2 -> Linear(dims.[i+1], dims.[i])|] |> Array.rev
     do 
         base.add([for m in enc -> box m])
         base.add([for m in dec -> box m])
@@ -77,22 +112,21 @@ type VAE(xDim:Int, yDim: Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Ten
         let z = latent mu logVar
         decode z, mu, logVar
 
-    member m.lossimpl(xRecon:Tensor, x:Tensor, mu:Tensor, logVar:Tensor) =
+    [<LiveCheck( [| "𝐵"; "𝑋"; "𝑌" |], ReturnShape=[| |])>]
+    member m.loss(x: Tensor) =
+        let xRecon, mu, logVar = m.encodeDecode x
         let target = x.view(Shape [|Int -1; xyDim|])
         let bce = dsharp.bceLoss(xRecon, target, reduction="sum") 
         let kl = -0.5 * dsharp.sum(1. + logVar - mu.pow(2.) - logVar.exp())
         bce + kl
 
-    [<LiveCheck( [| "B"; "xDim"; "yDim" |])>]
-    member m.loss(x: Tensor) =
-        let xRecon, mu, logVar = m.encodeDecode x
-        m.lossimpl(xRecon, x, mu, logVar)
-
+    [<LiveCheck( "𝑁" , ReturnShape=[| "𝑁"; "𝑋*Y" |] )>]
     member _.sample(?numSamples:Int) = 
         let numSamples = defaultArg numSamples (Int 1)
         dsharp.randn(Shape [|numSamples; zDim|]) |> decode
 
-    [<LiveCheck( [| "B"; "xDim"; "yDim" |])>]
+    //[<LiveCheck( [| "100"; "28"; "28" |] , ReturnShape=[| "100"; "28*28" |] )>]
+    [<LiveCheck( [| "𝐵"; "𝑋"; "𝑌" |] , ReturnShape=[| "𝐵"; "𝑋*𝑌" |] )>]
     override m.forward(x) =
         let x, _, _ = m.encodeDecode(x) in x
 
@@ -100,14 +134,6 @@ type VAE(xDim:Int, yDim: Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Ten
 
     new (xDim:int, yDim:int, zDim:int, ?hDims:seq<int>, ?activation:Tensor->Tensor, ?activationLast:Tensor->Tensor) =
         VAE(Int xDim, Int yDim, Int zDim, ?hDims = Option.map (Seq.map Int) hDims, ?activation=activation, ?activationLast=activationLast)
-
-//[<LiveCheck>]
-//let x = VAE(28*28, 32).loss(dsharp.zeros ([ 5; 28; 28; ])) 
-
-//let sym = BackendSymbolStatics.Get().CreateSymContext()
-//let xDim = sym?xDim
-//[<LiveCheck>]
-//let x = VAE(xDim*xDim, sym?zDim).loss(dsharp.zeros (Shape.symbolic [| Int 5; xDim; xDim; |]))
 
 dsharp.config(backend=Backend.Torch, device=Device.CPU)
 dsharp.seed(0)
@@ -163,4 +189,19 @@ Model.AnalyseShapes<BatchNorm1d> ()
 Model.AnalyseShapes<BatchNorm2d> ()
 Model.AnalyseShapes<BatchNorm3d> ()
 
+*)
+
+(*
+open Microsoft.Z3
+
+let ctx = Context()
+
+let solver = ctx.MkSolver()
+
+let c = ctx.MkFreshConst("c", ctx.IntSort)
+let d = ctx.MkFreshConst("d", ctx.IntSort)
+let res, out = solver.Consequences([ ctx.MkEq(c, ctx.MkInt(1)); ctx.MkEq(d, ctx.MkInt(1))], [c; d])
+solver.Assert( ctx.MkEq(c, ctx.MkInt(1)))
+solver.Assert( ctx.MkEq(c, d))
+let res, out = solver.Consequences([  ], [c; d])
 *)

@@ -13,9 +13,11 @@ type TestTensorShapesSymbolic () =
               for dtype in [ Dtype.Float32 ] do
                 yield ComboInfo(defaultBackend=Backend.ShapeChecking, defaultDevice=device, defaultDtype=dtype, defaultFetchDevices=(fun _ -> devices)) ]
 
+
     [<Test>]
     member _.``test full symbolic shape``() =
         for combo in ShapeChecking do 
+            let sym = SymScope()
             let shape = Shape.symbolic [| sym?M ; sym?N |]
             let t1a = combo.full(shape, 2.5)
             Assert.CheckEqual(shape, t1a.shapex)
@@ -23,6 +25,7 @@ type TestTensorShapesSymbolic () =
     [<Test>]
     member _.``test view symbolic shape`` () =
         for combo in ShapeChecking do 
+            let sym = SymScope()
             let N : Int = sym?N
             let M : Int = sym?M
             let t = combo.randint(0, 2, Shape.symbolic [5*2*N;5*2*M])

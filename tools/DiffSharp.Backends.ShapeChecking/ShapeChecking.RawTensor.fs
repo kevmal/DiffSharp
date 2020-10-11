@@ -50,6 +50,22 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
     
     override t.Expand(newShape) = t.MakeLike(newShape)
 
+    override t.GetString() =
+        let sb = System.Text.StringBuilder()
+        sb.Append "tensor(" |> ignore
+        sb.Append (t.Shape.ToString()) |> ignore
+        if t.Dtype <> Dtype.Default then
+            sb.Append ",dtype=" |> ignore
+            sb.Append (t.Dtype.ToString()) |> ignore
+        if t.Device <> Device.Default then
+            sb.Append ",device=" |> ignore
+            sb.Append (t.Device.ToString()) |> ignore
+        if t.Backend <> Backend.Default then
+            sb.Append ",backend=" |> ignore
+            sb.Append (t.Backend.ToString()) |> ignore
+        sb.Append ")" |> ignore
+        sb.ToString()
+
     override t.ToValues() =
         printfn "-----------------\nToValues not available for symbolic, stack trace:\n%s\n------------------\n"  (System.Diagnostics.StackTrace(fNeedFileInfo=true).ToString())
         match t.Dim with

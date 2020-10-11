@@ -163,28 +163,3 @@ module ShapedInferenceAutoOpens =
         // /// <summary>TBD</summary>
         // static member pad(a:Tensor, paddings:seq<int>) = a.pad(paddings)
 
-#if SYMBOLIC_SHAPES    
-
-    let mutable private symscope = None
-
-    /// <summary>A global symbol context for shape checking. Allows <c>sym?Name</c> notation for symbols in test code, avoiding lots of pesky strings</summary>
-    let sym<'T> : ISymScope = 
-        if symscope.IsNone then
-            symscope <- Some (BackendSymbolStatics.Get().CreateSymContext())
-        symscope.Value
-
-    type ISymScope with 
-        member syms.CreateFreshIntVar(name:string) = Int.FromSymbol (syms.CreateFreshVar(name))
-
-        //member syms.DeviceVar(name:string) =
-        //    let dt = LanguagePrimitives.EnumOfValue (hash (s.GetVarName()))
-        //    DeviceType.Symbolic(sym.SymContext.CreateVar(sym.GetVarName()))
-        //    let device = Device(dt, 0)
-        //    device
-
-        member syms.CreateIntVar(name:string) = Int.FromSymbol (syms.CreateVar(name))
-
-    /// Create a symbol in the global symbol context of the given name
-    let (?) (syms: ISymScope) (name: string) : Int = syms.CreateIntVar(name)
-
-#endif

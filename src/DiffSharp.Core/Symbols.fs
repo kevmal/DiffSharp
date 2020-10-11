@@ -3,26 +3,8 @@
 #if SYMBOLIC_SHAPES
 open DiffSharp
 
-/// <summary>
-///   Represents the static functionality for symbolic shape checking implemented by a DiffSharp backend.
-/// </summary>
-[<AbstractClass>]
-type BackendSymbolStatics() = 
-    static let hook = BackendFunctionality<BackendSymbolStatics>()
-
-    /// Sets the seed for the default random number generator of the backend
-    abstract CreateSymContext: unit -> ISymScope
-
-    /// Get the implementation for the given backend.
-    static member Get() =
-        hook.Get(Backend.ShapeChecking)
-
-type NoBackendSymbolStatics() = 
-    inherit BackendSymbolStatics()
-    override _.CreateSymContext() = failwith "no symbol scope"
-
 type ISym =
-    abstract SymContext : ISymScope
+    abstract SymScope : ISymScope
 
     /// Get the name of a symbol that is a variable
     abstract GetVarName : unit -> string
@@ -36,17 +18,17 @@ module SymbolExtensions =
     type ISym with   
 
         static member unop nm (arg: ISym) : ISym =
-            arg.SymContext.CreateApp(nm, [|arg|])
+            arg.SymScope.CreateApp(nm, [|arg|])
 
         static member binop nm (arg1: ISym) (arg2: ISym) : ISym =
-            arg1.SymContext.CreateApp(nm, [|arg1; arg2|])
+            arg1.SymScope.CreateApp(nm, [|arg1; arg2|])
 
         static member app nm (args: ISym []) : ISym =
-            args.[0].SymContext.CreateApp(nm, args)
+            args.[0].SymScope.CreateApp(nm, args)
 
         /// Assert the two symbols to be equal
-        member sym1.Solve(sym2) =
-            sym1.SymContext.Assert("eq", [|sym1; sym2|])
+        member sym1.AssertEqualityConstraint(sym2) =
+            sym1.SymScope.AssertConstraint("eq", [|sym1; sym2|])
 
 /// Represents an accumulating collection of related symbols and constraints
 type ISymScope =
@@ -58,14 +40,21 @@ type ISymScope =
     /// Create an application symbol
     abstract CreateApp: func: string * args: ISym[] -> ISym 
 
-    /// Create a variable symbol, identical to any other symbol of the same type in this scope
-    abstract CreateVar: name: string -> ISym
+    /// Create a variable symbol, identical to any other symbol of the same type in this scope,
+    /// attaching the given additional information to the variable, e.g. a location
+    abstract CreateVar: name: string * location: obj -> ISym
 
-    /// Create a variable symbol, distinct from any other symbol of the same type in this scope
-    abstract CreateFreshVar: name: string -> ISym
+    /// Create a variable symbol, distinct from any other symbol of the same type in this scope,
+    /// attaching the given additional information to the variable, e.g. a location
+    abstract CreateFreshVar: name: string * location: obj -> ISym
 
-    /// Asserts a constraint in the solver state
-    abstract Assert: func: string * args: ISym[]  -> bool
+    /// Asserts a constraint in the solver state, returning true if the constraint is consistent
+    /// with the solver state, and false if it is inconsistent.
+    abstract AssertConstraint: func: string * args: ISym[]  -> bool
+
+    /// Check the satisfiability of a constraint in the solver state without changing solver state.
+    /// Return true if the constraint is consistent with the solver state, and false if it is inconsistent.
+    abstract CheckConstraint: func: string * args: ISym[]  -> bool
 
     /// Checkpoint the solver state
     abstract Push: unit -> unit
@@ -76,14 +65,8 @@ type ISymScope =
     /// Clear the solver state
     abstract Clear: unit -> unit
 
-//[<AutoOpen>]
-//module SymbolsAutoOpens =
-    
-//    // An active pattern to check for a solution to a symbol
-//    let (|Solved|_|) (sym: ISym) : ISym option = 
-//        match sym.TryGetSolution() with
-//        | ValueNone -> None
-//        | ValueSome sym -> Some sym
-//let v : int = (sym?A) 
+    /// Report a diagnostic related to this set of symbols and their constraints.
+    /// Severity is 0=Informational, 1=Warning, 2=Error.
+    abstract ReportDiagnostic: severity: int * message: string -> unit
 
 #endif

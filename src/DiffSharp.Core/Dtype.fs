@@ -61,7 +61,7 @@ type Dtype =
     /// Constraint equality
     static member (=~=) (a:Dtype,b:Dtype) : bool = 
         match a, b with 
-        | Sym sym, v2 | v2, Sym sym -> sym.Solve(v2.AsSymbol(sym.SymContext))
+        | Sym sym, v2 | v2, Sym sym -> sym.AssertEqualityConstraint(v2.AsSymbol(sym.SymScope))
         | a, b -> (a = b)
 #else
     /// Constraint equality
@@ -103,7 +103,7 @@ module Dtype =
 #if SYMBOLIC_SHAPES
             | Sym sym, _ | _, Sym sym ->
                 // TODO: this lays down a constraint
-                Some (Sym (ISym.binop "widen" (dtype1.AsSymbol(sym.SymContext)) (dtype2.AsSymbol(sym.SymContext))))
+                Some (Sym (ISym.binop "widen" (dtype1.AsSymbol(sym.SymScope)) (dtype2.AsSymbol(sym.SymScope))))
 #endif
             | Float64, _ | _, Float64 -> Some Float64
             | Float32, _ | _, Float32 -> Some Float32
