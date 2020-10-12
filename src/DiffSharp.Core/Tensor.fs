@@ -364,8 +364,8 @@ type Tensor =
     override t.ToString() = 
         match t with
         | Tensor(p) -> p.ToString()
-        | TensorF(tp,_,_) -> tp.ToString() + "(F)"
-        | TensorR(tp,_,_,_,_) -> tp.ToString() + "(R)"
+        | TensorF(tp,_,_) -> tp.ToString() + "(fwd)"
+        | TensorR(tp,_,_,_,_) -> tp.ToString() + "(rev)"
 
     override t.Equals(other) =
         match other with

@@ -23,7 +23,11 @@ type Parameter =
     member p.move(?dtype, ?device, ?backend) = p.value <- p.value.move(?dtype=dtype, ?device=device, ?backend=backend)
 
     /// <summary>TBD</summary>
-    override p.ToString() = sprintf "Parameter(shape:%A, value:%A)" p.value.shape p.value
+    override p.ToString() =
+        if p.value.symbolic then 
+            sprintf "%A" p.value.shapex
+        else 
+            sprintf "Parameter(shape:%A, value:%A)" p.value.shape p.value
 
 
 /// <summary>TBD</summary>
@@ -188,7 +192,14 @@ type Model() =
             | :? Model as mm ->
                 m.SubModelsDict.Add(n, mm)
                 m.parametersDict.add(mm.parametersDict.map(fun (nn, pp:Parameter) -> (n + "__" + nn, pp)))
-            | _ -> failwithf "Unsupported type. Expecting a Parameter or Model"
+            | :? (Parameter * string) as pn -> 
+                let (p,n) = pn
+                m.parametersDict.add(n, p)
+            | :? (Model * string) as mmn -> 
+                let (mm,n) = mmn
+                m.SubModelsDict.Add(n, mm)
+                m.parametersDict.add(mm.parametersDict.map(fun (nn, pp:Parameter) -> (n + "__" + nn, pp)))
+            | t -> failwithf "Unsupported type %A. Expecting a Parameter or Model" (t.GetType())
 
     /// <summary>TBD</summary>
     member m.forwardDiff(derivatives:ParameterDict) = m.parametersDict.forwarddiff(derivatives)
@@ -232,6 +243,7 @@ type Model() =
         let sb = System.Text.StringBuilder()
         sb.Append("Model(\n") |> ignore
         for model in m.subModels do sb.Append(sprintf "%A\n" model) |> ignore
+        sb.Append(m.parametersDict.ToString()) |> ignore
         sb.Append(")") |> ignore
         sb.ToString()
 

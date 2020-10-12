@@ -743,19 +743,19 @@ type TestTensor () =
 
     [<Test>]
     member _.TestTensorToString () =
-        for combo in Combos.IntegralAndFloatingPoint do 
-            let t0 = combo.tensor(2.)
-            let t1 = combo.tensor([[2.]; [2.]])
-            let t2 = combo.tensor([[[2.; 2.]]])
-            let t3 = combo.tensor([[1.;2.]; [3.;4.]])
-            let t4 = combo.tensor([[[[1.]]]])
+        for dtype in Dtypes.IntegralAndFloatingPoint do
+            let t0 = dsharp.tensor(2.,dtype=dtype)
+            let t1 = dsharp.tensor([[2.]; [2.]],dtype=dtype)
+            let t2 = dsharp.tensor([[[2.; 2.]]],dtype=dtype)
+            let t3 = dsharp.tensor([[1.;2.]; [3.;4.]],dtype=dtype)
+            let t4 = dsharp.tensor([[[[1.]]]],dtype=dtype)
             let t0String = t0.ToString()
             let t1String = t1.ToString()
             let t2String = t2.ToString()
             let t3String = t3.ToString()
             let t4String = t4.ToString()
             let suffix = 
-                match combo.dtype with 
+                match dtype with 
                 | Bool -> failwith "unexpected bool dtype in test"
                 | Byte -> ""
                 | Int8 -> ""
@@ -767,11 +767,12 @@ type TestTensor () =
 #if SYMBOLIC_SHAPES
                 | Sym _ -> failwith "unexpected symbolic"
 #endif
-            let t0StringCorrect = sprintf "Tensor 2%s" suffix
-            let t1StringCorrect = sprintf "Tensor [[2%s], \n [2%s]]" suffix suffix
-            let t2StringCorrect = sprintf "Tensor [[[2%s, 2%s]]]" suffix suffix
-            let t3StringCorrect = sprintf "Tensor [[1%s, 2%s], \n [3%s, 4%s]]" suffix suffix suffix suffix
-            let t4StringCorrect = sprintf "Tensor [[[[1%s]]]]" suffix
+            let dtypeText = if dtype = Dtype.Default then "" else ",dtype=" + dtype.ToString()
+            let t0StringCorrect = sprintf "tensor(2%s%s)" suffix dtypeText
+            let t1StringCorrect = sprintf "tensor([[2%s],\n        [2%s]]%s)" suffix suffix dtypeText
+            let t2StringCorrect = sprintf "tensor([[[2%s, 2%s]]]%s)" suffix suffix dtypeText
+            let t3StringCorrect = sprintf "tensor([[1%s, 2%s],\n        [3%s, 4%s]]%s)" suffix suffix suffix suffix dtypeText
+            let t4StringCorrect = sprintf "tensor([[[[1%s]]]]%s)" suffix dtypeText
             Assert.CheckEqual(t0StringCorrect, t0String)
             Assert.CheckEqual(t1StringCorrect, t1String)
             Assert.CheckEqual(t2StringCorrect, t2String)
@@ -780,12 +781,12 @@ type TestTensor () =
 
         let t0Bool = dsharp.tensor([ 0.5; 1.0 ], dtype=Dtype.Bool)
         let t0BoolToString = t0Bool.ToString()
-        let t0BoolToStringCorrect = sprintf "Tensor [false, true]" 
+        let t0BoolToStringCorrect = sprintf "tensor([false, true],dtype=Bool)" 
         Assert.CheckEqual(t0BoolToString, t0BoolToStringCorrect)
 
         let t1Bool = dsharp.tensor([ false; true ], dtype=Dtype.Bool)
         let t1BoolToString = t1Bool.ToString()
-        let t1BoolToStringCorrect = sprintf "Tensor [false, true]" 
+        let t1BoolToStringCorrect = sprintf "tensor([false, true],dtype=Bool)" 
         Assert.CheckEqual(t1BoolToString, t1BoolToStringCorrect)
 
     [<Test>]

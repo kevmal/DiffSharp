@@ -37,42 +37,17 @@ open DiffSharp.Optim
 open DiffSharp.Data
 open DiffSharp.ShapeChecking
 
-
-[<LiveCheck>]
-type Math() =
-
-    //[<LiveCheck( [| "NX1"; "NX2" |], [| "NX2" |] ) >]
-    [<LiveCheck( [| 100; 50 |], [| 50 |] ) >]
-    member _.Add(x: Tensor, y: Tensor) = x + y + 1.0
-
-
-    //[<LiveCheck( [| "N"; "C"; "H"; "W" |], [| "K"; "C"; "F"; "G" |] ) >]
-    [<LiveCheck( "N,3,28,28" , "3,3,1,1") >]
-    //[<LiveCheck( [| 100; 50 |], [| 50 |] ) >]
-    member _.Convolutions(x: Tensor, y: Tensor) = 
-        x.conv2d(y).relu().conv2d(y, stride=2).relu().conv2d(y).relu().conv2d(y).relu().conv2d(y).relu().conv2d(y)  
-
-
-
-
-
-
-
-
-
-
-
+let Assert b = if not b then failwith "assertion constraint failed"
 
 /// Variational auto-encoder example in DiffSharp (shape-aware)
 //
-// See https://www.compart.com/en/unicode/U+1D44D for nice italic characters
-//[<LiveCheck( "28", "28", "16" )>]
+// See https://www.compart.com/en/unicode/block/U+1D400 for nice italic characters
 [<LiveCheck( "𝑋", "𝑌", "𝑍" )>]
 type VAE(xDim:Int, yDim: Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Tensor, ?activationLast:Tensor->Tensor) =
     inherit Model()
     let xyDim = xDim * yDim 
-    do if not (xDim >~ Int 0 ) then failwith "expect xDim > 0"
-    do if not (yDim >~ Int 0 ) then failwith "expect yDim > 0"
+    do Assert (xDim >~ Int 0 ) 
+    do Assert (yDim >~ Int 0 ) 
     //do if not (xDim =~= yDim ) then failwith "over constrained"
     let hDims = defaultArg hDims (let d = (xyDim+zDim)/2 in seq [d; d]) |> Array.ofSeq
     let activation = defaultArg activation dsharp.relu
@@ -120,12 +95,11 @@ type VAE(xDim:Int, yDim: Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Ten
         let kl = -0.5 * dsharp.sum(1. + logVar - mu.pow(2.) - logVar.exp())
         bce + kl
 
-    [<LiveCheck( "𝑁" , ReturnShape=[| "𝑁"; "𝑋*Y" |] )>]
+    [<LiveCheck( "𝑁" , ReturnShape=[| "𝑁"; "𝑋*𝑌" |] )>]
     member _.sample(?numSamples:Int) = 
         let numSamples = defaultArg numSamples (Int 1)
         dsharp.randn(Shape [|numSamples; zDim|]) |> decode
 
-    //[<LiveCheck( [| "100"; "28"; "28" |] , ReturnShape=[| "100"; "28*28" |] )>]
     [<LiveCheck( [| "𝐵"; "𝑋"; "𝑌" |] , ReturnShape=[| "𝐵"; "𝑋*𝑌" |] )>]
     override m.forward(x) =
         let x, _, _ = m.encodeDecode(x) in x
@@ -161,47 +135,3 @@ for epoch = 0 to epochs do
             let samples = model.sample(Int 64).view([-1; 1; 28; 28])
             samples.saveImage(sprintf "samples_%A_%A.png" epoch i)
 
-
-
-(*
-open DiffSharp.ShapeChecking
-
-Model.AnalyseShapes<Linear> ()
-Model.AnalyseShapes<Linear> (Shape.symbolic [| sym?N; sym?M; |])
-Model.AnalyseShapes<VAE> ()
-Model.AnalyseShapes<Conv1d> (Shape.symbolic [| sym?N; sym?C; sym?L; |])
-Model.AnalyseShapes<Conv2d> (Shape.symbolic [| sym?N; sym?C; sym?H; sym?W; |])
-Model.AnalyseShapes<Conv3d> (Shape.symbolic [| sym?N; sym?C; sym?D; sym?H; sym?W; |])
-Model.AnalyseShapes<ConvTranspose1d> (Shape.symbolic [| sym?N; sym?C; sym?L; |])
-Model.AnalyseShapes<ConvTranspose2d> (Shape.symbolic [| sym?N; sym?C; sym?H; sym?W; |])
-Model.AnalyseShapes<ConvTranspose3d> (Shape.symbolic [| sym?N; sym?C; sym?D; sym?H; sym?W; |])
-Model.AnalyseShapes<Conv1d> (Shape.symbolic [| sym?N; sym?C; sym?L; |], optionals=false)
-Model.AnalyseShapes<Conv2d> (Shape.symbolic [| sym?N; sym?C; sym?H; sym?W; |], optionals=false)
-Model.AnalyseShapes<Conv3d> (Shape.symbolic [| sym?N; sym?C; sym?D; sym?H; sym?W; |], optionals=false)
-Model.AnalyseShapes<ConvTranspose1d> (Shape.symbolic [| sym?N; sym?C; sym?L; |], optionals=false)
-Model.AnalyseShapes<ConvTranspose2d> (Shape.symbolic [| sym?N; sym?C; sym?H; sym?W; |], optionals=false)
-Model.AnalyseShapes<ConvTranspose3d> (Shape.symbolic [| sym?N; sym?C; sym?D; sym?H; sym?W; |], optionals=false)
-Model.AnalyseShapes<Dropout> (Shape [| 30; 40; |] )
-Model.AnalyseShapes<Dropout> ()
-Model.AnalyseShapes<Dropout2d> ()
-Model.AnalyseShapes<Dropout3d> ()
-Model.AnalyseShapes<BatchNorm1d> ()
-Model.AnalyseShapes<BatchNorm2d> ()
-Model.AnalyseShapes<BatchNorm3d> ()
-
-*)
-
-(*
-open Microsoft.Z3
-
-let ctx = Context()
-
-let solver = ctx.MkSolver()
-
-let c = ctx.MkFreshConst("c", ctx.IntSort)
-let d = ctx.MkFreshConst("d", ctx.IntSort)
-let res, out = solver.Consequences([ ctx.MkEq(c, ctx.MkInt(1)); ctx.MkEq(d, ctx.MkInt(1))], [c; d])
-solver.Assert( ctx.MkEq(c, ctx.MkInt(1)))
-solver.Assert( ctx.MkEq(c, d))
-let res, out = solver.Consequences([  ], [c; d])
-*)

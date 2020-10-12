@@ -14,7 +14,8 @@ type Diagnostic =
    { Severity: int
      Number: int
      Message: string
-     Location: SourceLocation }
+     LocationStack: SourceLocation[] }
+   member x.Location = Array.last x.LocationStack
 
 [<AutoOpen>]
 module ShapeCheckingAutoOpens =
@@ -22,14 +23,19 @@ module ShapeCheckingAutoOpens =
         member syms.CreateFreshIntVar(name:string, ?location:SourceLocation) =
             Int.FromSymbol (syms.CreateFreshVar(name, location=Option.toObj (Option.map box location)))
 
-        //member syms.DeviceVar(name:string) =
-        //    let dt = LanguagePrimitives.EnumOfValue (hash (s.GetVarName()))
-        //    DeviceType.Symbolic(sym.SymScope.CreateVar(sym.GetVarName()))
-        //    let device = Device(dt, 0)
-        //    device
-
         member syms.CreateIntVar(name:string, ?location:SourceLocation) =
             Int.FromSymbol (syms.CreateVar(name, location=Option.toObj (Option.map box location)))
 
+        /// Create an inferred symbol 
+        member syms.Infer = syms.CreateFreshIntVar("?")
+
     /// Create a symbol in the global symbol context of the given name
     let (?) (syms: ISymScope) (name: string) : Int = syms.CreateIntVar(name)
+
+    // Shen using shape checking the syntax 128I is hijacked
+    module NumericLiteralI = 
+        let FromZero () : Int = Int 0
+        let FromOne () : Int = Int 1
+        let FromInt32 (value:int32): Int = Int value
+        
+

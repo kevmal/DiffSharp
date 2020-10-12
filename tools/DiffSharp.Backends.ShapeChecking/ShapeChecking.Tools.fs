@@ -11,11 +11,25 @@ open System.Runtime.CompilerServices
 [<AutoOpen>]
 module Tools =
 
-    let DiagnosticFromException (loc: SourceLocation)  (exn: exn) =
-       { Severity = 2
-         Number = 1997
-         Message = exn.Message
-         Location = loc }
+    /// Record a stack of ranges in an exception. This uses exactly the same protocol as FsLive
+    type System.Exception with 
+        member e.EvalLocationStack 
+            with get() = 
+                if e.Data.Contains "location" then 
+                    match e.Data.["location"] with 
+                    | :? ((string * int * int * int * int)[]) as stack -> stack
+                    | _ -> [| |]
+                else
+                    [| |]
+            and set (data : (string * int * int * int * int)[]) = 
+                e.Data.["location"] <- data
+
+    let DiagnosticFromException  (loc: SourceLocation) (err: exn) =
+        let stack = [| for (f,sl,sc,el,ec) in err.EvalLocationStack -> { File=f;StartLine=sl;StartColumn=sc;EndLine=el;EndColumn=ec }  |]
+        { Severity=2; 
+          Number = 1001
+          Message = err.Message
+          LocationStack = Array.append [| loc |] stack }
 
     let (|Integer|_|) toks = 
         match toks with 
@@ -40,10 +54,10 @@ module Tools =
                         while i < text.Length && (Char.IsDigit (text, i)) do
                             i <- i + 1
                         yield Choice1Of3 (System.Int32.Parse text.[start..i-1])
-                    elif text.[i] = '*' || 
+                    elif text.[i] = '+' || 
                          text.[i] = '/' || 
                          text.[i] = '*' || 
-                         text.[i] = '×' || 
+                         text.[i] = '×' || // OK, I like unicode
                          text.[i] = '-' || 
                          text.[i] = '[' || 
                          text.[i] = ']' || 
@@ -156,6 +170,10 @@ module Tools =
                 getSymbolicShapeArg givenArgInfo p loc |> box
             elif pts = "DiffSharp.Tensor" then
                 getSymbolicTensorArg givenArgInfo p loc |> box
+            elif pts = "DiffSharp.ShapeChecking.ISymScope" then
+                syms |> box
+            elif pts = "DiffSharp.ShapeChecking.SymScope" then
+                syms |> box
             elif pts = "System.Int32" then 
                 getSampleArg givenArgInfo p 1 loc |> box
             elif pts = "System.Single" then 
@@ -206,25 +224,25 @@ module Tools =
             | (:? Tensor as retReqd), (:? Tensor as retActual) ->
                 if not (retActual.shapex =~= retReqd.shapex) then
                     let msg = sprintf "Shape mismatch. Expected a tensor with shape '%O' but got shape '%O'" retReqd.shapex retActual.shapex
-                    Error { Severity=2; Location=loc; Message=msg; Number=1999 }
+                    Error { Severity=2; LocationStack=[| loc |]; Message=msg; Number=1999 }
                 else
                    Ok ()
             | (:? Shape as retReqd), (:? Shape as retActual) ->
                 if not (retActual =~= retReqd) then
                     let msg = sprintf "Shape mismatch. Expected shape '%O' but got shape '%O'" retReqd retActual
-                    Error { Severity=2; Location=loc; Message=msg; Number=1999 }
+                    Error { Severity=2; LocationStack=[| loc |]; Message=msg; Number=1999 }
                 else
                    Ok ()
             | (:? Int as retReqd), (:? Int as retActual) ->
                 if not (retActual =~= retReqd) then
                     let msg = sprintf "Shape mismatch. Expected '%O' but got '%O'" retReqd retActual
-                    Error { Severity=2; Location=loc; Message=msg; Number=1999 }
+                    Error { Severity=2; LocationStack=[| loc |]; Message=msg; Number=1999 }
                 else
                    Ok ()
             | _ -> Ok ()
         | _ -> 
             let msg = sprintf "Unexpected return from method with ReturnShape attribute" 
-            Error { Severity=1; Location=loc; Message=msg; Number=1999 }
+            Error { Severity=1; LocationStack=[| loc |]; Message=msg; Number=1999 }
 
     let makeModelAndRunLiveChecks (syms: SymScope) optionals (ctor: ConstructorInfo) ctorGivenArgs loc methLocs =
         let ctorArgs = ParserLogic(syms, loc).GetParams optionals (ctor.GetParameters()) ctorGivenArgs loc
@@ -238,6 +256,11 @@ module Tools =
         let diags = ResizeArray()
         let methCalls = ResizeArray()
         for meth in ctor.DeclaringType.GetMethods() do
+          if meth.ContainsGenericParameters || meth.DeclaringType.ContainsGenericParameters then
+            let msg = "Skipping LiveCheck for a generic method"
+            let diag = { Severity=1; LocationStack=[| loc |]; Message=msg; Number=1994 }
+            diags.Add diag
+          else
             
             // Use a better location for the method attribute if given
             let loc =
@@ -274,7 +297,7 @@ module Tools =
                        let moreDiags = syms.GetAdditionalDiagnostics()
                   
                        for (severity, loc, msg) in moreDiags do   
-                            diags.Add ({ Severity=severity; Location=loc; Message = msg; Number=1996 })
+                            diags.Add ({ Severity=severity; LocationStack=[| loc |]; Message = msg; Number=1996 })
                        methCalls.Add(meth, args, Ok retActual)
                     | Error e -> 
                        methCalls.Add(meth, args, Error e)
@@ -311,7 +334,10 @@ type LiveCheckAttribute internal (given: obj[]) =
              locStartColumn: int, 
              locEndLine: int, 
              locEndColumn: int) 
-            : ((* severity *) int * (* number *) int * (* file *) string * int * int * int * int * (* message *) string)[] =
+            : (int (* severity *) * 
+               int (* number *) * 
+               (string * int * int * int * int)[] *  (* location stack *)
+               string (* message*))[] =
         let optionals = true
         let ctors = targetType.GetConstructors()
         let syms = SymScope()
@@ -330,7 +356,11 @@ type LiveCheckAttribute internal (given: obj[]) =
         printfn "attr.GivenArgs = %A" attr.GivenArgs
         let loc = { File = locFile; StartLine = locStartLine; StartColumn = locStartColumn; EndLine = locEndLine; EndColumn= locEndColumn }
         let _, _, _, diags = makeModelAndRunLiveChecks syms optionals ctor attr.GivenArgs loc methLocs
-        [| for diag in diags -> (diag.Severity, diag.Number, diag.Location.File, diag.Location.StartLine, diag.Location.StartColumn, diag.Location.EndLine, diag.Location.EndColumn, diag.Message) |]
+        [| for diag in diags -> 
+            let stack = 
+                [| for m in diag.LocationStack do
+                     (m.File, m.StartLine, m.StartColumn, m.EndLine, m.EndColumn) |]
+            (diag.Severity, diag.Number, stack, diag.Message) |]
 
 [<AutoOpen>]
 module MoreTools =

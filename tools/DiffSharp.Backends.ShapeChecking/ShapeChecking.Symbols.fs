@@ -275,7 +275,8 @@ type SymScope() =
                 match mapping.TryGetValue vsym.Id with
                 | true, (vname, loc) -> 
                     let rhs = syms.Format(vexpr)
-                    (2, loc, sprintf "The symbol '%s' was constrained to be equal to '%s'" vname rhs)
+                    if not (vname.StartsWith("?")) then
+                        (2, loc, sprintf "The symbol '%s' was constrained to be equal to '%s'" vname rhs)
                 | _ -> ()
         |]
 

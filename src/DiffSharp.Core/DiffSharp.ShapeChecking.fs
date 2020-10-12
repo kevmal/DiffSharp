@@ -15,6 +15,77 @@ module ShapedInferenceAutoOpens =
         /// <summary>Version of Tensor.view accepting a a possibly-symbolic shape.</summary>
         member a.view(shape:Shape) = a.viewx(shape)
 
+        // /// <summary>TBD</summary>
+        //member a.dilate(dilations:seq<Int>) = a.dilate(dilations)
+
+        // /// <summary>TBD</summary>
+        //member a.undilate(dilations:seq<Int>) = a.undilate(dilations)
+
+        // /// <summary>TBD</summary>
+        //member a.repeat(dim:int, times:int) = a.repeat(dim, times)
+
+        /// <summary>Version of maxpool1d accepting a a possibly-symbolic shape.</summary>
+        member a.maxpool1d(kernelSize:Int, ?stride:Int, ?padding:Int) =
+            a.maxpool1dix(kernelSize, ?stride=stride, ?padding=padding) |> fst
+
+        /// <summary>Version of maxpool1di accepting a a possibly-symbolic shape.</summary>
+        member a.maxpool1di(kernelSize:Int, ?stride:Int, ?padding:Int) =
+            a.maxpool1dix(kernelSize, ?stride=stride, ?padding=padding)
+
+        /// <summary>Version of maxpool2d accepting a a possibly-symbolic shape.</summary>
+        member a.maxpool2d(?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
+            a.maxpool2dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings) |> fst
+
+        /// <summary>Version of maxpool2di accepting a a possibly-symbolic shape.</summary>
+        member a.maxpool2di(?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
+            a.maxpool2dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings)
+
+        /// <summary>Version of maxpool3d accepting a a possibly-symbolic shape.</summary>
+        member a.maxpool3d(?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
+            a.maxpool3dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings) |> fst
+
+        /// <summary>Version of maxpool3di accepting a a possibly-symbolic shape.</summary>
+        member a.maxpool3di(?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
+            a.maxpool3dix(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings)
+
+        /// <summary>Version of maxunpool1d accepting a a possibly-symbolic shape.</summary>
+        member a.maxunpool1d(indices:Tensor, outputSize:seq<Int>, kernelSize:Int, ?stride:Int, ?padding:Int) =
+            a.maxunpool1dx(indices, kernelSize, ?stride=stride, ?padding=padding, outputSize=outputSize)
+
+        /// <summary>Version of maxunpool2d accepting a a possibly-symbolic shape.</summary>
+        member a.maxunpool2d(indices:Tensor, outputSize:seq<Int>, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
+            a.maxunpool2dx(indices, ?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings, outputSize=outputSize)
+
+        /// <summary>Version of maxunpool3d accepting a a possibly-symbolic shape.</summary>
+        member a.maxunpool3d(indices:Tensor, outputSize:seq<Int>, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
+            a.maxunpool3dx(indices, ?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings, outputSize=outputSize)
+
+        /// <summary>Version of conv1d accepting a a possibly-symbolic shape.</summary>
+        member a.conv1d(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int) =
+            a.conv1dx(b, ?stride=stride, ?padding=padding, ?dilation=dilation)
+
+        /// <summary>Version of conv2d accepting a a possibly-symbolic shape.</summary>
+        member a.conv2d(b:Tensor, ?stride:Int, ?strides:seq<Int>, ?padding:Int, ?paddings:seq<Int>, ?dilation:int, ?dilations:seq<int>) =
+            a.conv2dx(b, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
+
+        /// <summary>Version of conv3d accepting a a possibly-symbolic shape.</summary>
+        member a.conv3d(b:Tensor, ?stride:Int, ?strides:seq<Int>, ?padding:Int, ?paddings:seq<Int>, ?dilation:int, ?dilations:seq<int>) =
+            a.conv3dx(b, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
+
+        /// <summary>Version of convTranspose1d accepting a a possibly-symbolic shape.</summary>
+        member a.convTranspose1d(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int) =
+            a.convTranspose1dx(b, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding)
+
+        /// <summary>Version of convTranspose2d accepting a a possibly-symbolic shape.</summary>
+        member a.convTranspose2d(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) = 
+            a.convTranspose2dx(b, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
+
+        /// <summary>Version of convTranspose3d accepting a a possibly-symbolic shape.</summary>
+        member a.convTranspose3d(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) = a.convTranspose3dx(b, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
+
+        // /// <summary>TBD</summary>
+        // member a.pad(paddings:seq<int>) = a.pad(paddings)
+
     type dsharp with
 
         /// <summary>Returns a new uninitialized tensor filled with arbitrary values for the given shape, element type and configuration</summary>
@@ -155,7 +226,8 @@ module ShapedInferenceAutoOpens =
             a.convTranspose1dx(b, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding)
 
         /// <summary>TBD</summary>
-        static member convTranspose2d(a:Tensor, b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) = a.convTranspose2dx(b, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
+        static member convTranspose2d(a:Tensor, b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) = 
+            a.convTranspose2dx(b, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
 
         /// <summary>TBD</summary>
         static member convTranspose3d(a:Tensor, b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) = a.convTranspose3dx(b, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
