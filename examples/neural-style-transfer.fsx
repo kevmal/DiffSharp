@@ -46,48 +46,49 @@ type Tensor with
     member t.moments (dims: seq<int>, ?keepDim: bool) =
            t.mean(dims, ?keepDim=keepDim), t.stddev(dims, ?keepDim=keepDim)
 
-[<LiveCheck(1, "𝑁,𝐶,𝐻,𝑊")>]
-// See https://www.compart.com/en/unicode/block/U+1D400 for nice italic characters
-type NeuralStyles(sym: ISymScope, imageShape: Shape) =
-    inherit Model()
-    let C = imageShape.[1]
-    let H = imageShape.[2]
-    let W = imageShape.[3]
-    do Assert (H % 4 =~= Int 0) 
-    do Assert (W % 4 =~= Int 0) 
 
-    let instance_norm (channels: Int, h, w) name = 
-        let shift = Weight.uniform (Shape [| channels; h; w |], 0.0) |> Parameter // TODO check these shapes
-        let scale = Weight.uniform (Shape [| channels; h; w |], 1.0) |> Parameter // TODO check these shapes
+
+
+
+
+[<LiveCheck(0, "𝐶")>]
+//[<LiveCheck(1, "𝑁,3,68,68")>]
+// See https://www.compart.com/en/unicode/block/U+1D400 for nice italic characters
+type NeuralStyles(sym: ISymScope, C: Int) =
+    inherit Model()
+
+    let instance_norm (channels: Int) name = 
+        let shift = Weight.uniform (Shape [| channels |], 0.0) |> Parameter
+        let scale = Weight.uniform (Shape [| channels |], 1.0) |> Parameter
         Model.create 
             [shift, name + "/instance_norm/shift"; scale, name + "/instance_norm/scale"]
             (fun input  ->
                 let mu, sigma_sq = input.moments(dims= [2;3]) 
                 let epsilon = 0.001
                 let normalized =  (input - mu) / sqrt (sigma_sq + epsilon)
-                scale.value * normalized + shift.value)
-
-    let conv_layer (in_channels: Int, out_channels: Int, filter_size: Int, stride: Int, out_height, out_width, name) = 
+                scale.value.view(Shape [|channels;1I;1I|]) * normalized + shift.value.view(Shape [|channels;1I;1I|]))
+                
+    let conv_layer (in_channels: Int, out_channels: Int, filter_size: Int, stride: Int, name) = 
         let filters = Weight.uniform (Shape [| out_channels; in_channels; filter_size; filter_size|], 0.1) |> Parameter // fm.truncated_normal() 
-        let inorm = instance_norm (out_channels, out_height, out_width) name 
+        let inorm = instance_norm (out_channels) name 
         Model.create 
             ([inorm] @ [ filters, name + "/weights"])
             (fun input  ->
                 dsharp.conv2d (input, filters.value, stride=stride, padding=filter_size/2)
                 |> inorm.forward)
 
-    let conv_transpose_layer (out_channels:Int, filter_size:Int, stride, out_height, out_width, name) =
+    let conv_transpose_layer (out_channels:Int, filter_size:Int, stride, name) =
         let filters = Weight.uniform (Shape [| sym.Infer; out_channels; filter_size; filter_size|], 0.1) |> Parameter  // fm.truncated_normal() 
-        let inorm = instance_norm (out_channels, out_height, out_width) name 
+        let inorm = instance_norm (out_channels) name 
         Model.create 
             ([inorm] @ [filters, name + "/weights"])
             (fun input  ->
                 dsharp.convTranspose2d(input, filters.value, stride=stride, padding=filter_size/stride, outputPadding=filter_size % stride) 
                 |> inorm.forward)
 
-    let residual_block (filter_size, name, height, width) = 
-        let conv1 = conv_layer (128I, 128I, filter_size, 1I, height, width, name + "_c1")
-        let conv2 = conv_layer (128I, 128I, filter_size, 1I, height, width, name + "_c2") 
+    let residual_block (filter_size, name) = 
+        let conv1 = conv_layer (128I, 128I, filter_size, 1I, name + "_c1")
+        let conv2 = conv_layer (128I, 128I, filter_size, 1I, name + "_c2") 
         Model.create 
             [conv1; conv2]
             (fun input  -> input + conv1.forward input |> dsharp.relu |> conv2.forward)
@@ -99,17 +100,17 @@ type NeuralStyles(sym: ISymScope, imageShape: Shape) =
         dsharp.clamp(input, min, max)
 
     let model : Model =
-        conv_layer (C, 32I, 9I, 1I, H, W, "conv1") --> dsharp.relu
-        --> conv_layer (32I, 64I, 3I, 2I, H/2, W/2, "conv2") --> dsharp.relu
-        --> conv_layer (64I, 128I, 3I, 2I, H/4, W/4, "conv3") --> dsharp.relu
-        --> residual_block (3I, "resid1", H/4, W/4)
-        --> residual_block (3I, "resid2", H/4, W/4)
-        --> residual_block (3I, "resid3", H/4, W/4)
-        --> residual_block (3I, "resid4", H/4, W/4)
-        --> residual_block (3I, "resid5", H/4, W/4)
-        --> conv_transpose_layer (64I, 3I, 2I, H/2, W/2, "conv_t1") --> dsharp.relu
-        --> conv_transpose_layer (32I, 3I, 2I, H, W, "conv_t2") --> dsharp.relu
-        --> conv_layer (32I, C, 9I, 1I, H, W, "conv_t3")
+        conv_layer (C, 32I, 9I, 1I, "conv1") --> dsharp.relu
+        --> conv_layer (32I, 64I, 3I, 2I, "conv2") --> dsharp.relu
+        --> conv_layer (64I, 128I, 3I, 2I, "conv3") --> dsharp.relu
+        --> residual_block (3I, "resid1")
+        --> residual_block (3I, "resid2")
+        --> residual_block (3I, "resid3")
+        --> residual_block (3I, "resid4")
+        --> residual_block (3I, "resid5")
+        --> conv_transpose_layer (64I, 3I, 2I, "conv_t1") --> dsharp.relu
+        --> conv_transpose_layer (32I, 3I, 2I, "conv_t2") --> dsharp.relu
+        --> conv_layer (32I, C, 9I, 1I, "conv_t3")
         --> to_pixel_value 
         --> clip 0.0 255.0
 
