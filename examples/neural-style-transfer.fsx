@@ -54,7 +54,7 @@ type Tensor with
 [<LiveCheck(0, "𝐶")>]
 //[<LiveCheck(1, "𝑁,3,68,68")>]
 // See https://www.compart.com/en/unicode/block/U+1D400 for nice italic characters
-type NeuralStyles(sym: ISymScope, C: Int) =
+type NeuralStyles(sym: ISymScope, numChannels: Int) =
     inherit Model()
 
     let instance_norm (channels: Int) name = 
@@ -100,7 +100,7 @@ type NeuralStyles(sym: ISymScope, C: Int) =
         dsharp.clamp(input, min, max)
 
     let model : Model =
-        conv_layer (C, 32I, 9I, 1I, "conv1") --> dsharp.relu
+        conv_layer (numChannels, 32I, 9I, 1I, "conv1") --> dsharp.relu
         --> conv_layer (32I, 64I, 3I, 2I, "conv2") --> dsharp.relu
         --> conv_layer (64I, 128I, 3I, 2I, "conv3") --> dsharp.relu
         --> residual_block (3I, "resid1")
@@ -110,7 +110,7 @@ type NeuralStyles(sym: ISymScope, C: Int) =
         --> residual_block (3I, "resid5")
         --> conv_transpose_layer (64I, 3I, 2I, "conv_t1") --> dsharp.relu
         --> conv_transpose_layer (32I, 3I, 2I, "conv_t2") --> dsharp.relu
-        --> conv_layer (32I, C, 9I, 1I, "conv_t3")
+        --> conv_layer (32I, numChannels, 9I, 1I, "conv_t3")
         --> to_pixel_value 
         --> clip 0.0 255.0
 
