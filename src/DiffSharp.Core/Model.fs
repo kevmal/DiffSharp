@@ -4,8 +4,12 @@ open DiffSharp.Util
 open DiffSharp.ShapeChecking
 open System.Collections.Generic
 
-
-/// <summary>TBD</summary>
+/// <namespacedoc>
+///   <summary>Contains types and functionality related to describing models.</summary>
+/// </namespacedoc>
+///
+/// <summary>Represents a parameter in a model.</summary>
+/// <remarks>A parameter is a mutable register holding a tensor.</remarks>
 type Parameter =
     val mutable value:Tensor
     new(value) = {value=value}
@@ -30,7 +34,7 @@ type Parameter =
             sprintf "Parameter(shape:%A, value:%A)" p.value.shape p.value
 
 
-/// <summary>TBD</summary>
+/// <summary>Represents a collection of named parameters in a model.</summary>
 type ParameterDict() =
 
     /// <summary>TBD</summary>
@@ -135,13 +139,13 @@ type ParameterDict() =
         sb.ToString()
 
 
-/// <summary>TBD</summary>
+/// <summary>Indicates the training or evaluation mode for a model.</summary>
 type Mode =
     | Train = 0
     | Eval = 1
 
+/// <summary>Represents a model, primarily a collection of named parameters and sub-models and a function governed by them.</summary>
 [<AbstractClass>]
-/// <summary>TBD</summary>
 type Model() =
     [<DefaultValue>]
     val mutable mode: Mode
@@ -280,8 +284,8 @@ type Model() =
         m.save(fileName)
         Model.load(fileName)
 
-/// <summary>TBD</summary>
-type Weight() =
+/// <summary>Contains functionality related to generating initial paramerter weights.</summary>
+type Weight =
 
     /// <summary>TBD</summary>
     static member kaiming(fanIn:Int, fanOut:Int, ?a:float) = 
@@ -303,7 +307,7 @@ type Weight() =
     /// <summary>TBD</summary>
     static member uniform(shape:seq<Int>, k:float) = Weight.uniform (Shape shape, k)
 
-/// <summary>TBD</summary>
+/// <summary>A model that applies a linear transformation to the incoming data: \(y = xA^T + b\)</summary>
 type Linear(inFeatures:Int, outFeatures:Int, ?bias:bool) =
     inherit Model()
     let bias = defaultArg bias true
@@ -324,7 +328,7 @@ type Linear(inFeatures:Int, outFeatures:Int, ?bias:bool) =
     new (inFeatures: int, outFeatures: int, ?bias:bool) =
        Linear(Int inFeatures, Int outFeatures, ?bias=bias)
 
-/// <summary>TBD</summary>
+/// <summary>A model that applies a 1D convolution over an input signal composed of several input planes</summary>
 type Conv1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:Int, ?padding:Int, ?dilation:int, ?bias:bool) =
     inherit Model()
     let bias = defaultArg bias true
@@ -345,7 +349,7 @@ type Conv1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:Int, ?paddi
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
         Conv1d(Int inChannels, Int outChannels, Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?bias=bias)
 
-/// <summary>TBD</summary>
+/// <summary>A model that applies a 2D convolution over an input signal composed of several input planes</summary>
 type Conv2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?dilation:int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?bias:bool) =
     inherit Model()
     let kernelSizes = 
@@ -372,7 +376,7 @@ type Conv2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padd
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
         Conv2d(Int inChannels, Int outChannels, Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?bias=bias)
 
-/// <summary>TBD</summary>
+/// <summary>A model that applies a 3D convolution over an input signal composed of several input planes</summary>
 type Conv3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?dilation:int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?bias:bool) =
     inherit Model()
     let kernelSizes = 
@@ -400,7 +404,7 @@ type Conv3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padd
         Conv3d(Int inChannels, Int outChannels, Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?bias=bias)
 
 
-/// <summary>TBD</summary>
+/// <summary>A model that applies a 1D transposed convolution operator over an input image composed of several input planes.</summary>
 type ConvTranspose1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:Int, ?padding:Int, ?dilation:int, ?bias:bool) =
     inherit Model()
     let bias = defaultArg bias true
@@ -421,7 +425,7 @@ type ConvTranspose1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:In
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
         ConvTranspose1d(Int inChannels, Int outChannels, Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?bias=bias)
 
-/// <summary>TBD</summary>
+/// <summary>A model that applies a 2D transposed convolution operator over an input image composed of several input planes.</summary>
 type ConvTranspose2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?dilation:int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?bias:bool) =
     inherit Model()
     let kernelSizes = 
@@ -448,7 +452,7 @@ type ConvTranspose2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:I
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
         ConvTranspose2d(Int inChannels, Int outChannels, Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?bias=bias)
 
-/// <summary>TBD</summary>
+/// <summary>A model that applies a 3D transposed convolution operator over an input image composed of several input planes.</summary>
 type ConvTranspose3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?dilation:int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?bias:bool) =
     inherit Model()
     let kernelSizes = 
@@ -475,7 +479,7 @@ type ConvTranspose3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:I
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
         ConvTranspose3d(Int inChannels, Int outChannels, Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?bias=bias)
 
-/// <summary>TBD</summary>
+/// <summary>A model which during training, randomly zeroes some of the elements of the input tensor with probability p using samples from a Bernoulli distribution. Each channel will be zeroed out independently on every forward call.</summary>
 type Dropout(?p:double) =
     inherit Model()
 
@@ -486,8 +490,7 @@ type Dropout(?p:double) =
     override m.forward(value) =
         if m.mode = Mode.Train then value.dropout(?p=p) else value
 
-
-/// <summary>TBD</summary>
+/// <summary>A model which during training, randomly zero out entire channels. Each channel will be zeroed out independently on every forward call with probability p using samples from a Bernoulli distribution.</summary>
 type Dropout2d(?p:double) =
     inherit Model()
 
@@ -499,7 +502,7 @@ type Dropout2d(?p:double) =
         if m.mode = Mode.Train then value.dropout2d(?p=p) else value
 
 
-/// <summary>TBD</summary>
+/// <summary>A model which during training, randomly zero out entire channels. Each channel will be zeroed out independently on every forward call with probability p using samples from a Bernoulli distribution.</summary>
 type Dropout3d(?p:double) =
     inherit Model()
 
@@ -511,7 +514,25 @@ type Dropout3d(?p:double) =
         if m.mode = Mode.Train then value.dropout3d(?p=p) else value
 
 
-/// <summary>TBD</summary>
+/// <summary>Applies Batch Normalization over a 2D or 3D input (a mini-batch of 1D inputs with optional additional channel dimension)</summary>
+/// <remarks>
+///    <para>
+///        The mean and standard-deviation are calculated per-dimension over the mini-batches and
+///        \(\gamma\( and \(\beta\) are learnable parameter vectors of size \(C\) (where \(C\) is the
+///        input size). By default, the elements of \(\gamma\) are set to 1 and the elements of 
+///        \(\beta\) are set to 0. The standard-deviation is calculated via the biased estimator,
+///        equivalent to <c>dsharp.variance(input, unbiased=False)</c>.
+///    </para>
+///    <para>
+///        Also by default, during training this layer keeps running estimates of its computed mean
+///        and variance, which are then used for normalization during evaluation. The running estimates
+///        are kept with a default momentum of 0.1.
+///    </para>
+///    <para>
+///       If trackRunningStats is set to False, this layer then does not keep running estimates,
+///       and batch statistics are instead used during evaluation time as well.
+///    </para>
+/// </remarks>
 type BatchNorm1d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
     inherit Model()
     let eps = defaultArg eps 1e-5
@@ -586,7 +607,25 @@ type BatchNorm1d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
         BatchNorm1d(Int numFeatures, ?eps=eps, ?momentum=momentum, ?affine=affine, ?trackRunningStats=trackRunningStats, ?reversible=reversible)
 
-/// <summary>TBD</summary>
+/// <summary>Applies Batch Normalization over a 4D input (a mini-batch of 2D inputs with optional additional channel dimension)</summary>
+/// <remarks>
+///    <para>
+///        The mean and standard-deviation are calculated per-dimension over the mini-batches and
+///        \(\gamma\( and \(\beta\) are learnable parameter vectors of size \(C\) (where \(C\) is the
+///        input size). By default, the elements of \(\gamma\) are set to 1 and the elements of 
+///        \(\beta\) are set to 0. The standard-deviation is calculated via the biased estimator,
+///        equivalent to <c>dsharp.variance(input, unbiased=False)</c>.
+///    </para>
+///    <para>
+///        Also by default, during training this layer keeps running estimates of its computed mean
+///        and variance, which are then used for normalization during evaluation. The running estimates
+///        are kept with a default momentum of 0.1.
+///    </para>
+///    <para>
+///       If trackRunningStats is set to False, this layer then does not keep running estimates,
+///       and batch statistics are instead used during evaluation time as well.
+///    </para>
+/// </remarks>
 type BatchNorm2d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
     inherit Model()
     let eps = defaultArg eps 1e-5
@@ -648,7 +687,25 @@ type BatchNorm2d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
         BatchNorm2d(Int numFeatures, ?eps=eps, ?momentum=momentum, ?affine=affine, ?trackRunningStats=trackRunningStats, ?reversible=reversible)
 
-/// <summary>TBD</summary>
+/// <summary>Applies Batch Normalization over a 5D input (a mini-batch of 3D inputs with optional additional channel dimension)</summary>
+/// <remarks>
+///    <para>
+///        The mean and standard-deviation are calculated per-dimension over the mini-batches and
+///        \(\gamma\( and \(\beta\) are learnable parameter vectors of size \(C\) (where \(C\) is the
+///        input size). By default, the elements of \(\gamma\) are set to 1 and the elements of 
+///        \(\beta\) are set to 0. The standard-deviation is calculated via the biased estimator,
+///        equivalent to <c>dsharp.variance(input, unbiased=False)</c>.
+///    </para>
+///    <para>
+///        Also by default, during training this layer keeps running estimates of its computed mean
+///        and variance, which are then used for normalization during evaluation. The running estimates
+///        are kept with a default momentum of 0.1.
+///    </para>
+///    <para>
+///       If trackRunningStats is set to False, this layer then does not keep running estimates,
+///       and batch statistics are instead used during evaluation time as well.
+///    </para>
+/// </remarks>
 type BatchNorm3d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
     inherit Model()
     let eps = defaultArg eps 1e-5
