@@ -195,7 +195,7 @@ type Shape internal (values: int[], dims: Int[]) =
     new (values: seq<int>) = 
         let arr = Seq.toArrayQuick values
         for d in arr do
-            if not (d = -1 || d > 0) then failwithf "The shape dimension '%O' is zero or negative. Shape dimensions must be positive, or else the indicator -1." d
+            if (d < -1) then failwithf "The shape dimension '%O' is less than -1. Shape dimensions must be positive, or else the indicator -1." d
         Shape(arr, null)
 
     /// Creates a possibly-symbolic shape from an array of possibly-symbolic integers
