@@ -473,10 +473,10 @@ type RawTensor() =
     abstract member FlipT: dims: int[] -> RawTensor
 
     /// Returns the dilation of the tensor using the given dilations parameters
-    abstract member DilateT: dilations: int[] -> RawTensor
+    abstract member DilateT: dilations: Int[] -> RawTensor
 
     /// Returns the reverse of the dilation of the tensor using the given dilations parameters
-    abstract member UndilateT: dilations: int[] -> RawTensor
+    abstract member UndilateT: dilations: Int[] -> RawTensor
 
     /// Returns the tensor with the same values viewed as a different shape
     abstract member ViewT: shape: Shape -> RawTensor

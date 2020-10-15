@@ -32,8 +32,9 @@ module ShapedInferenceAutoOpens =
         /// <param name="shape">The desired shape of returned tensor.</param>
         member a.view(shape:seq<Int>) = a.viewx(Shape shape)
 
-        // /// <summary>TBD</summary>
-        //member a.dilate(dilations:seq<Int>) = a.dilate(dilations)
+        /// <summary>Dilate the tensor in using the given dilations in each corresponding dimension.</summary>
+        /// <param name="dilations">The dilations to use.</param>
+        member a.dilate(dilations:seq<Int>) = a.dilatex(dilations)
 
         // /// <summary>TBD</summary>
         //member a.undilate(dilations:seq<Int>) = a.undilate(dilations)
@@ -153,7 +154,7 @@ module ShapedInferenceAutoOpens =
         /// <param name="stride">The stride of the convolving kernel.</param>
         /// <param name="padding">The implicit paddings on both sides of the input.</param>
         /// <param name="dilation">The spacing between kernel elements.</param>
-        member a.conv1d(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int) =
+        member a.conv1d(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int) =
             a.conv1dx(filters, ?stride=stride, ?padding=padding, ?dilation=dilation)
 
         /// <summary>Applies a 1D transposed convolution operator over an input signal composed of several input planes, sometimes also called 'deconvolution'.
@@ -164,7 +165,7 @@ module ShapedInferenceAutoOpens =
         /// <param name="padding">The implicit padding on both sides of the input.</param>
         /// <param name="dilation">The spacing between kernel elements.</param>
         /// <param name="outputPadding">The additional size added to one side of each dimension in the output shape.</param>
-        member a.convTranspose1d(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int) =
+        member a.convTranspose1d(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int) =
             a.convTranspose1dx(filters, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding)
 
         /// <summary>Applies a 2D convolution over an input signal composed of several input planes.
@@ -177,7 +178,7 @@ module ShapedInferenceAutoOpens =
         /// <param name="strides">The strides of the convolving kernel.</param>
         /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
         /// <param name="dilations">The spacings between kernel elements.</param>
-        member a.conv2d(filters:Tensor, ?stride:Int, ?strides:seq<Int>, ?padding:Int, ?paddings:seq<Int>, ?dilation:int, ?dilations:seq<int>) =
+        member a.conv2d(filters:Tensor, ?stride:Int, ?strides:seq<Int>, ?padding:Int, ?paddings:seq<Int>, ?dilation:Int, ?dilations:seq<Int>) =
             a.conv2dx(filters, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
 
         /// <summary>Applies a 2D transposed convolution operator over an input signal composed of several input planes, sometimes also called 'deconvolution'.
@@ -192,7 +193,7 @@ module ShapedInferenceAutoOpens =
         /// <param name="dilations">The spacings between kernel elements.</param>
         /// <param name="outputPadding">The additional size added to one side of each dimension in the output shape.</param>
         /// <param name="outputPaddings">The additional sizes added to one side of each dimension in the output shape.</param>
-        member a.convTranspose2d(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) = 
+        member a.convTranspose2d(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>, ?outputPaddings:seq<Int>) = 
             a.convTranspose2dx(filters, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
 
         /// <summary>Applies a 3D convolution over an input signal composed of several input planes.
@@ -205,7 +206,7 @@ module ShapedInferenceAutoOpens =
         /// <param name="strides">The strides of the convolving kernel.</param>
         /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
         /// <param name="dilations">The spacings between kernel elements.</param>
-        member a.conv3d(filters:Tensor, ?stride:Int, ?strides:seq<Int>, ?padding:Int, ?paddings:seq<Int>, ?dilation:int, ?dilations:seq<int>) =
+        member a.conv3d(filters:Tensor, ?stride:Int, ?strides:seq<Int>, ?padding:Int, ?paddings:seq<Int>, ?dilation:Int, ?dilations:seq<Int>) =
             a.conv3dx(filters, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
 
         /// <summary>Applies a 3D transposed convolution operator over an input signal composed of several input planes, sometimes also called 'deconvolution'.
@@ -220,7 +221,7 @@ module ShapedInferenceAutoOpens =
         /// <param name="dilations">The spacings between kernel elements.</param>
         /// <param name="outputPadding">The additional size added to one side of each dimension in the output shape.</param>
         /// <param name="outputPaddings">The additional sizes added to one side of each dimension in the output shape.</param>
-        member a.convTranspose3d(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) = a.convTranspose3dx(filters, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
+        member a.convTranspose3d(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>, ?outputPaddings:seq<Int>) = a.convTranspose3dx(filters, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
 
         // /// <summary>TBD</summary>
         // member a.pad(paddings:seq<int>) = a.pad(paddings)
@@ -692,7 +693,7 @@ module ShapedInferenceAutoOpens =
         /// <param name="stride">The stride of the convolving kernel.</param>
         /// <param name="padding">The implicit paddings on both sides of the input.</param>
         /// <param name="dilation">The spacing between kernel elements.</param>
-        static member conv1d(input:Tensor, filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int) =
+        static member conv1d(input:Tensor, filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int) =
             input.conv1dx(filters, ?stride=stride, ?padding=padding, ?dilation=dilation)
 
         /// <summary>Applies a 2D convolution over an input signal composed of several input planes.
@@ -706,7 +707,7 @@ module ShapedInferenceAutoOpens =
         /// <param name="strides">The strides of the convolving kernel.</param>
         /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
         /// <param name="dilations">The spacings between kernel elements.</param>
-        static member conv2d(input:Tensor, filters:Tensor, ?stride:Int, ?strides:seq<Int>, ?padding:Int, ?paddings:seq<Int>, ?dilation:int, ?dilations:seq<int>) =
+        static member conv2d(input:Tensor, filters:Tensor, ?stride:Int, ?strides:seq<Int>, ?padding:Int, ?paddings:seq<Int>, ?dilation:Int, ?dilations:seq<Int>) =
             input.conv2dx(filters, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
 
         /// <summary>Applies a 3D convolution over an input signal composed of several input planes.
@@ -720,7 +721,7 @@ module ShapedInferenceAutoOpens =
         /// <param name="strides">The strides of the convolving kernel.</param>
         /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
         /// <param name="dilations">The spacings between kernel elements.</param>
-        static member conv3d(input:Tensor, filters:Tensor, ?stride:Int, ?strides:seq<Int>, ?padding:Int, ?paddings:seq<Int>, ?dilation:int, ?dilations:seq<int>) =
+        static member conv3d(input:Tensor, filters:Tensor, ?stride:Int, ?strides:seq<Int>, ?padding:Int, ?paddings:seq<Int>, ?dilation:Int, ?dilations:seq<Int>) =
             input.conv3dx(filters, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
 
         /// <summary>Applies a 1D transposed convolution operator over an input signal composed of several input planes, sometimes also called 'deconvolution'.
@@ -732,7 +733,7 @@ module ShapedInferenceAutoOpens =
         /// <param name="padding">The implicit padding on both sides of the input.</param>
         /// <param name="dilation">The spacing between kernel elements.</param>
         /// <param name="outputPadding">The additional size added to one side of each dimension in the output shape.</param>
-        static member convTranspose1d(input:Tensor, filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int) =
+        static member convTranspose1d(input:Tensor, filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int) =
             input.convTranspose1dx(filters, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding)
 
         /// <summary>Applies a 2D transposed convolution operator over an input signal composed of several input planes, sometimes also called 'deconvolution'.
@@ -748,7 +749,7 @@ module ShapedInferenceAutoOpens =
         /// <param name="dilations">The spacings between kernel elements.</param>
         /// <param name="outputPadding">The additional size added to one side of each dimension in the output shape.</param>
         /// <param name="outputPaddings">The additional sizes added to one side of each dimension in the output shape.</param>
-        static member convTranspose2d(input:Tensor, filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) = 
+        static member convTranspose2d(input:Tensor, filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>, ?outputPaddings:seq<Int>) = 
             input.convTranspose2dx(filters, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
 
         /// <summary>Applies a 3D transposed convolution operator over an input signal composed of several input planes, sometimes also called 'deconvolution'.
@@ -764,7 +765,8 @@ module ShapedInferenceAutoOpens =
         /// <param name="dilations">The spacings between kernel elements.</param>
         /// <param name="outputPadding">The additional size added to one side of each dimension in the output shape.</param>
         /// <param name="outputPaddings">The additional sizes added to one side of each dimension in the output shape.</param>
-        static member convTranspose3d(input:Tensor, filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) = input.convTranspose3dx(filters, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
+        static member convTranspose3d(input:Tensor, filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>, ?outputPaddings:seq<Int>) =
+            input.convTranspose3dx(filters, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
 
         // /// <summary>TBD</summary>
         // static member pad(input:Tensor, paddings:seq<int>) = input.pad(paddings)

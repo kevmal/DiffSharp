@@ -1581,21 +1581,27 @@ type Tensor =
     /// <summary>Dilate the tensor in using the given dilations in each corresponding dimension.</summary>
     /// <param name="dilations">The dilations to use.</param>
     member a.dilate(dilations:seq<int>) =
+        a.dilatex(Ints dilations)
+
+    member a.dilatex(dilations:seq<Int>) =
         let dilations = dilations |> Array.ofSeq
         Shape.checkCanDilate a.dim dilations
         let fRaw(a:RawTensor) = a.DilateT(dilations)
-        let fTensor(a:Tensor) = a.dilate(dilations)
-        let dfTensorFwd(cp,ap,ad:Tensor) = ad.dilate(dilations)
+        let fTensor(a:Tensor) = a.dilatex(dilations)
+        let dfTensorFwd(cp,ap,ad:Tensor) = ad.dilatex(dilations)
         let dfTensorRev(a) = DilateT(a, dilations)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
     /// <summary>Reverse the dilation of the tensor in using the given dilations in each corresponding dimension.</summary>
     /// <param name="dilations">The dilations to use.</param>
     member a.undilate(dilations:seq<int>) =
+        a.undilatex(Ints dilations)
+
+    member a.undilatex(dilations:seq<Int>) =
         let dilations = dilations |> Array.ofSeq
         let fRaw(a:RawTensor) = a.UndilateT(dilations)
-        let fTensor(a:Tensor) = a.undilate(dilations)
-        let dfTensorFwd(cp,ap,ad:Tensor) = ad.undilate(dilations)
+        let fTensor(a:Tensor) = a.undilatex(dilations)
+        let dfTensorFwd(cp,ap,ad:Tensor) = ad.undilatex(dilations)
         let dfTensorRev(a) = UndilateT(a, dilations)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
@@ -2340,18 +2346,18 @@ type Tensor =
     /// <param name="padding">The implicit paddings on both sides of the input.</param>
     /// <param name="dilation">The spacing between kernel elements.</param>
     member a.conv1d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int) =
-        a.conv1dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation)
+        a.conv1dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=optInt dilation)
 
-    member internal a.conv1dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int) =
+    member internal a.conv1dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int) =
         let b = filters
         // a: input, b: filter
         let stride = defaultArg stride (Int 1)
         let padding = defaultArg padding (Int 0)
-        let dilation = defaultArg dilation 1
+        let dilation = defaultArg dilation (Int 1)
         Shape.checkCanConv1d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex stride padding dilation |> ignore
         let mutable b = b
-        if dilation > 1 then
-            b <- b.dilate([|1;1;dilation|])
+        if a.symbolic || dilation.Value > 1 then
+            b <- b.dilatex([|Int 1;Int 1;dilation|])
         let fRaw(a:RawTensor,b) = a.Conv1D(b, stride, padding)
         let fTensor(a:Tensor,b) = a.conv1dx(b, stride, padding)
         let dfTensorFwdTT(cp,ap:Tensor,ad:Tensor,bp:Tensor,bd:Tensor) = ad.conv1dx(bp, stride, padding) + ap.conv1dx(bd, stride, padding)
@@ -2419,20 +2425,20 @@ type Tensor =
     /// <param name="dilation">The spacing between kernel elements.</param>
     /// <param name="outputPadding">The additional size added to one side of each dimension in the output shape.</param>
     member a.convTranspose1d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int) =
-        a.convTranspose1dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?outputPadding=optInt outputPadding)
+        a.convTranspose1dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=optInt dilation, ?outputPadding=optInt outputPadding)
 
-    member internal a.convTranspose1dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int) =
+    member internal a.convTranspose1dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int) =
         let b = filters
         let stride = defaultArg stride (Int 1)
         let padding = defaultArg padding (Int 0)
-        let dilation = defaultArg dilation 1
+        let dilation = defaultArg dilation (Int 1)
         let outputPadding = defaultArg outputPadding (Int 0)
 
         let _, _, _, _, _, outputShape =
             Shape.checkCanConvTranspose1d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex stride padding dilation outputPadding
         let mutable b = b
-        if dilation > 1 then
-            b <- b.dilate([|1; 1; dilation|])
+        if a.symbolic || dilation.Value > 1 then
+            b <- b.dilatex([|Int 1; Int 1; dilation|])
         let cderivative = a
         let a = a.zerosLike(outputShape)
         // Use convolution reverse mode to implement transposed convolution
@@ -2448,9 +2454,9 @@ type Tensor =
     /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
     /// <param name="dilations">The spacings between kernel elements.</param>
     member a.conv2d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>) =
-        a.conv2dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations)
+        a.conv2dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=optInt dilation, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=optInts dilations)
 
-    member internal a.conv2dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>) =
+    member internal a.conv2dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>) =
         let b = filters
         let strides = 
             match stride, strides with
@@ -2469,11 +2475,11 @@ type Tensor =
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
             | Some d, None -> [|d; d|]
             | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 2 then failwithf "Expecting dilations to be 2-dimensional" else d
-            | _ -> [|1; 1|]
+            | _ -> [|Int 1; Int 1|]
         Shape.checkCanConv2d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations |> ignore
         let mutable b = b
-        if dilations.[0] > 1 || dilations.[1] > 1 then
-            b <- b.dilate([|1; 1; dilations.[0]; dilations.[1]|])
+        if a.symbolic || dilations.[0].Value > 1 || dilations.[1].Value > 1 then
+            b <- b.dilatex([|Int 1; Int 1; dilations.[0]; dilations.[1]|])
         let fRaw(a:RawTensor,b) = a.Conv2D(b, strides, paddings)
         let fTensor(a:Tensor,b) = a.conv2dx(b, strides=strides, paddings=paddings)
         let dfTensorFwdTT(cp,ap:Tensor,ad:Tensor,bp,bd) = ad.conv2dx(bp, strides=strides, paddings=paddings) + ap.conv2dx(bd, strides=strides, paddings=paddings)
@@ -2552,9 +2558,9 @@ type Tensor =
     /// <param name="outputPadding">The additional size added to one side of each dimension in the output shape.</param>
     /// <param name="outputPaddings">The additional sizes added to one side of each dimension in the output shape.</param>
     member a.convTranspose2d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?outputPaddings:seq<int>) =
-        a.convTranspose2dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?outputPadding=optInt outputPadding, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?outputPaddings=optInts outputPaddings)
+        a.convTranspose2dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=optInt dilation, ?outputPadding=optInt outputPadding, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=optInts dilations, ?outputPaddings=optInts outputPaddings)
 
-    member internal a.convTranspose2dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) =
+    member internal a.convTranspose2dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>, ?outputPaddings:seq<Int>) =
         let b = filters
         let strides = 
             match stride, strides with
@@ -2573,7 +2579,7 @@ type Tensor =
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
             | Some d, None -> [|d; d|]
             | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 2 then failwithf "Expecting dilations to be 2-dimensional" else d
-            | _ -> [|1; 1|]
+            | _ -> [|Int 1; Int 1|]
         let outputPaddings = 
             match outputPadding, outputPaddings with
             | Some _ , Some _ -> failwithf "Expecting only one of outputPadding, outputPaddings"
@@ -2584,8 +2590,8 @@ type Tensor =
         let _, _, _, _, outputShape =
             Shape.checkCanConvTranspose2d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations outputPaddings
         let mutable b = b
-        if dilations.[0] > 1 || dilations.[1] > 1 then
-            b <- b.dilate([|1; 1; dilations.[0]; dilations.[1]|])
+        if a.symbolic || dilations.[0].Value > 1 || dilations.[1].Value > 1 then
+            b <- b.dilatex([|Int 1; Int 1; dilations.[0]; dilations.[1]|])
         let cderivative = a
         let a = a.zerosLike(outputShape)
         // Use convolution reverse mode to implement transposed convolution
@@ -2601,9 +2607,9 @@ type Tensor =
     /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
     /// <param name="dilations">The spacings between kernel elements.</param>
     member a.conv3d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>) =
-        a.conv3dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations)
+        a.conv3dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=optInt dilation, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=optInts dilations)
 
-    member a.conv3dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>) =
+    member a.conv3dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>) =
         let b = filters
         let strides = 
             match stride, strides with
@@ -2622,11 +2628,11 @@ type Tensor =
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
             | Some d, None -> [|d; d; d|]
             | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 3 then failwithf "Expecting dilations to be 3-dimensional" else d
-            | _ -> [|1; 1; 1|]
+            | _ -> [|Int 1; Int 1; Int 1|]
         Shape.checkCanConv3d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations |> ignore
         let mutable b = b
-        if dilations.[0] > 1 || dilations.[1] > 1 || dilations.[2] > 1 then
-            b <- b.dilate([|1; 1; dilations.[0]; dilations.[1]; dilations.[2]|])
+        if a.symbolic || dilations.[0].Value > 1 || dilations.[1].Value > 1 || dilations.[2].Value > 1 then
+            b <- b.dilatex([|Int 1; Int 1; dilations.[0]; dilations.[1]; dilations.[2]|])
         let fRaw(a:RawTensor,b) = a.Conv3D(b, strides, paddings)
         let fTensor(a:Tensor,b) = a.conv3dx(b, strides=strides, paddings=paddings)
         let dfTensorFwdTT(cp,ap:Tensor,ad:Tensor,bp,bd) = ad.conv3dx(bp, strides=strides, paddings=paddings) + ap.conv3dx(bd, strides=strides, paddings=paddings)
@@ -2712,9 +2718,9 @@ type Tensor =
     /// <param name="outputPadding">The additional size added to one side of each dimension in the output shape.</param>
     /// <param name="outputPaddings">The additional sizes added to one side of each dimension in the output shape.</param>
     member a.convTranspose3d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?outputPaddings:seq<int>) =
-        a.convTranspose3dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?outputPadding=optInt outputPadding, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?outputPaddings=optInts outputPaddings)
+        a.convTranspose3dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=optInt dilation, ?outputPadding=optInt outputPadding, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=optInts dilations, ?outputPaddings=optInts outputPaddings)
 
-    member internal a.convTranspose3dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) =
+    member internal a.convTranspose3dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>, ?outputPaddings:seq<Int>) =
         let b = filters
         let strides = 
             match stride, strides with
@@ -2733,7 +2739,7 @@ type Tensor =
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
             | Some d, None -> [|d; d; d|]
             | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 3 then failwithf "Expecting dilations to be 3-dimensional" else d
-            | _ -> [|1; 1; 1|]
+            | _ -> [|Int 1; Int 1; Int 1|]
         let outputPaddings = 
             match outputPadding, outputPaddings with
             | Some _ , Some _ -> failwithf "Expecting only one of outputPadding, outputPaddings"
@@ -2744,8 +2750,8 @@ type Tensor =
         let _, _, _, _, outputShape =
             Shape.checkCanConvTranspose3d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations outputPaddings
         let mutable b = b
-        if dilations.[0] > 1 || dilations.[1] > 1 || dilations.[2] > 1 then
-            b <- b.dilate([|1; 1; dilations.[0]; dilations.[1]; dilations.[2]|])
+        if a.symbolic || dilations.[0].Value > 1 || dilations.[1].Value > 1 || dilations.[2].Value > 1 then
+            b <- b.dilatex([|Int 1; Int 1; dilations.[0]; dilations.[1]; dilations.[2]|])
         let cderivative = a
         let a = a.zerosLike(outputShape)
         // Use convolution reverse mode to implement transposed convolution
@@ -3012,8 +3018,8 @@ type Tensor =
                         | SqueezeT(a) -> push ((t.derivative.viewAs(a), a) :: tt)
                         | UnsqueezeT(a) -> push ((t.derivative.viewAs(a), a) :: tt)
                         | FlipT(a, dims) -> push ((t.derivative.flip(dims), a) :: tt)
-                        | DilateT(a, dilations) -> push ((t.derivative.undilate(dilations), a) :: tt)
-                        | UndilateT(a, dilations) -> push ((t.derivative.dilate(dilations), a) :: tt)
+                        | DilateT(a, dilations) -> push ((t.derivative.undilatex(dilations), a) :: tt)
+                        | UndilateT(a, dilations) -> push ((t.derivative.dilatex(dilations), a) :: tt)
                         | ViewT(a,aShape) -> push (((t.derivative.viewx(aShape)), a) :: tt)
                         | ClampT(a, mask) -> push ((t.derivative * mask, a) :: tt)
                         | SliceT(a,bounds) -> 
@@ -3142,8 +3148,8 @@ and TensorOp =
     | SqueezeT of Tensor
     | UnsqueezeT of Tensor
     | FlipT of Tensor * int[]
-    | DilateT of Tensor * int[]
-    | UndilateT of Tensor * int[]
+    | DilateT of Tensor * Int[]
+    | UndilateT of Tensor * Int[]
     | ViewT of Tensor * Shape
     | ClampT of Tensor * Tensor
     | SignT of Tensor

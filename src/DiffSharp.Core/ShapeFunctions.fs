@@ -67,8 +67,8 @@ module Shape =
         Shape outputShape
 
     /// Computes the shape that results from a dilation operation.
-    let dilated (shape: Shape) (dilations: int[]) =
-        (shape.Dims, dilations) ||> Array.map2 (fun n d -> n + (n - 1) * (Int d - 1))
+    let dilated (shape: Shape) (dilations: Int[]) =
+        (shape.Dims, dilations) ||> Array.map2 (fun n d -> n + (n - 1) * (d - 1))
         |> Shape
 
     /// Checks if the given shapes are appropriate for a concatenation operation and returns information related to the resulting shape.
@@ -126,14 +126,14 @@ module Shape =
         | _ -> ()
 
     /// Checks if the given shapes are appropriate for a convolution operation and returns information related to the resulting shape.
-    let checkCanConv1d (deviceType1: DeviceType) (deviceType2: DeviceType) (dtype1: Dtype) (dtype2: Dtype) (shape1:Shape) (shape2:Shape) (stride: Int) (padding: Int) (dilation: int) =
+    let checkCanConv1d (deviceType1: DeviceType) (deviceType2: DeviceType) (dtype1: Dtype) (dtype2: Dtype) (shape1:Shape) (shape2:Shape) (stride: Int) (padding: Int) (dilation: Int) =
         checkDeviceTypes deviceType1 deviceType2
         checkDtypes dtype1 dtype2
         checkConvDType "conv1d" dtype1
         if shape1.Length <> 3 || shape2.Length <> 3 then failwithf "Expecting two 3d tensors t1, t2 where t1 is input (NxCxI: batchSize x inputChannels x inputLength) and t2 is filters (KxCxF: outputChannels x inputChannels x kernelLength), received Tensors with shapes %A, %A" shape1 shape2
         if not (padding >=~ 0) then failwithf "Expecting padding (%A) >= 0" padding
         if not (stride >=~ 1) then failwithf "Expecting stride (%A) >= 1" stride
-        if not (dilation >= 1) then failwithf "Expecting dilation (%A) >=1" dilation
+        if not (dilation >=~ 1) then failwithf "Expecting dilation (%A) >=1" dilation
         let batchSize = shape1.[0]
         let inputChannels = shape1.[1]
         let inputLength = shape1.[2]
@@ -148,7 +148,7 @@ module Shape =
         batchSize, inputChannels, kernelLength, outputChannels, outputSize, outputShape
 
     /// Checks if the given shapes are appropriate for a convolution operation and returns information related to the resulting shape.
-    let checkCanConv2d (deviceType1: DeviceType) (deviceType2: DeviceType) (dtype1: Dtype) (dtype2: Dtype) (shape1: Shape) (shape2: Shape) (strides: Int[]) (paddings: Int[]) (dilations: int[]) =
+    let checkCanConv2d (deviceType1: DeviceType) (deviceType2: DeviceType) (dtype1: Dtype) (dtype2: Dtype) (shape1: Shape) (shape2: Shape) (strides: Int[]) (paddings: Int[]) (dilations: Int[]) =
         checkDeviceTypes deviceType1 deviceType2
         checkDtypes dtype1 dtype2
         checkConvDType "conv2d" dtype1
@@ -158,7 +158,7 @@ module Shape =
         if dilations.Length <> 2 then failwithf "Expecting dilations (%A) to be a two-dimensional array" dilations
         if not (paddings.[0] >=~ 0) || not (paddings.[1] >=~ 0) then failwithf "Expecting all paddings (%A) >= 0" paddings
         if not (strides.[0] >=~ 1) || not (strides.[1] >=~ 1) then failwithf "Expecting all strides (%A) >= 1" strides
-        if dilations.[0] < 1 || dilations.[1] < 1 then failwithf "Expecting all dilations (%A) >= 1" dilations
+        if not (dilations.[0] >=~ 1) || not (dilations.[1] >=~ 1) then failwithf "Expecting all dilations (%A) >= 1" dilations
         let batchSize = shape1.[0]
         let inputChannels = shape1.[1]
         let inputHeight = shape1.[2]
@@ -178,7 +178,7 @@ module Shape =
         batchSize, inputChannels, (kernelHeight, kernelWidth), (outputChannels, outputHeight, outputWidth), outputShape
 
     /// Checks if the given shapes are appropriate for a convolution operation and returns information related to the resulting shape.
-    let checkCanConv3d (deviceType1: DeviceType) (deviceType2: DeviceType) (dtype1: Dtype) (dtype2: Dtype) (shape1: Shape) (shape2: Shape) (strides: Int[]) (paddings: Int[]) (dilations: int[]) =
+    let checkCanConv3d (deviceType1: DeviceType) (deviceType2: DeviceType) (dtype1: Dtype) (dtype2: Dtype) (shape1: Shape) (shape2: Shape) (strides: Int[]) (paddings: Int[]) (dilations: Int[]) =
         checkDeviceTypes deviceType1 deviceType2
         checkDtypes dtype1 dtype2
         checkConvDType "conv3d" dtype1
@@ -188,7 +188,7 @@ module Shape =
         if dilations.Length <> 3 then failwithf "Expecting dilations (%A) to be a length-three array" dilations
         if not (paddings.[0] >=~ 0) || not (paddings.[1] >=~ 0) || not (paddings.[2] >=~ 0) then failwithf "Expecting all paddings (%A) >= 0" paddings
         if not (strides.[0] >=~ 1) || not (strides.[1] >=~ 1) || not (strides.[2] >=~ 1) then failwithf "Expecting all strides (%A) >= 1" strides
-        if dilations.[0] < 1 || dilations.[1] < 1 || dilations.[2] < 1 then failwithf "Expecting all dilations (%A) >= 1" dilations
+        if not (dilations.[0] >=~ 1) || not (dilations.[1] >=~ 1) || not (dilations.[2] >=~ 1) then failwithf "Expecting all dilations (%A) >= 1" dilations
         let batchSize = shape1.[0]
         let inputChannels = shape1.[1]
         let inputDepth = shape1.[2]
@@ -213,14 +213,14 @@ module Shape =
         batchSize, inputChannels, (kernelDepth, kernelHeight, kernelWidth), (outputChannels, outputDepth, outputHeight, outputWidth), outputShape
 
     /// Checks if the given shapes are appropriate for a transposed convolution operation and returns information related to the resulting shape.
-    let checkCanConvTranspose1d (deviceType1: DeviceType) (deviceType2: DeviceType) (dtype1: Dtype) (dtype2: Dtype) (shape1: Shape) (shape2: Shape) (stride: Int) (padding: Int) (dilation: int) (outputPadding: Int) =
+    let checkCanConvTranspose1d (deviceType1: DeviceType) (deviceType2: DeviceType) (dtype1: Dtype) (dtype2: Dtype) (shape1: Shape) (shape2: Shape) (stride: Int) (padding: Int) (dilation: Int) (outputPadding: Int) =
         checkDeviceTypes deviceType1 deviceType2
         checkDtypes dtype1 dtype2
         checkConvDType "convTranspose1d" dtype1
         if shape1.Length <> 3 || shape2.Length <> 3 then failwithf "Expecting two 3d tensors t1, t2 where t1 is input (NxCxI: batchSize x inputChannels x inputLength) and t2 is filters (KxCxF: outputChannels x inputChannels x kernelLength), received Tensors with shapes %A, %A" shape1 shape2
         if not (padding >=~ 0) then failwithf "Expecting padding (%A) >= 0" padding
         if not (stride >=~ 1) then failwithf "Expecting stride (%A) >= 1" stride
-        if dilation < 1 then failwithf "Expecting dilation (%A) >=1" dilation
+        if not (dilation >=~ 1) then failwithf "Expecting dilation (%A) >=1" dilation
         if not (outputPadding >=~ 0) then failwithf "Expecting outputPadding (%A) >= 0" outputPadding
         let batchSize = shape1.[0]
         let inputChannels = shape1.[1]
@@ -237,7 +237,7 @@ module Shape =
         batchSize, inputChannels, kernelLength, outputChannels, outputSize, outputShape
 
     /// Checks if the given shapes are appropriate for a transposed convolution operation and returns information related to the resulting shape.
-    let checkCanConvTranspose2d (deviceType1: DeviceType) (deviceType2: DeviceType) (dtype1: Dtype) (dtype2: Dtype) (shape1: Shape) (shape2: Shape) (strides: Int[]) (paddings: Int[]) (dilations: int[]) (outputPaddings: Int[]) =
+    let checkCanConvTranspose2d (deviceType1: DeviceType) (deviceType2: DeviceType) (dtype1: Dtype) (dtype2: Dtype) (shape1: Shape) (shape2: Shape) (strides: Int[]) (paddings: Int[]) (dilations: Int[]) (outputPaddings: Int[]) =
         checkDeviceTypes deviceType1 deviceType2
         checkDtypes dtype1 dtype2
         checkConvDType "convTranspose2d" dtype1
@@ -248,7 +248,7 @@ module Shape =
         if outputPaddings.Length <> 2 then failwithf "Expecting outputPaddings (%A) to be a length-two array" outputPaddings
         if not (paddings.[0] >=~ 0) || not (paddings.[1] >=~ 0) then failwithf "Expecting all paddings (%A) >= 0" paddings
         if not (strides.[0] >=~ 1) || not (strides.[1] >=~ 1) then failwithf "Expecting all strides (%A) >= 1" strides
-        if dilations.[0] < 1 || dilations.[1] < 1 then failwithf "Expecting all dilations (%A) >= 1" dilations
+        if not (dilations.[0] >=~ 1) || not (dilations.[1] >=~ 1) then failwithf "Expecting all dilations (%A) >= 1" dilations
         if not (outputPaddings.[0] >=~ 0) || not (outputPaddings.[1] >=~ 0) then failwithf "Expecting all outputPaddings (%A) >= 0" outputPaddings
         let batchSize = shape1.[0]
         let inputChannels = shape1.[1]
@@ -269,7 +269,7 @@ module Shape =
         batchSize, inputChannels, (kernelHeight, kernelWidth), (outputChannels, outputHeight, outputWidth), outputShape
 
     /// Checks if the given shapes are appropriate for a transposed convolution operation and returns information related to the resulting shape.
-    let checkCanConvTranspose3d (deviceType1: DeviceType) (deviceType2: DeviceType) (dtype1: Dtype) (dtype2: Dtype) (shape1: Shape) (shape2: Shape) (strides: Int[]) (paddings: Int[]) (dilations: int[]) (outputPaddings: Int[]) =
+    let checkCanConvTranspose3d (deviceType1: DeviceType) (deviceType2: DeviceType) (dtype1: Dtype) (dtype2: Dtype) (shape1: Shape) (shape2: Shape) (strides: Int[]) (paddings: Int[]) (dilations: Int[]) (outputPaddings: Int[]) =
         checkDeviceTypes deviceType1 deviceType2
         checkDtypes dtype1 dtype2
         checkConvDType "convTranspose3d" dtype1
@@ -280,7 +280,7 @@ module Shape =
         if outputPaddings.Length <> 3 then failwithf "Expecting outputPaddings (%A) to be a length-three array" outputPaddings
         if not (paddings.[0] >=~ 0) || not (paddings.[1] >=~ 0) || not (paddings.[2] >=~ 0) then failwithf "Expecting all paddings (%A) >= 0" paddings
         if not (strides.[0] >=~ 1) || not (strides.[1] >=~ 1) || not (strides.[2] >=~ 1) then failwithf "Expecting all strides (%A) >= 1" strides
-        if dilations.[0] < 1 || dilations.[1] < 1 || dilations.[2] < 1 then failwithf "Expecting all dilations (%A) >= 1" dilations
+        if not (dilations.[0] >=~ 1) || not (dilations.[1] >=~ 1) || not (dilations.[2] >=~ 1) then failwithf "Expecting all dilations (%A) >= 1" dilations
         if not (outputPaddings.[0] >=~ 0) || not (outputPaddings.[1] >=~ 0) || not (outputPaddings.[2] >=~ 0) then failwithf "Expecting all outputPaddings (%A) >= 0" outputPaddings
         let batchSize = shape1.[0]
         let inputChannels = shape1.[1]
@@ -456,9 +456,10 @@ module Shape =
         if not (shape.[dim] =~= Int 1) then failwithf "Expecting Tensor's shape (%A) at dim (%A) to be 1" shape dim
 
     /// Checks if the given shape is appropriate for a dilate operation.
-    let checkCanDilate (dim: int) (dilations: int[]) =
+    let checkCanDilate (dim: int) (dilations: Int[]) =
         if dilations.Length <> dim then failwithf "Expecting dilations (dilation to use in each dimension) of same length with Tensor's dimensions, received %A, %A" dilations.Length dim
-        if (Array.min dilations) < 1 then failwithf "Expecting dilations (dilation to use in each dimension) >= 1 where 1 represents no dilation, received %A" dilations
+        for d in dilations do
+             if not (d >=~ 1) then failwithf "Expecting dilations (dilation to use in each dimension) >= 1 where 1 represents no dilation, received %A" dilations
 
     /// Checks if the given shape is appropriate for a gather operation.
     let checkCanGather (shape: Shape) (dim: int) (indicesShape: Shape) (indicesDtype:Dtype) =
