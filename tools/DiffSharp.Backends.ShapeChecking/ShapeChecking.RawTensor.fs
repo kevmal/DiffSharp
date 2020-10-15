@@ -130,11 +130,11 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
         Shape.checkCanFlip t.Dim dims
         t :> RawTensor
 
-    override t.DilateT(dilations:int[]) =
+    override t.DilateT(dilations:Int[]) =
         Shape.checkCanDilate t.Dim dilations
         t.MakeLike(Shape.dilated t.Shape dilations) 
 
-    override t.UndilateT(dilations:int[]) =
+    override t.UndilateT(dilations:Int[]) =
         t.MakeLike(Shape.undilatedShape t.Shape dilations)
 
     override t.GatherT(dim:int, indices) =
@@ -208,15 +208,15 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
         t1.MakeLike(outputShape)
 
     override t1.Conv1D(t2, stride, padding) = 
-        let _, _, _, _, _, outputShape = Shape.checkCanConv1d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding 1
+        let _, _, _, _, _, outputShape = Shape.checkCanConv1d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding (Int 1)
         t1.MakeLike(outputShape)
 
     override t1.Conv2D(t2, stride, padding) = 
-        let _, _, _, _, outputShape = Shape.checkCanConv2d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|1;1|]
+        let _, _, _, _, outputShape = Shape.checkCanConv2d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|Int 1;Int 1|]
         t1.MakeLike(outputShape) 
 
     override t1.Conv3D(t2, stride, padding) = 
-        let _, _, _, _, outputShape = Shape.checkCanConv3d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|1;1;1|]  
+        let _, _, _, _, outputShape = Shape.checkCanConv3d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|Int 1;Int 1;Int 1|]  
         t1.MakeLike(outputShape) 
 
     override t.NegT() = t :> _

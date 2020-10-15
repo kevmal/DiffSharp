@@ -575,7 +575,7 @@ module Shape =
     //     Array.map2 (*) shape dilations
 
     /// Computes the shape that results from an undilation operation.
-    let undilatedShape (shape: Shape) (dilations: int[]) =
+    let undilatedShape (shape: Shape) (dilations: Int[]) =
         Array.map2 (fun n d -> (n + d - 1) / d) shape.Dims dilations
         |> Shape
 

@@ -255,12 +255,13 @@ type RawTensorCPU<'T when 'T : equality>(values: 'T[], shape: Shape, dtype: Dtyp
             flip t.Shape [||]        
             upcast result
 
-    override t.DilateT(dilations:int[]) =
+    override t.DilateT(dilations:Int[]) =
         Shape.checkCanDilate t.Dim dilations
         match t.Dim with
         | 0 -> t.Clone()
         | _ ->
             let result = t.ZerosLike(Shape.dilated t.Shape dilations) :?> RawTensorCPU<'T>
+            let dilations = dilations |> Int.values
             let rec dilate (shape:Shape) externalCoords = 
                 if shape.Length = 1 then
                     for i=0 to shape.[0].Value-1 do
@@ -272,11 +273,12 @@ type RawTensorCPU<'T when 'T : equality>(values: 'T[], shape: Shape, dtype: Dtyp
             dilate t.Shape [||]        
             upcast result        
 
-    override t.UndilateT(dilations:int[]) =
+    override t.UndilateT(dilations:Int[]) =
         match t.Dim with
         | 0 -> t.Clone()
         | _ ->
             let result = t.ZerosLike(Shape.undilatedShape t.Shape dilations) :?> RawTensorCPU<'T>
+            let dilations = dilations |> Int.values
             let rec dilate (shape:Shape) externalCoords = 
                 if shape.Length = 1 then
                     for i=0 to shape.[0].Value-1 do
@@ -691,7 +693,7 @@ module internal RawTensorCPU =
         // t1: input, NxCxI (batchSize x inputChannels x inputLength)
         // t2: filters, KxCxF (outputChannels x inputChannels x kernelLength)
         let batchSize, inputChannels, kernelSize, outputChannels, outputSize, outputShape =
-            Shape.checkCanConv1d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding 1
+            Shape.checkCanConv1d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding (Int 1)
         let batchSize, inputChannels, kernelSize, outputChannels, outputSize = batchSize.Value, inputChannels.Value, kernelSize.Value, outputChannels.Value, outputSize.Value
         let stride, padding = stride.Value, padding.Value
         let result = t1.ZerosLike(outputShape) :?> RawTensorCPU<'T>
@@ -718,7 +720,7 @@ module internal RawTensorCPU =
         // t1: input, NxCxHxW (batchSize x inputChannels x inputHeight x inputWidth)
         // t2: filters, KxCxFxG (outputChannels x inputChannels x kernelHeight x kernelWidth)
         let batchSize, inputChannels, (kernelHeight, kernelWidth), (outputChannels, outputHeight, outputWidth), outputShape =
-            Shape.checkCanConv2d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|1;1|]
+            Shape.checkCanConv2d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|Int 1;Int 1|]
         let batchSize, inputChannels, kernelHeight, kernelWidth, outputChannels, outputHeight, outputWidth =
             batchSize.Value, inputChannels.Value, kernelHeight.Value, kernelWidth.Value, outputChannels.Value, outputHeight.Value, outputWidth.Value
         let stride = stride |> Int.values
@@ -750,7 +752,7 @@ module internal RawTensorCPU =
         // t1: input, NxCxDxHxW (batchSize x inputChannels x inputDepth x inputHeight x inputWidth)
         // t2: filters, KxCxExFxG (outputChannels x inputChannels x kernelDepth x kernelHeight x kernelWidth)
         let batchSize, inputChannels, (kernelDepth, kernelHeight, kernelWidth), (outputChannels, outputDepth, outputHeight, outputWidth), outputShape = 
-            Shape.checkCanConv3d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|1;1;1|]  
+            Shape.checkCanConv3d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|Int 1;Int 1;Int 1|]  
         let batchSize, inputChannels, kernelDepth, kernelHeight, kernelWidth, outputChannels, outputDepth, outputHeight, outputWidth =
             batchSize.Value, inputChannels.Value, kernelDepth.Value, kernelHeight.Value, kernelWidth.Value, outputChannels.Value, outputDepth.Value, outputHeight.Value, outputWidth.Value
         let stride = stride |> Int.values

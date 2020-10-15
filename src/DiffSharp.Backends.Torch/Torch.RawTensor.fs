@@ -313,9 +313,10 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
                 tt.Flip(int64s dims)
         t.MakeLike(result)
 
-    override t.DilateT(dilations:int[]) = 
+    override t.DilateT(dilations:Int[]) = 
         Shape.checkCanDilate t.Dim dilations
         let outputShape = Shape.dilated t.Shape dilations
+        let dilations = dilations |> Int.values
         let dims = dilations.Length
         let mutable res = tt
         for i=0 to dims-1 do
@@ -332,12 +333,12 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
             res <- resnew.TorchTensor.Scatter(int64 i, d.TorchTensor, res)
         t.MakeLike(res, outputShape)
 
-    override t.UndilateT(dilations:int[]) =
+    override t.UndilateT(dilations:Int[]) =
         let shape = t.Shape
         let outputShape = Shape.undilatedShape shape dilations
         let mutable res = tt
         for d in 0 .. dilations.Length - 1 do
-            res <- res.Slice(int64 d, 0L, int64 shape.[d].Value, int64 dilations.[d])
+            res <- res.Slice(int64 d, 0L, int64 shape.[d].Value, int64 dilations.[d].Value)
         t.MakeLike(res, outputShape)
 
     override t.GatherT(dim:int, indices) =
@@ -559,7 +560,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
 
     override t1.Conv1D(t2, stride, padding) = // TODO: bias, dilation and groups
         let _, _, _, _, _, outputShape =
-            Shape.checkCanConv1d t1.DeviceType t2.DeviceType dtype t2.Dtype t1.Shape t2.Shape stride padding 1
+            Shape.checkCanConv1d t1.DeviceType t2.DeviceType dtype t2.Dtype t1.Shape t2.Shape stride padding (Int 1)
         let stride = stride.Value
         let padding = padding.Value
         let resultt =
@@ -573,7 +574,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
 
     override t1.Conv2D(t2, strides, paddings) = // TODO: bias, dilation and groups
         let _, _, _, _, outputShape =
-            Shape.checkCanConv2d t1.DeviceType t2.DeviceType dtype t2.Dtype t1.Shape t2.Shape strides paddings [| 1;1 |]
+            Shape.checkCanConv2d t1.DeviceType t2.DeviceType dtype t2.Dtype t1.Shape t2.Shape strides paddings [| Int 1;Int 1 |]
         let strides = strides |> Int.values
         let paddings = paddings |> Int.values
         let resultt =
@@ -587,7 +588,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
 
     override t1.Conv3D(t2, strides, paddings) = // TODO: bias, dilation and groups
         let _, _, _, _, outputShape =
-            Shape.checkCanConv3d t1.DeviceType t2.DeviceType dtype t2.Dtype  t1.Shape t2.Shape strides paddings [| 1;1;1 |]
+            Shape.checkCanConv3d t1.DeviceType t2.DeviceType dtype t2.Dtype  t1.Shape t2.Shape strides paddings [| Int 1;Int 1;Int 1 |]
         let strides = strides |> Int.values
         let paddings = paddings |> Int.values
         let resultt =
