@@ -94,6 +94,11 @@ module ShapedInferenceAutoOpens =
 
     type dsharp with
 
+        /// <summary>Returns a new view of the input tensor with singleton dimensions expanded to a larger size</summary>
+        /// <param name="input">The input tensor.</param>
+        /// <param name="shape">The desired shape of returned tensor.</param>
+        static member expand(input:Tensor, shape:seq<Int>) = input.expand(shape)
+
         /// <summary>Returns a new uninitialized tensor filled with arbitrary values for the given shape, element type and configuration</summary>
         static member empty(shape:Shape, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
             Tensor(RawTensor.Empty(shape, ?dtype=dtype, ?device=device, ?backend=backend))
