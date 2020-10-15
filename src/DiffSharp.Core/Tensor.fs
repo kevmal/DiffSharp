@@ -775,7 +775,6 @@ type Tensor =
         if normalize then pixels <- pixels.normalize()
         pixels
 
-    /// <summary>TBD</summary>
     member internal t.GetSlice(bounds:int[,]) =
         t.GetSlice(bounds |> Array2D.map Int)
 
@@ -1418,8 +1417,13 @@ type Tensor =
     /// <param name="unbiased">Whether to use the unbiased estimation or not.</param>
     member a.stddev(?unbiased) = a.variance(?unbiased=unbiased) |> Tensor.Sqrt
 
-    /// <summary>TBD</summary>
-    member probs.multinomial(numSamples:int, ?dtype:Dtype, ?device:Device, ?backend:Backend, ?normalize:bool) =
+    /// <summary>Returns a tensor where each row contains numSamples indices sampled from the multinomial probability distribution located in the corresponding row of tensor input.</summary>
+    /// <param name="numSamples">The number of samples to draw.</param>
+    /// <param name="dtype">The desired element type of returned tensor. Default: if None, uses Dtype.Default.</param>
+    /// <param name="device">The desired device of returned tensor. Default: if None, uses Device.Default.</param>
+    /// <param name="backend">The desired backend of returned tensor. Default: if None, uses Backend.Default.</param>
+    /// <param name="normalize">Indicates where the probabilities should first be normalized by their sum.</param>
+    member probs.multinomial(numSamples:int, ?normalize:bool, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
         // TODO: the following may be implemented by RawTensor at a later point
         if probs.dim < 1 || probs.dim > 2 then failwithf "Expecting 1d or 2d probs, received shape %A" probs.shapex
         let dtype = defaultArg dtype Dtype.Int32
@@ -1449,7 +1453,10 @@ type Tensor =
                 | _ -> failwithf "Expecting probs to have dtype Float32 or Float64, received %A" probs.dtype
             Tensor.create(Random.Multinomial(p, numSamples), dtype=dtype, device=device, backend=backend)
 
-    /// <summary>TBD</summary>
+    /// <summary>Draws binary random numbers (0 or 1) from a Bernoulli distribution</summary>
+    /// <param name="dtype">The desired element type of returned tensor. Default: if None, uses Dtype.Default.</param>
+    /// <param name="device">The desired device of returned tensor. Default: if None, uses Device.Default.</param>
+    /// <param name="backend">The desired backend of returned tensor. Default: if None, uses Backend.Default.</param>
     member probs.bernoulli(?dtype:Dtype, ?device:Device, ?backend:Backend) =
         // TODO: the following may be implemented by RawTensor at a later point
         if not (probs.dtype = Dtype.Float32 || probs.dtype = Dtype.Float64) then failwithf "Expecting probs to have dtype Float32 or Float64, received %A" probs.dtype
@@ -1466,7 +1473,8 @@ type Tensor =
             let b = p.toArray() :?> float[] |> Array.map Random.Bernoulli
             Tensor.create(b, dtype=dtype, device=device, backend=backend).viewx(probs.shapex)
 
-    /// <summary>TBD</summary>
+    /// <summary>Randomly zeroes some of the elements of the input tensor with probability p using samples from a Bernoulli distribution</summary>
+    /// <param name="p">The probability of an element to be zeroed. Default: 0.5.</param>
     member a.dropout(?p:double) =
         let p = defaultArg p 0.5
         Shape.checkCanDropout p
@@ -1478,7 +1486,8 @@ type Tensor =
             let mask = a.fullLike(1.-p).bernoulli()
             a * mask
 
-    /// <summary>TBD</summary>
+    /// <summary>Randomly zero out entire channels (a channel is a 2D feature map, e.g., the jj -th channel of the ii -th sample in the batched input is a 2D tensor \text{input}[i, j]input[i,j] ). Each channel will be zeroed out independently on every forward call with probability p using samples from a Bernoulli distribution</summary>
+    /// <param name="p">The probability of an element to be zeroed. Default: 0.5.</param>
     member a.dropout2d(?p:double) =
         let p = defaultArg p 0.5
         Shape.checkCanDropout2d a.shapex p
@@ -1491,7 +1500,8 @@ type Tensor =
             let mask = a.fullLike(1.-p, shape).bernoulli()
             a * mask
 
-    /// <summary>TBD</summary>
+    /// <summary>Randomly zero out entire channels (a channel is a 3D feature map, e.g., the jj -th channel of the ii -th sample in the batched input is a 3D tensor \text{input}[i, j]input[i,j] ). Each channel will be zeroed out independently on every forward call with probability p using samples from a Bernoulli distribution.</summary>
+    /// <param name="p">The probability of an element to be zeroed. Default: 0.5.</param>
     member a.dropout3d(?p:double) =
         let p = defaultArg p 0.5
         Shape.checkCanDropout3d a.shapex p
@@ -1504,7 +1514,6 @@ type Tensor =
             let mask = a.fullLike(1.-p, shape).bernoulli()
             a * mask
 
-    /// <summary>TBD</summary>
     // This is useful to keep as a special case of sum for performance reasons because it's involved in reverse mode of broadcasting addition of bias in NN linear layers
     member internal a.sumT2Dim0() =
         let fRaw(a:RawTensor) = a.SumT2Dim0()
@@ -1513,7 +1522,9 @@ type Tensor =
         let dfTensorRev(a) = SumT2Dim0(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
     
-    /// <summary>TBD</summary>
+    /// <summary>Returns a tensor that is a transposed version of input. The given dimensions dim0 and dim1 are swapped.</summary>
+    /// <param name="dim0">The first dimension to be transposed.</param>
+    /// <param name="dim1">The second dimension to be transposed.</param>
     member a.transpose(dim0:int, dim1:int) =
         let dim0 = Shape.completeDim a.dim dim0  // Handles -1 semantics
         let dim1 = Shape.completeDim a.dim dim1  // Handles -1 semantics
@@ -1527,7 +1538,7 @@ type Tensor =
             let dfTensorRev(a) = TransposeT(a, dim0, dim1)
             Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a tensor that is a transposed version of input with dimensions 0 and 1 swapped.</summary>
     member a.transpose() =
         Shape.checkCanTranspose2d a.dim
         let fRaw(a:RawTensor) = a.TransposeT2()
@@ -1536,7 +1547,9 @@ type Tensor =
         let dfTensorRev(a) = TransposeT2(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a tensor with all the dimensions of input of size 1 removed.</summary>
+    /// <remarks>If the tensor has a batch dimension of size 1, then squeeze(input) will also remove the batch dimension, which can lead to unexpected errors.</remarks>
+    /// <param name="dim">If given, the input will be squeezed only in this dimension.</param>
     member a.squeeze(?dim:int) =
         let dim = defaultArg dim -1
         let fRaw(a:RawTensor) = a.SqueezeT(dim)
@@ -1545,7 +1558,8 @@ type Tensor =
         let dfTensorRev(a) = SqueezeT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with a dimension of size one inserted at the specified position</summary>
+    /// <param name="dim">The index at which to insert the singleton dimension.</param>
     member a.unsqueeze(dim:int) =
         let fRaw(a:RawTensor) = a.UnsqueezeT(dim)
         let fTensor(a:Tensor) = a.unsqueeze(dim)
@@ -1553,7 +1567,8 @@ type Tensor =
         let dfTensorRev(a) = UnsqueezeT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>Reverse the order of a n-D tensor along given axis in dims</summary>
+    /// <param name="dims">The axis to flip on.</param>
     member a.flip(dims:seq<int>) =
         let dims = dims |> Array.ofSeq
         Shape.checkCanFlip a.dim dims
@@ -1563,7 +1578,8 @@ type Tensor =
         let dfTensorRev(a) = FlipT(a, dims)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>Dilate the tensor in using the given dilations in each corresponding dimension.</summary>
+    /// <param name="dilations">The dilations to use.</param>
     member a.dilate(dilations:seq<int>) =
         let dilations = dilations |> Array.ofSeq
         Shape.checkCanDilate a.dim dilations
@@ -1573,7 +1589,8 @@ type Tensor =
         let dfTensorRev(a) = DilateT(a, dilations)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>Reverse the dilation of the tensor in using the given dilations in each corresponding dimension.</summary>
+    /// <param name="dilations">The dilations to use.</param>
     member a.undilate(dilations:seq<int>) =
         let dilations = dilations |> Array.ofSeq
         let fRaw(a:RawTensor) = a.UndilateT(dilations)
@@ -1582,7 +1599,9 @@ type Tensor =
         let dfTensorRev(a) = UndilateT(a, dilations)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>Repeat elements of a tensor</summary>
+    /// <param name="dim">The dimension along which to repeat values.</param>
+    /// <param name="times">The number of repetitions for each element.</param>
     member a.repeat(dim:int, times:int) =
         a.repeat(dim, Int times)
 
@@ -1599,7 +1618,9 @@ type Tensor =
             ret <- ret.addSlice(location, a)
         ret
 
-    /// <summary>TBD</summary>
+    /// <summary>Gathers values along an axis specified by dim.</summary>
+    /// <param name="dim">The axis along which to index.</param>
+    /// <param name="indices">The the indices of elements to gather.</param>
     member a.gather(dim:int, indices:Tensor) =
         Shape.checkCanGather a.shapex dim indices.shapex indices.dtype
         let fRaw(a:RawTensor) = a.GatherT(dim, indices.primalRaw)
@@ -1608,7 +1629,14 @@ type Tensor =
         let dfTensorRev(a) = GatherT(a, dim, indices)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the same data as the self tensor but of a different shape.</summary>
+    /// <remarks>
+    ///   The returned tensor shares the same data and must have the same number of elements, but may have a different size. 
+    ///   For a tensor to be viewed, the new view size must be compatible with its original size and stride, i.e., each new view dimension must either be a subspace of an original dimension,
+    ///   or only span across original dimensions \(d, d+1, \dots, d+kd,d+1,…,d+k\) that satisfy the following contiguity-like condition that
+    ///   \(\forall i = d, \dots, d+k-1∀i=d,…,d+k−1 ,\) \[\text{stride}[i] = \text{stride}[i+1] \times \text{size}[i+1]\]
+    /// </remarks>
+    /// <param name="shape">The desired shape of returned tensor.</param>
     member a.view(shape:seq<int>) =
         let shape = shape |> Shape.constant
         a.viewx(shape)
@@ -1633,10 +1661,19 @@ type Tensor =
     /// <param name="shape">the desired shape</param>
     member t.view(shape:int) = t.viewx(Shape [|shape|])
 
-    /// <summary>TBD</summary>
-    member a.viewAs(b:Tensor) = a.viewx(b.shapex)
+    /// <summary>View this tensor as the same size as other.</summary>
+    /// <remarks>The returned tensor shares the same data and must have the same number of elements, but may have a different size. For a tensor to be viewed, the new view size must be compatible with its original size.
+    ///   The returned tensor shares the same data and must have the same number of elements, but may have a different size. 
+    ///   For a tensor to be viewed, the new view size must be compatible with its original size and stride, i.e., each new view dimension must either be a subspace of an original dimension,
+    ///   or only span across original dimensions \(d, d+1, \dots, d+kd,d+1,…,d+k\) that satisfy the following contiguity-like condition that
+    ///   \(\forall i = d, \dots, d+k-1∀i=d,…,d+k−1 ,\) \[\text{stride}[i] = \text{stride}[i+1] \times \text{size}[i+1]\]
+    /// </remarks>
+    /// <param name="other">The result tensor has the same size as other.</param>
+    member a.viewAs(other:Tensor) = a.viewx(other.shapex)
 
-    /// <summary>TBD</summary>
+    /// <summary>Flattens a contiguous range of dims in a tensor.</summary>
+    /// <param name="startDim">The first dim to flatten.</param>
+    /// <param name="endDim">The last dim to flatten.</param>
     member a.flatten(?startDim:int, ?endDim:int) =
         if a.dim < 2 then 
             a
@@ -1662,10 +1699,13 @@ type Tensor =
         | TensorF(ap,ad,at)    -> let result, mask = ap.clampWithMask(?low=low, ?high=high) in TensorF(result, ad * mask, at), mask
         | TensorR(ap,_,_,_,at) -> let result, mask = ap.clampWithMask(?low=low, ?high=high) in TensorR(result, ref (a.zeroLike()), ClampT(a, mask), ref 0u, at), mask
 
-    /// <summary>TBD</summary>
+    /// <summary>Clamp all elements in input into the range [ low..high] and return a resulting tensor</summary>
+    /// <param name="low">The lower-bound of the range to be clamped to.</param>
+    /// <param name="high">The upper-bound of the range to be clamped to.</param>
     member a.clamp(?low:scalar, ?high:scalar) = a.clampWithMask(?low=low, ?high=high) |> fst
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the signs of the elements of input.</summary>
+    /// <remarks>The tensor will have the same element type as the input tensor.</remarks>
     member a.sign() =
         let fRaw(a:RawTensor) = a.SignT()
         let fTensor(a:Tensor) = a.sign()
@@ -1674,7 +1714,8 @@ type Tensor =
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
     // static member Sign(a:Tensor) = a.sign() // not supported becaose FSharp.Core sign operator returns int
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the floor of the elements of input, the largest integer less than or equal to each element.</summary>
+    /// <remarks>The tensor will have the same element type as the input tensor.</remarks>
     member a.floor() =
         let fRaw(a:RawTensor) = a.FloorT()
         let fTensor(a:Tensor) = a.floor()
@@ -1682,10 +1723,11 @@ type Tensor =
         let dfTensorRev(a) = FloorT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>A method to enable the use of the F# function <c>floor</c>.</summary>
     static member Floor(a:Tensor) = a.floor() // needed for FSharp.Core floor operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the ceil of the elements of input, the smallest integer greater than or equal to each element.</summary>
+    /// <remarks>The tensor will have the same element type as the input tensor.</remarks>
     member a.ceil() =
         let fRaw(a:RawTensor) = a.CeilT()
         let fTensor(a:Tensor) = a.ceil()
@@ -1693,10 +1735,11 @@ type Tensor =
         let dfTensorRev(a) = CeilT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>A method to enable the use of the F# function <c>ceil</c>.</summary>
     static member Ceiling(a:Tensor) = a.ceil() // needed for FSharp.Core ceil operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with each of the elements of input rounded to the closest integer.</summary>
+    /// <remarks>The tensor will have the same element type as the input tensor.</remarks>
     member a.round() =
         let fRaw(a:RawTensor) = a.RoundT()
         let fTensor(a:Tensor) = a.round()
@@ -1704,10 +1747,10 @@ type Tensor =
         let dfTensorRev(a) = RoundT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>A method to enable the use of the F# function <c>round</c>.</summary>
     static member Round(a:Tensor) = a.round() // needed for FSharp.Core round operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Computes the element-wise absolute value of the given input tensor.</summary>
     member a.abs() =
         let fRaw(a:RawTensor) = a.AbsT()
         let fTensor(a:Tensor) = a.abs()
@@ -1715,10 +1758,10 @@ type Tensor =
         let dfTensorRev(a) = AbsT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>A method to enable the use of the F# function <c>abs</c>.</summary>
     static member Abs(a:Tensor) = a.abs() // needed for FSharp.Core abs operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies the rectified linear unit function element-wise.</summary>
     member a.relu() =
         let fRaw(a:RawTensor) = a.ReluT()
         let fTensor(a:Tensor) = a.relu()
@@ -1726,12 +1769,15 @@ type Tensor =
         let dfTensorRev(a) = ReluT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies the leaky rectified linear unit function element-wise</summary>
+    /// <remarks>\[\text{LeakyReLU}(x) = \max(0, x) + \text{negative\_slope} * \min(0, x)\]</remarks>
+    /// <param name="negativeSlope">Controls the angle of the negative slope. Default: 0.01.</param>
     member a.leakyRelu(?negativeSlope:float) =
         let negativeSlope = defaultArg negativeSlope 0.01
         let zeros = a.zerosLike() in zeros.max(a) + negativeSlope * zeros.min(a)
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies the sigmoid element-wise function</summary>
+    /// <remarks>\[\text{Sigmoid}(x) = \frac{1}{1 + \exp(-x)}\]</remarks>
     member a.sigmoid() =
         let fRaw(a:RawTensor) = a.SigmoidT()
         let fTensor(a:Tensor) = a.sigmoid()
@@ -1739,7 +1785,7 @@ type Tensor =
         let dfTensorRev(a) = SigmoidT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies the exp function element-wise.</summary>
     member a.exp() =
         let fRaw(a:RawTensor) = a.ExpT()
         let fTensor(a:Tensor) = a.exp()
@@ -1747,10 +1793,11 @@ type Tensor =
         let dfTensorRev(a) = ExpT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>A method to enable the use of the F# function <c>exp</c>.</summary>
     static member Exp(a:Tensor) = a.exp() // needed for FSharp.Core exp operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the natural logarithm of the elements of input.</summary>
+    /// <remarks> \[y_{i} = \log_{e} (x_{i})\]</remarks>
     member a.log() =
         let fRaw(a:RawTensor) = a.LogT()
         let fTensor(a:Tensor) = a.log()
@@ -1758,10 +1805,11 @@ type Tensor =
         let dfTensorRev(a) = LogT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>A method to enable the use of the F# function <c>log</c>.</summary>
     static member Log(a:Tensor) = a.log() // needed for FSharp.Core log operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies the softplus function element-wise.</summary>
+    /// <remarks>\[\text{Softplus}(x) = \frac{1}{\beta} * \log(1 + \exp(\beta * x))\]</remarks>
     member a.softplus() =
         let fRaw(a:RawTensor) = a.SoftplusT()
         let fTensor(a:Tensor) = a.softplus()
@@ -1769,7 +1817,8 @@ type Tensor =
         let dfTensorRev(a) = SoftplusT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the logarithm to the base 10 of the elements of input.</summary>
+    /// <remarks>\[y_{i} = \log_{10} (x_{i})\]</remarks>
     member a.log10() =
         let fRaw(a:RawTensor) = a.Log10T()
         let fTensor(a:Tensor) = a.log10()
@@ -1777,10 +1826,10 @@ type Tensor =
         let dfTensorRev(a) = Log10T(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>A method to enable the use of the F# function <c>log10</c>.</summary>
     static member Log10(a:Tensor) = a.log10() // needed for FSharp.Core log10 operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the square-root of the elements of input.</summary>
     member a.sqrt() =
         let fRaw(a:RawTensor) = a.SqrtT()
         let fTensor(a:Tensor) = a.sqrt()
@@ -1788,10 +1837,10 @@ type Tensor =
         let dfTensorRev(a) = SqrtT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>A method to enable the use of the F# function <c>sqrt</c>.</summary>
     static member Sqrt(a:Tensor) = a.sqrt() // needed for FSharp.Core sqrt operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the sine of the elements of input</summary>
     member a.sin() =
         let fRaw(a:RawTensor) = a.SinT()
         let fTensor(a:Tensor) = a.sin()
@@ -1799,10 +1848,10 @@ type Tensor =
         let dfTensorRev(a) = SinT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>A method to enable the use of the F# function <c>sin</c>.</summary>
     static member Sin(a:Tensor) = a.sin() // needed for FSharp.Core sin operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the cosine of the elements of input</summary>
     member a.cos() =
         let fRaw(a:RawTensor) = a.CosT()
         let fTensor(a:Tensor) = a.cos()
@@ -1810,10 +1859,10 @@ type Tensor =
         let dfTensorRev(a) = CosT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>A method to enable the use of the F# function <c>cos</c>.</summary>
     static member Cos(a:Tensor) = a.cos() // needed for FSharp.Core cos operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the tangent of the elements of input</summary>
     member a.tan() =
         let fRaw(a:RawTensor) = a.TanT()
         let fTensor(a:Tensor) = a.tan()
@@ -1821,10 +1870,10 @@ type Tensor =
         let dfTensorRev(a) = TanT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>A method to enable the use of the F# function <c>tan</c>.</summary>
     static member Tan(a:Tensor) = a.tan() // needed for FSharp.Core tan operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the hyperbolic sine of the elements of input.</summary>
     member a.sinh() =
         let fRaw(a:RawTensor) = a.SinhT()
         let fTensor(a:Tensor) = a.sinh()
@@ -1832,10 +1881,10 @@ type Tensor =
         let dfTensorRev(a) = SinhT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>A method to enable the use of the F# function <c>sinh</c>.</summary>
     static member Sinh(a:Tensor) = a.sinh() // needed for FSharp.Core sinh operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the hyperbolic cosine of the elements of input.</summary>
     member a.cosh() =
         let fRaw(a:RawTensor) = a.CoshT()
         let fTensor(a:Tensor) = a.cosh()
@@ -1843,10 +1892,10 @@ type Tensor =
         let dfTensorRev(a) = CoshT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
-    static member Cosh(a:Tensor) = a.cosh() // needed for FSharp.Core cosh operator overload
+    /// <summary>A method to enable the use of the F# function <c>cosh</c>.</summary>
+    static member Cosh(t:Tensor) = t.cosh() // needed for FSharp.Core cosh operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the hyperbolic tangent of the elements of input.</summary>
     member a.tanh() =
         let fRaw(a:RawTensor) = a.TanhT()
         let fTensor(a:Tensor) = a.tanh()
@@ -1854,10 +1903,10 @@ type Tensor =
         let dfTensorRev(a) = TanhT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
-    static member Tanh(a:Tensor) = a.tanh() // needed for FSharp.Core tanh operator overload
+    /// <summary>A method to enable the use of the F# function <c>tanh</c>.</summary>
+    static member Tanh(t:Tensor) = t.tanh() // needed for FSharp.Core tanh operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the arcsine of the elements of input.</summary>
     member a.asin() =
         let fRaw(a:RawTensor) = a.AsinT()
         let fTensor(a:Tensor) = a.asin()
@@ -1865,10 +1914,10 @@ type Tensor =
         let dfTensorRev(a) = AsinT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
-    static member Asin(a:Tensor) = a.asin() // needed for FSharp.Core asin operator overload
+    /// <summary>A method to enable the use of the F# function <c>asin</c>.</summary>
+    static member Asin(t:Tensor) = t.asin() // needed for FSharp.Core asin operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the arccosine of the elements of input.</summary>
     member a.acos() =
         let fRaw(a:RawTensor) = a.AcosT()
         let fTensor(a:Tensor) = a.acos()
@@ -1876,10 +1925,10 @@ type Tensor =
         let dfTensorRev(a) = AcosT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
-    static member Acos(a:Tensor) = a.acos() // needed for FSharp.Core acos operator overload
+    /// <summary>A method to enable the use of the F# function <c>acos</c>.</summary>
+    static member Acos(t:Tensor) = t.acos() // needed for FSharp.Core acos operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Returns a new tensor with the arctangent of the elements of input.</summary>
     member a.atan() =
         let fRaw(a:RawTensor) = a.AtanT()
         let fTensor(a:Tensor) = a.atan()
@@ -1887,10 +1936,10 @@ type Tensor =
         let dfTensorRev(a) = AtanT(a)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
-    static member Atan(a:Tensor) = a.atan() // needed for FSharp.Core atan operator overload
+    /// <summary>A method to enable the use of the F# function <c>atan</c>.</summary>
+    static member Atan(t:Tensor) = t.atan() // needed for FSharp.Core atan operator overload
 
-    /// <summary>TBD</summary>
+    /// <summary>Add the given tensor as a slice at the given location.</summary>
     member a.addSlice(location:seq<int>, b:Tensor) =
         let location = location |> Seq.toArray |> Array.map Int
         a.addSlice(location, b)
@@ -1908,19 +1957,24 @@ type Tensor =
         let dfTensorRevCT(a,b) = AddTConstTSlice(location,b)
         Tensor.OpBinary(a, b, fRaw, fTensor, dfTensorFwdTT, dfTensorFwdTC, dfTensorFwdCT, dfTensorRevTT, dfTensorRevTC, dfTensorRevCT)
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies a softmax function.</summary>
+    /// <remarks>Softmax is defined as: \text{Softmax}(x_{i}) = \frac{\exp(x_i)}{\sum_j \exp(x_j)}.</remarks>
+    /// <param name="dim">A dimension along which softmax will be computed.</param>
     member a.softmax(dim:int) =
         let dim = Shape.completeDim a.dim dim  // Handles -1 semantics
         let e = (a - a.max().noDiff()).exp()
         let esum = e.sum(dim, keepDim=true).repeat(dim, a.shapex.[dim])
         e / esum
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies a softmax followed by a logarithm.</summary>
+    /// <param name="dim">A dimension along which softmax will be computed.</param>
     member a.logsoftmax(dim:int) =
         let dim = Shape.completeDim a.dim dim  // Handles -1 semantics
         a - a.logsumexp(dim, keepDim=true)
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies a logsumexp.</summary>
+    /// <param name="dim">The dimension to reduce.</param>
+    /// <param name="keepDim">Whether the output tensor has dim retained or not.</param>
     member a.logsumexp(dim:int, ?keepDim:bool) =
         let dim = Shape.completeDim a.dim dim  // Handles -1 semantics
         let keepDim = defaultArg keepDim false
@@ -1929,7 +1983,9 @@ type Tensor =
         let res = amax + e.sum(dim).add(System.Single.Epsilon).log()
         if keepDim then res.unsqueeze(dim) else res
 
-    /// <summary>TBD</summary>
+    /// <summary>Creates a criterion that measures the mean squared error (squared L2 norm) between each element in the input and the target.</summary>
+    /// <param name="target">The target tensor.</param>
+    /// <param name="reduction">Optionally specifies the reduction to apply to the output: 'none' | 'mean' | 'sum'. 'none': no reduction will be applied, 'mean': the sum of the output will be divided by the number of elements in the output, 'sum': the output will be summed. Note: size_average and reduce are in the process of being deprecated, and in the meantime, specifying either of those two args will override reduction. Default: 'mean'.</param>
     member input.mseLoss(target:Tensor, ?reduction:string) = 
         if not (input.shapex =~= target.shapex) then failwithf "Expecting input.shape (%A) and target.shape (%A) to be the same" input.shapex target.shapex
         let reduction = defaultArg reduction "mean"
@@ -1943,7 +1999,10 @@ type Tensor =
         else // reduction = "sum"
             l.sum()
 
-    /// <summary>TBD</summary>
+    /// <summary>Creates a criterion that measures the Binary Cross Entropy between the target and the output</summary>
+    /// <param name="target">The target tensor.</param>
+    /// <param name="weight">A manual rescaling weight given to the loss of each batch element.</param>
+    /// <param name="reduction">Optionally specifies the reduction to apply to the output: 'none' | 'mean' | 'sum'. 'none': no reduction will be applied, 'mean': the sum of the output will be divided by the number of elements in the output, 'sum': the output will be summed. Note: size_average and reduce are in the process of being deprecated, and in the meantime, specifying either of those two args will override reduction. Default: 'mean'.</param>
     member input.bceLoss(target:Tensor, ?weight:Tensor, ?reduction:string) =
         if not (input.shapex =~= target.shapex) then failwithf "Expecting input.shape (%A) and target.shape (%A) to be the same" input.shapex target.shapex
         if not input.symbolic && (target.max() > target.oneLike() || target.min() < target.zeroLike()) then failwith "Expecting target values to be between 0 and 1."
@@ -1963,11 +2022,17 @@ type Tensor =
         else // reduction = "sum"
             l.sum()
 
-    /// <summary>TBD</summary>
+    /// <summary>This criterion combines logsoftmax and nllLoss in a single function</summary>
+    /// <param name="target">The target tensor.</param>
+    /// <param name="weight">A optional manual rescaling weight given to the loss of each batch element.</param>
+    /// <param name="reduction">Optionally specifies the reduction to apply to the output: 'none' | 'mean' | 'sum'. 'none': no reduction will be applied, 'mean': the sum of the output will be divided by the number of elements in the output, 'sum': the output will be summed. Note: size_average and reduce are in the process of being deprecated, and in the meantime, specifying either of those two args will override reduction. Default: 'mean'.</param>
     member input.crossEntropyLoss(target:Tensor, ?weight:Tensor, ?reduction:string) =
         input.logsoftmax(dim=1).nllLoss(target, ?weight=weight, ?reduction=reduction)
 
-    /// <summary>TBD</summary>
+    /// <summary>The negative log likelihood loss.</summary>
+    /// <param name="target">The target tensor.</param>
+    /// <param name="weight">A optional manual rescaling weight given to the loss of each batch element.</param>
+    /// <param name="reduction">Optionally specifies the reduction to apply to the output: 'none' | 'mean' | 'sum'. 'none': no reduction will be applied, 'mean': the sum of the output will be divided by the number of elements in the output, 'sum': the output will be summed. Note: size_average and reduce are in the process of being deprecated, and in the meantime, specifying either of those two args will override reduction. Default: 'mean'.</param>
     member input.nllLoss(target:Tensor, ?weight:Tensor, ?reduction:string) =
         let n, classes, d = 
             if input.dim < 2 
@@ -2026,7 +2091,8 @@ type Tensor =
             else // reduction = "sum"
                 l.sum()
 
-    /// <summary>TBD</summary>
+    /// <summary>Add zero padding to each side of a tensor</summary>
+    /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
     member a.pad(paddings:seq<int>) =
         let paddings = paddings |> Array.ofSeq
         Shape.checkCanPad a.shapex paddings
@@ -2039,7 +2105,10 @@ type Tensor =
             let ret = a.zerosLike(Shape shape)
             ret.addSlice(paddings, a)
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies a 1D max pooling over an input signal composed of several input planes, returning the max indices along with the outputs.</summary>
+    /// <param name="kernelSize">The size of the window to take a max over.</param>
+    /// <param name="stride">The stride of the window. Default value is kernelSize.</param>
+    /// <param name="padding">The implicit zero padding to be added on both sides.</param>
     member a.maxpool1di(kernelSize:int, ?stride:int, ?padding:int) =
         a.maxpool1dix(Int kernelSize, ?stride=optInt stride, ?padding=optInt padding) 
 
@@ -2052,10 +2121,18 @@ type Tensor =
         | TensorF(ap,ad,at)    -> let result, indices = ap.maxpool1dix(kernelSize, stride, padding) in TensorF(result, ad.gather(dim=2, indices=indices), at), indices
         | TensorR(ap,_,_,_,at) -> let result, indices = ap.maxpool1dix(kernelSize, stride, padding) in TensorR(result, ref (a.zeroLike()), MaxPool1DT(a, indices, kernelSize), ref 0u, at), indices
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies a 1D max pooling over an input signal composed of several input planes.</summary>
+    /// <param name="kernelSize">The size of the window to take a max over.</param>
+    /// <param name="stride">The stride of the window. Default value is kernelSize.</param>
+    /// <param name="padding">The implicit zero padding to be added on both sides.</param>
     member a.maxpool1d(kernelSize:int, ?stride:int, ?padding:int) = a.maxpool1di(kernelSize, ?stride=stride, ?padding=padding) |> fst
 
-    /// <summary>TBD</summary>
+    /// <summary>Computes a partial inverse of maxpool1di</summary>
+    /// <param name="indices">The indices selected by maxpool1di.</param>
+    /// <param name="kernelSize">The size of the window to take a max over.</param>
+    /// <param name="stride">The stride of the window. Default value is kernelSize.</param>
+    /// <param name="padding">The implicit zero padding to be added on both sides.</param>
+    /// <param name="outputSize">The targeted output size.</param>
     member a.maxunpool1d(indices:Tensor, kernelSize:int, ?stride:int, ?padding:int, ?outputSize:seq<int>) =
         a.maxunpool1dx(indices, kernelSize=Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?outputSize=optInts outputSize)
 
@@ -2076,7 +2153,13 @@ type Tensor =
         let dfTensorRev(a) = MaxUnpool1DT(a, indices)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies a 2D max pooling over an input signal composed of several input planes, returning the max indices along with the outputs.</summary>
+    /// <param name="kernelSize">The size of the window to take a max over.</param>
+    /// <param name="stride">The stride of the window. Default value is kernelSize.</param>
+    /// <param name="padding">The implicit zero padding to be added on both sides.</param>
+    /// <param name="kernelSizes">The sizes of the window to take a max over.</param>
+    /// <param name="strides">The strides of the window. Default value is kernelSize.</param>
+    /// <param name="paddings">The implicit zero paddings to be added on corresponding sides.</param>
     member a.maxpool2di(?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) =
         a.maxpool2dix(?kernelSize=optInt kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings)
 
@@ -2105,10 +2188,24 @@ type Tensor =
         | TensorF(ap,ad,at)    -> let result, indices = ap.maxpool2dix(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorF(result, ad.flatten(startDim=2).gather(dim=2, indices=indices.flatten(startDim=2)).viewAs(indices), at), indices
         | TensorR(ap,_,_,_,at) -> let result, indices = ap.maxpool2dix(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorR(result, ref (a.zeroLike()), MaxPool2DT(a, indices, kernelSizes), ref 0u, at), indices
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies a 2D max pooling over an input signal composed of several input planes.</summary>
+    /// <param name="kernelSize">The size of the window to take a max over.</param>
+    /// <param name="stride">The stride of the window. Default value is kernelSize.</param>
+    /// <param name="padding">The implicit zero padding to be added on both sides.</param>
+    /// <param name="kernelSizes">The sizes of the window to take a max over.</param>
+    /// <param name="strides">The strides of the window. Default value is kernelSize.</param>
+    /// <param name="paddings">The implicit zero paddings to be added on corresponding sides.</param>
     member a.maxpool2d(?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) = a.maxpool2di(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings) |> fst
 
-    /// <summary>TBD</summary>
+    /// <summary>Computes a partial inverse of maxpool2di</summary>
+    /// <param name="indices">The indices selected by maxpool2di.</param>
+    /// <param name="kernelSize">The size of the window to take a max over.</param>
+    /// <param name="stride">The stride of the window. Default value is kernelSize.</param>
+    /// <param name="padding">The implicit zero padding to be added on both sides.</param>
+    /// <param name="kernelSizes">The sizes of the window to take a max over.</param>
+    /// <param name="strides">The strides of the window. Default value is kernelSizes.</param>
+    /// <param name="paddings">The implicit zero paddings to be added on corresponding sides.</param>
+    /// <param name="outputSize">The targeted output size.</param>
     member a.maxunpool2d(indices:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?outputSize:seq<int>) =
         a.maxunpool2dx(indices, ?kernelSize=optInt kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?outputSize=optInts outputSize)
 
@@ -2146,7 +2243,13 @@ type Tensor =
         let dfTensorRev(a) = MaxUnpool2DT(a, indices)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies a 3D max pooling over an input signal composed of several input planes, returning the max indices along with the outputs.</summary>
+    /// <param name="kernelSize">The size of the window to take a max over.</param>
+    /// <param name="stride">The stride of the window. Default value is kernelSize.</param>
+    /// <param name="padding">The implicit zero padding to be added on both sides.</param>
+    /// <param name="kernelSizes">The sizes of the window to take a max over.</param>
+    /// <param name="strides">The strides of the window. Default value is kernelSize.</param>
+    /// <param name="paddings">The implicit zero paddings to be added on corresponding sides.</param>
     member a.maxpool3di(?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) =
         a.maxpool3dix(?kernelSize=optInt kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings)
 
@@ -2175,10 +2278,24 @@ type Tensor =
         | TensorF(ap,ad,at)    -> let result, indices = ap.maxpool3dix(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorF(result, ad.flatten(startDim=2).gather(dim=2, indices=indices.flatten(startDim=2)).viewAs(indices), at), indices
         | TensorR(ap,_,_,_,at) -> let result, indices = ap.maxpool3dix(kernelSizes=kernelSizes, strides=strides, paddings=paddings) in TensorR(result, ref (a.zeroLike()), MaxPool3DT(a, indices, kernelSizes), ref 0u, at), indices
 
-    /// <summary>TBD</summary>
+    /// <summary>Applies a 3D max pooling over an input signal composed of several input planes.</summary>
+    /// <param name="kernelSize">The size of the window to take a max over.</param>
+    /// <param name="stride">The stride of the window. Default value is kernelSize.</param>
+    /// <param name="padding">The implicit zero padding to be added on both sides.</param>
+    /// <param name="kernelSizes">The sizes of the window to take a max over.</param>
+    /// <param name="strides">The strides of the window. Default value is kernelSizes.</param>
+    /// <param name="paddings">The implicit zero paddings to be added on corresponding sides.</param>
     member a.maxpool3d(?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) = a.maxpool3di(?kernelSize=kernelSize, ?stride=stride, ?padding=padding, ?kernelSizes=kernelSizes, ?strides=strides, ?paddings=paddings) |> fst
 
-    /// <summary>TBD</summary>
+    /// <summary>Computes a partial inverse of maxpool3di</summary>
+    /// <param name="indices">The indices selected by maxpool3di.</param>
+    /// <param name="kernelSize">The size of the window to take a max over.</param>
+    /// <param name="stride">The stride of the window. Default value is kernelSize.</param>
+    /// <param name="padding">The implicit zero padding to be added on both sides.</param>
+    /// <param name="kernelSizes">The sizes of the window to take a max over.</param>
+    /// <param name="strides">The strides of the window. Default value is kernelSizes.</param>
+    /// <param name="paddings">The implicit zero paddings to be added on corresponding sides.</param>
+    /// <param name="outputSize">The targeted output size.</param>
     member a.maxunpool3d(indices:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?outputSize:seq<int>) =
         a.maxunpool3dx(indices, ?kernelSize=optInt kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?outputSize=optInts outputSize)
 
@@ -2217,11 +2334,16 @@ type Tensor =
         let dfTensorRev(a) = MaxUnpool3DT(a, indices)
         Tensor.OpUnary(a, fRaw, fTensor, dfTensorFwd, dfTensorRev)
 
-    /// <summary>TBD</summary>
-    member a.conv1d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int) =
-        a.conv1dx(b, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation)
+    /// <summary>Applies a 1D convolution over an input signal composed of several input planes</summary>
+    /// <param name="filters">The filters.</param>
+    /// <param name="stride">The stride of the convolving kernel.</param>
+    /// <param name="padding">The implicit paddings on both sides of the input.</param>
+    /// <param name="dilation">The spacing between kernel elements.</param>
+    member a.conv1d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int) =
+        a.conv1dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation)
 
-    member internal a.conv1dx(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int) =
+    member internal a.conv1dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int) =
+        let b = filters
         // a: input, b: filter
         let stride = defaultArg stride (Int 1)
         let padding = defaultArg padding (Int 0)
@@ -2290,11 +2412,17 @@ type Tensor =
                     bderivative <- bderivative.addSlice([|k; 0; 0|], bd)
         aderivative, bderivative
     
-    /// <summary>TBD</summary>
-    member a.convTranspose1d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int) =
-        a.convTranspose1dx(b, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?outputPadding=optInt outputPadding)
+    /// <summary>Applies a 1D transposed convolution operator over an input signal composed of several input planes, sometimes also called 'deconvolution'.</summary>
+    /// <param name="filters">The filters.</param>
+    /// <param name="stride">The stride of the convolving kernel.</param>
+    /// <param name="padding">The implicit padding on both sides of the input.</param>
+    /// <param name="dilation">The spacing between kernel elements.</param>
+    /// <param name="outputPadding">The additional size added to one side of each dimension in the output shape.</param>
+    member a.convTranspose1d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int) =
+        a.convTranspose1dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?outputPadding=optInt outputPadding)
 
-    member internal a.convTranspose1dx(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int) =
+    member internal a.convTranspose1dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int) =
+        let b = filters
         let stride = defaultArg stride (Int 1)
         let padding = defaultArg padding (Int 0)
         let dilation = defaultArg dilation 1
@@ -2302,7 +2430,6 @@ type Tensor =
 
         let _, _, _, _, _, outputShape =
             Shape.checkCanConvTranspose1d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex stride padding dilation outputPadding
-        //print outputShape
         let mutable b = b
         if dilation > 1 then
             b <- b.dilate([|1; 1; dilation|])
@@ -2312,11 +2439,19 @@ type Tensor =
         let (aderivative:Tensor), _ = Tensor.conv1dReverseDiff(a, b, cderivative, aConst=false, bConst=true, stride=stride, padding=padding)
         aderivative
 
-    /// <summary>TBD</summary>
-    member a.conv2d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?strides:seq<int>, ?paddings: seq<int>, ?dilations:seq<int>) =
-        a.conv2dx(b, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations)
+    /// <summary>Applies a 2D convolution over an input signal composed of several input planes</summary>
+    /// <param name="filters">The filters.</param>
+    /// <param name="stride">The stride of the convolving kernel.</param>
+    /// <param name="padding">The implicit padding on corresponding sides of the input.</param>
+    /// <param name="dilation">The spacing between kernel elements.</param>
+    /// <param name="strides">The strides of the convolving kernel.</param>
+    /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
+    /// <param name="dilations">The spacings between kernel elements.</param>
+    member a.conv2d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>) =
+        a.conv2dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations)
 
-    member internal a.conv2dx(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>) =
+    member internal a.conv2dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>) =
+        let b = filters
         let strides = 
             match stride, strides with
             | Some _, Some _ -> failwithf "Expecting only one of stride, strides"
@@ -2349,7 +2484,6 @@ type Tensor =
         let dfTensorRevCT(a,b) = Conv2DTConstT(a,b, strides, paddings)
         Tensor.OpBinary(a, b, fRaw, fTensor, dfTensorFwdTT, dfTensorFwdTC, dfTensorFwdCT, dfTensorRevTT, dfTensorRevTC, dfTensorRevCT)
 
-    /// <summary>TBD</summary>
     // a: input, NxCxHxW (batchSize x inputChannels x inputHeight x inputWidth)
     // b: filters, KxCxFxG (outputChannels x inputChannels x kernelHeight x kernelWidth)
     // t: output, NxKxLxM (batchSize x outputChannels x outputHeight x outputWidth)
@@ -2407,11 +2541,21 @@ type Tensor =
                     bderivative <- bderivative.addSlice([|k; 0; 0; 0|], bd)
         aderivative, bderivative
     
-    /// <summary>TBD</summary>
-    member a.convTranspose2d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?outputPaddings:seq<int>) =
-        a.convTranspose2dx(b, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?outputPadding=optInt outputPadding, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?outputPaddings=optInts outputPaddings)
+    /// <summary>Applies a 2D transposed convolution operator over an input signal composed of several input planes, sometimes also called 'deconvolution'.</summary>
+    /// <param name="filters">The filters.</param>
+    /// <param name="stride">The stride of the convolving kernel.</param>
+    /// <param name="padding">The implicit padding on both sides of the input.</param>
+    /// <param name="dilation">The spacing between kernel elements.</param>
+    /// <param name="strides">The strides of the convolving kernel.</param>
+    /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
+    /// <param name="dilations">The spacings between kernel elements.</param>
+    /// <param name="outputPadding">The additional size added to one side of each dimension in the output shape.</param>
+    /// <param name="outputPaddings">The additional sizes added to one side of each dimension in the output shape.</param>
+    member a.convTranspose2d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?outputPaddings:seq<int>) =
+        a.convTranspose2dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?outputPadding=optInt outputPadding, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?outputPaddings=optInts outputPaddings)
 
-    member internal a.convTranspose2dx(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) =
+    member internal a.convTranspose2dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) =
+        let b = filters
         let strides = 
             match stride, strides with
             | Some _, Some _ -> failwithf "Expecting only one of stride, strides"
@@ -2439,7 +2583,6 @@ type Tensor =
 
         let _, _, _, _, outputShape =
             Shape.checkCanConvTranspose2d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations outputPaddings
-        //print outputShape
         let mutable b = b
         if dilations.[0] > 1 || dilations.[1] > 1 then
             b <- b.dilate([|1; 1; dilations.[0]; dilations.[1]|])
@@ -2449,11 +2592,19 @@ type Tensor =
         let (aderivative:Tensor), _ = Tensor.conv2dReverseDiff(a, b, cderivative, aConst=false, bConst=true, strides=strides, paddings=paddings)
         aderivative
 
-    /// <summary>TBD</summary>
-    member a.conv3d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?strides:seq<int>, ?paddings: seq<int>, ?dilations:seq<int>) =
-        a.conv3dx(b, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations)
+    /// <summary>Applies a 3D convolution over an input signal composed of several input planes</summary>
+    /// <param name="filters">The filters.</param>
+    /// <param name="stride">The stride of the convolving kernel.</param>
+    /// <param name="padding">The implicit padding on corresponding sides of the input.</param>
+    /// <param name="dilation">The spacing between kernel elements.</param>
+    /// <param name="strides">The strides of the convolving kernel.</param>
+    /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
+    /// <param name="dilations">The spacings between kernel elements.</param>
+    member a.conv3d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>) =
+        a.conv3dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations)
 
-    member a.conv3dx(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>) =
+    member a.conv3dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>) =
+        let b = filters
         let strides = 
             match stride, strides with
             | Some _ , Some _ -> failwithf "Expecting only one of stride, strides"
@@ -2486,7 +2637,6 @@ type Tensor =
         let dfTensorRevCT(a,b) = Conv3DTConstT(a,b, strides, paddings)
         Tensor.OpBinary(a, b, fRaw, fTensor, dfTensorFwdTT, dfTensorFwdTC, dfTensorFwdCT, dfTensorRevTT, dfTensorRevTC, dfTensorRevCT)
 
-    /// <summary>TBD</summary>
     // a: input, NxCxDxHxW (batchSize x inputChannels x inputDepth x inputHeight x inputWidth)
     // b: filters, KxCxExFxG (outputChannels x inputChannels x kernelDepth x kernelHeight x kernelWidth)
     // t: output, NxKxLxMxN (batchSize x outputChannels x outputDepth x outputHeight x outputWidth)
@@ -2551,11 +2701,21 @@ type Tensor =
                     bderivative <- bderivative.addSlice([|k; 0; 0; 0; 0|], bd)
         aderivative, bderivative
 
-    /// <summary>TBD</summary>
-    member a.convTranspose3d(b:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?outputPaddings:seq<int>) =
-        a.convTranspose3dx(b, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?outputPadding=optInt outputPadding, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?outputPaddings=optInts outputPaddings)
+    /// <summary>Applies a 3D transposed convolution operator over an input signal composed of several input planes, sometimes also called 'deconvolution'.</summary>
+    /// <param name="filters">The filters.</param>
+    /// <param name="stride">The stride of the convolving kernel.</param>
+    /// <param name="padding">The implicit padding on both sides of the input.</param>
+    /// <param name="dilation">The spacing between kernel elements.</param>
+    /// <param name="strides">The strides of the convolving kernel.</param>
+    /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
+    /// <param name="dilations">The spacings between kernel elements.</param>
+    /// <param name="outputPadding">The additional size added to one side of each dimension in the output shape.</param>
+    /// <param name="outputPaddings">The additional sizes added to one side of each dimension in the output shape.</param>
+    member a.convTranspose3d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?outputPaddings:seq<int>) =
+        a.convTranspose3dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=dilation, ?outputPadding=optInt outputPadding, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=dilations, ?outputPaddings=optInts outputPaddings)
 
-    member internal a.convTranspose3dx(b:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) =
+    member internal a.convTranspose3dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<int>, ?outputPaddings:seq<Int>) =
+        let b = filters
         let strides = 
             match stride, strides with
             | Some _ , Some _ -> failwithf "Expecting only one of stride, strides"
@@ -2592,7 +2752,9 @@ type Tensor =
         let (aderivative:Tensor), _ = Tensor.conv3dReverseDiff(a, b, cderivative, aConst=false, bConst=true, strides=strides, paddings=paddings)
         aderivative
 
-    /// <summary>TBD</summary>
+    /// <summary>Compute the reverse-mode derivative at the given output tensor.</summary>
+    /// <param name="value">The value to apply.</param>
+    /// <param name="zeroDerivatives">Indicates whether the derivatives should be zeroed or not.</param>
     member t.reverse(?value:Tensor, ?zeroDerivatives:bool) =
         let value = defaultArg value (t.onesLike())
         let zeroDerivatives = defaultArg zeroDerivatives true
@@ -2600,10 +2762,10 @@ type Tensor =
         t.reverseReset(zeroDerivatives)
         t.reversePush(value)
 
-    /// <summary>TBD</summary>
+    /// <summary>See <c>reverse</c></summary>
     member inline t.backward(value) = t.reverse(value)
 
-    /// <summary>TBD</summary>
+    /// <summary>Reset the reverse mode computation associated with the given output tensor.</summary>
     member t.reverseReset(zeroDerivatives:bool) =
         let rec reset (ts: Tensor list) =
             match ts with
@@ -2721,7 +2883,8 @@ type Tensor =
                 | _ -> reset tt
         reset [t]
 
-    /// <summary>TBD</summary>
+    /// <summary>Push the given value as part of the reverse-mode computation at the given output tensor.</summary>
+    /// <param name="value">The value to apply.</param>
     member t.reversePush(value:Tensor) =
         let rec push (ts:(Tensor*Tensor) list) =
             match ts with
