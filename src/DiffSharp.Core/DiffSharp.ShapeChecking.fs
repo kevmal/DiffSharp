@@ -12,8 +12,14 @@ module ShapedInferenceAutoOpens =
         /// <summary>Version of Tensor.expand accepting a a possibly-symbolic shape.</summary>
         member a.expand(newShape:Shape) = a.expandx(newShape)
 
+        /// <summary>Version of Tensor.expand accepting a a possibly-symbolic shape.</summary>
+        member a.expand(newShape:seq<Int>) = a.expandx(Shape newShape)
+
         /// <summary>Version of Tensor.view accepting a a possibly-symbolic shape.</summary>
         member a.view(shape:Shape) = a.viewx(shape)
+
+        /// <summary>Version of Tensor.view accepting a a possibly-symbolic shape.</summary>
+        member a.view(shape:seq<Int>) = a.viewx(Shape shape)
 
         // /// <summary>TBD</summary>
         //member a.dilate(dilations:seq<Int>) = a.dilate(dilations)
@@ -92,17 +98,33 @@ module ShapedInferenceAutoOpens =
         static member empty(shape:Shape, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
             Tensor(RawTensor.Empty(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
+        /// <summary>Returns a new uninitialized tensor filled with arbitrary values for the given shape, element type and configuration</summary>
+        static member empty(shape:seq<Int>, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            Tensor(RawTensor.Empty(Shape shape, ?dtype=dtype, ?device=device, ?backend=backend))
+
         /// <summary>Returns a new tensor filled with '0' values for the given shape, element type and configuration</summary>
         static member zeros(shape:Shape, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
             Tensor(RawTensor.Zeros(shape, ?dtype=dtype, ?device=device, ?backend=backend))
+
+        /// <summary>Returns a new tensor filled with '0' values for the given shape, element type and configuration</summary>
+        static member zeros(shape:seq<Int>, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            Tensor(RawTensor.Zeros(Shape shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
         /// <summary>Returns a new tensor filled with '1' values for the given shape, element type and configuration</summary>
         static member ones(shape:Shape, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
             Tensor(RawTensor.Ones(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
+        /// <summary>Returns a new tensor filled with '1' values for the given shape, element type and configuration</summary>
+        static member ones(shape:seq<Int>, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            Tensor(RawTensor.Ones(Shape shape, ?dtype=dtype, ?device=device, ?backend=backend))
+
         /// <summary>Returns a new tensor filled with the scalar <paramref name="value" />, for the given shape, element type and configuration</summary>
         static member full(shape:Shape, value:obj, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
             Tensor(RawTensor.Full(shape, value, ?dtype=dtype, ?device=device, ?backend=backend))
+
+        /// <summary>Returns a new tensor filled with the scalar <paramref name="value" />, for the given shape, element type and configuration</summary>
+        static member full(shape:seq<Int>, value:obj, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            Tensor(RawTensor.Full(Shape shape, value, ?dtype=dtype, ?device=device, ?backend=backend))
 
         // /// <summary>TBD</summary>
         // static member arange(endVal:int, ?startVal:int, ?step:int, ?dtype:Dtype, ?device:Device, ?backend:Backend) = dsharp.zero(?dtype=dtype, ?device=device, ?backend=backend).arangeLike(endVal=endVal, ?startVal=startVal, ?step=step)
@@ -118,12 +140,24 @@ module ShapedInferenceAutoOpens =
             Tensor(RawTensor.Random(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
         /// <summary>TBD</summary>
+        static member rand(shape:seq<Int>, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            Tensor(RawTensor.Random(Shape shape, ?dtype=dtype, ?device=device, ?backend=backend))
+
+        /// <summary>TBD</summary>
         static member randn(shape:Shape, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
             Tensor(RawTensor.RandomNormal(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
         /// <summary>TBD</summary>
+        static member randn(shape:seq<Int>, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            Tensor(RawTensor.RandomNormal(Shape shape, ?dtype=dtype, ?device=device, ?backend=backend))
+
+        /// <summary>TBD</summary>
         static member randint(low:int, high:int, shape:Shape, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
             Tensor(RawTensor.RandomInt(shape, low, high, ?dtype=dtype, ?device=device, ?backend=backend))
+
+        /// <summary>TBD</summary>
+        static member randint(low:int, high:int, shape:seq<Int>, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            Tensor(RawTensor.RandomInt(Shape shape, low, high, ?dtype=dtype, ?device=device, ?backend=backend))
 
         // /// <summary>TBD</summary>
         // static member multinomial(probs:Tensor, numSamples:int, ?dtype:Dtype, ?device:Device, ?backend:Backend) = probs.multinomial(numSamples, ?dtype=dtype, ?device=device, ?backend=backend)
@@ -135,10 +169,19 @@ module ShapedInferenceAutoOpens =
         static member zerosLike(a:Tensor, shape:Shape, ?dtype, ?device, ?backend) = a.zerosLike(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>TBD</summary>
+        static member zerosLike(a:Tensor, shape:seq<Int>, ?dtype, ?device, ?backend) = a.zerosLike(shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>TBD</summary>
         static member onesLike(a:Tensor, shape:Shape, ?dtype, ?device, ?backend) = a.onesLike(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>TBD</summary>
+        static member onesLike(a:Tensor, shape:seq<Int>, ?dtype, ?device, ?backend) = a.onesLike(shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>TBD</summary>
         static member fullLike(a:Tensor, value:scalar, shape:Shape, ?dtype, ?device, ?backend) = a.fullLike(value, shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>TBD</summary>
+        static member fullLike(a:Tensor, value:scalar, shape:seq<Int>, ?dtype, ?device, ?backend) = a.fullLike(value, shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         // /// <summary>TBD</summary>
         // static member arangeLike(a:Tensor, endVal:float, ?startVal:float, ?step:float, ?dtype:Dtype, ?device:Device, ?backend:Backend) = a.arangeLike(endVal=endVal, ?startVal=startVal, ?step=step, ?dtype=dtype, ?device=device, ?backend=backend)
@@ -151,12 +194,24 @@ module ShapedInferenceAutoOpens =
             a.randLike(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>TBD</summary>
+        static member randLike(a:Tensor, shape:seq<Int>, ?dtype, ?device, ?backend) =
+            a.randLike(shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>TBD</summary>
         static member randnLike(a:Tensor, shape:Shape, ?dtype, ?device, ?backend) =
             a.randnLike(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>TBD</summary>
+        static member randnLike(a:Tensor, shape:seq<Int>, ?dtype, ?device, ?backend) =
+            a.randnLike(shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>TBD</summary>
         static member randintLike(a:Tensor, low:int, high:int, shape:Shape, ?dtype, ?device, ?backend) =
             a.randintLike(low=low, high=high, shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>TBD</summary>
+        static member randintLike(a:Tensor, low:int, high:int, shape:seq<Int>, ?dtype, ?device, ?backend) =
+            a.randintLike(low=low, high=high, shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>TBD</summary>
         static member fullshape(a:Tensor) = a.shapex
@@ -170,8 +225,11 @@ module ShapedInferenceAutoOpens =
         // /// <summary>TBD</summary>
         //static member repeat(a:Tensor, dim:int, times:int) = a.repeat(dim, times)
 
-        /// <summary>TBD</summary>
+        /// <summary>Version of dsharp.view accepting a a possibly-symbolic shape.</summary>
         static member view(a:Tensor, shape:Shape) = a.viewx(shape)
+
+        /// <summary>Version of dsharp.view accepting a a possibly-symbolic shape.</summary>
+        static member view(a:Tensor, shape:seq<Int>) = a.viewx(Shape shape)
 
         /// <summary>TBD</summary>
         static member maxpool1d(a:Tensor, kernelSize:Int, ?stride:Int, ?padding:Int) =

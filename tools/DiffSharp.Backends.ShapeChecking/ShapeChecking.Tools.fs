@@ -146,7 +146,7 @@ module Tools =
                             | :? string as nm -> parseSymbolicIntArg nm loc 
                             | arg -> failwithf "%O: unknown arg specification %A" loc arg |]
             | Some (arg, loc) -> failwithf "%O: unknown arg specification %A" loc arg
-            | None -> failwithf "%O: shape needs argument information in LiveCheck attribute, e.g. [<LiveCheck([| 1;4;2 |])>] or [<LiveCheck([| \"N\";\"M\" |])>] " loc
+            | None -> failwithf "%O: shape needs argument information in ShapeCheck attribute, e.g. [<ShapeCheck([| 1;4;2 |])>] or [<ShapeCheck([| \"N\";\"M\" |])>] " loc
 
         let getSymbolicTensorArg givenArgInfo (p: ParameterInfo) loc : Tensor =
             let shape = getSymbolicShapeArg givenArgInfo p loc
@@ -244,7 +244,7 @@ module Tools =
             let msg = sprintf "Unexpected return from method with ReturnShape attribute" 
             Error { Severity=1; LocationStack=[| loc |]; Message=msg; Number=1999 }
 
-    let makeModelAndRunLiveChecks (syms: SymScope) optionals (ctor: ConstructorInfo) ctorGivenArgs loc methLocs =
+    let makeModelAndRunShapeChecks (syms: SymScope) optionals (ctor: ConstructorInfo) ctorGivenArgs loc methLocs =
         let ctorArgs = ParserLogic(syms, loc).GetParams optionals (ctor.GetParameters()) ctorGivenArgs loc
         let model = 
            try ctor.Invoke(ctorArgs) |> Ok
@@ -257,7 +257,7 @@ module Tools =
         let methCalls = ResizeArray()
         for meth in ctor.DeclaringType.GetMethods() do
           if meth.ContainsGenericParameters || meth.DeclaringType.ContainsGenericParameters then
-            let msg = "Skipping LiveCheck for a generic method"
+            let msg = "Skipping ShapeCheck for a generic method"
             let diag = { Severity=1; LocationStack=[| loc |]; Message=msg; Number=1994 }
             diags.Add diag
           else
@@ -271,11 +271,11 @@ module Tools =
                   | Some (_, file, sl, sc, el, ec) -> { File=file; StartLine=sl; StartColumn=sc; EndLine=el; EndColumn=ec} 
 
             printfn "meth %s, loc = %O"  meth.Name loc
-            for attr in meth.GetCustomAttributes(typeof<LiveCheckAttribute>, true) do
+            for attr in meth.GetCustomAttributes(typeof<ShapeCheckAttribute>, true) do
                 printfn "meth %s has attr"  meth.Name
                 try 
                     syms.Push()
-                    let attr = attr :?> LiveCheckAttribute
+                    let attr = attr :?> ShapeCheckAttribute
                     let args = ParserLogic(syms, loc).GetParams optionals (meth.GetParameters()) attr.GivenArgs loc
 
                     let res =
@@ -309,15 +309,15 @@ module Tools =
            
         ctorArgs, Ok model, methCalls.ToArray(), diags.ToArray()
 
-/// When added a to model or its methods, indicates that LiveCheck tooling should analyse the shapes
+/// When added a to model or its methods, indicates that ShapeCheck tooling should analyse the shapes
 /// of the construct.
 [<AttributeUsage(validOn=AttributeTargets.All, AllowMultiple=true, Inherited=true)>]
-type LiveCheckAttribute internal (given: obj[]) =
+type ShapeCheckAttribute internal (given: obj[]) =
     inherit System.Attribute()
-    new (argShape1: obj) = LiveCheckAttribute([| argShape1 |])
-    new (argShape1: obj, argShape2: obj) = LiveCheckAttribute([| argShape1; argShape2 |])
-    new (argShape1: obj, argShape2: obj, argShape3: obj) = LiveCheckAttribute([| argShape1; argShape2; argShape3 |])
-    new () = LiveCheckAttribute([| |] : obj[])
+    new (argShape1: obj) = ShapeCheckAttribute([| argShape1 |])
+    new (argShape1: obj, argShape2: obj) = ShapeCheckAttribute([| argShape1; argShape2 |])
+    new (argShape1: obj, argShape2: obj, argShape3: obj) = ShapeCheckAttribute([| argShape1; argShape2; argShape3 |])
+    new () = ShapeCheckAttribute([| |] : obj[])
 
     member val ReturnShape : obj = null with get, set
 
@@ -355,7 +355,7 @@ type LiveCheckAttribute internal (given: obj[]) =
 
         printfn "attr.GivenArgs = %A" attr.GivenArgs
         let loc = { File = locFile; StartLine = locStartLine; StartColumn = locStartColumn; EndLine = locEndLine; EndColumn= locEndColumn }
-        let _, _, _, diags = makeModelAndRunLiveChecks syms optionals ctor attr.GivenArgs loc methLocs
+        let _, _, _, diags = makeModelAndRunShapeChecks syms optionals ctor attr.GivenArgs loc methLocs
         [| for diag in diags -> 
             let stack = 
                 [| for m in diag.LocationStack do
@@ -387,7 +387,7 @@ module MoreTools =
                 let loc = { File = caller; StartLine = callerLine; StartColumn = 0; EndLine = callerLine; EndColumn= 80 }
 
                 // TODO: use _diags
-                let ctorArgs, model, methCalls, _diags = makeModelAndRunLiveChecks syms optionals ctor [| |] loc [| |]
+                let ctorArgs, model, methCalls, _diags = makeModelAndRunShapeChecks syms optionals ctor [| |] loc [| |]
                 match model with 
                 | Error e -> 
                    printfn "%O: error DS1998 - %s" loc e.Message

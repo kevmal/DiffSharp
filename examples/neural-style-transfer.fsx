@@ -34,6 +34,10 @@ open DiffSharp
 open DiffSharp.Model
 open DiffSharp.ShapeChecking
 
+// See https://www.compart.com/en/unicode/block/U+1D400 for nice italic characters
+
+let Model ps f = Model.create ps f
+
 let Assert b = if not b then failwith "assertion constraint failed"
 
 type Tensor with 
@@ -50,48 +54,52 @@ type Tensor with
 
 
 
+//[<ShapeCheck>]
+//module Test =
 
-[<LiveCheck(0, "𝐶")>]
-//[<LiveCheck(1, "𝑁,3,68,68")>]
-// See https://www.compart.com/en/unicode/block/U+1D400 for nice italic characters
-type NeuralStyles(sym: ISymScope, numChannels: Int) =
+//    [<ShapeCheck("N,C,H,W", "K,C,F1,F2")>]
+//    let someFunction (t1: Tensor, t2: Tensor) = 
+//           let res = t1.conv2d(t2).conv2d(t2).conv2d(t2).conv2d(t2)
+//           res
+
+
+
+[<ShapeCheck("𝐶")>]
+type NeuralStyles(C: Int) =
     inherit Model()
 
-    let instance_norm (channels: Int) name = 
-        let shift = Weight.uniform (Shape [| channels |], 0.0) |> Parameter
-        let scale = Weight.uniform (Shape [| channels |], 1.0) |> Parameter
-        Model.create 
-            [shift, name + "/instance_norm/shift"; scale, name + "/instance_norm/scale"]
-            (fun input  ->
-                let mu, sigma_sq = input.moments(dims= [2;3]) 
-                let epsilon = 0.001
-                let normalized =  (input - mu) / sqrt (sigma_sq + epsilon)
-                scale.value.view(Shape [|channels;1I;1I|]) * normalized + shift.value.view(Shape [|channels;1I;1I|]))
-                
-    let conv_layer (in_channels: Int, out_channels: Int, filter_size: Int, stride: Int, name) = 
-        let filters = Weight.uniform (Shape [| out_channels; in_channels; filter_size; filter_size|], 0.1) |> Parameter // fm.truncated_normal() 
-        let inorm = instance_norm (out_channels) name 
-        Model.create 
-            ([inorm] @ [ filters, name + "/weights"])
-            (fun input  ->
-                dsharp.conv2d (input, filters.value, stride=stride, padding=filter_size/2)
-                |> inorm.forward)
+    let instance_norm (channels: Int) = 
+        let shift = Parameter (Weight.uniform ([ channels ], 0.0))
+        let scale = Parameter (Weight.uniform ([ channels ], 1.0))
+        Model [shift; scale] (fun input  ->
+            let mu, sigma_sq = input.moments(dims= [2;3]) 
+            let epsilon = 0.001
+            let normalized =  (input - mu) / sqrt (sigma_sq + epsilon)
+            scale.value.view([ channels; 1I; 1I ]) * normalized + shift.value.view([ channels; 1I; 1I ])
+        )
 
-    let conv_transpose_layer (out_channels:Int, filter_size:Int, stride, name) =
-        let filters = Weight.uniform (Shape [| sym.Infer; out_channels; filter_size; filter_size|], 0.1) |> Parameter  // fm.truncated_normal() 
-        let inorm = instance_norm (out_channels) name 
-        Model.create 
-            ([inorm] @ [filters, name + "/weights"])
-            (fun input  ->
-                dsharp.convTranspose2d(input, filters.value, stride=stride, padding=filter_size/stride, outputPadding=filter_size % stride) 
-                |> inorm.forward)
+    let conv_layer (in_channels: Int, out_channels: Int, filter_size: Int, stride: Int) = 
+        let filters = Parameter (Weight.uniform ([ out_channels; in_channels; filter_size; filter_size], 0.1))
+        let inorm = instance_norm (out_channels) 
+        Model [filters; inorm] (fun input  ->
+            dsharp.conv2d (input, filters.value, stride=stride, padding=filter_size/2)
+            |> inorm.forward
+        )
 
-    let residual_block (filter_size, name) = 
-        let conv1 = conv_layer (128I, 128I, filter_size, 1I, name + "_c1")
-        let conv2 = conv_layer (128I, 128I, filter_size, 1I, name + "_c2") 
-        Model.create 
-            [conv1; conv2]
-            (fun input  -> input + conv1.forward input |> dsharp.relu |> conv2.forward)
+    let conv_transpose_layer (in_channels: Int, out_channels:Int, filter_size:Int, stride) =
+        let filters = Parameter (Weight.uniform ([ in_channels; out_channels; filter_size; filter_size], 0.1))
+        let inorm = instance_norm (out_channels) 
+        Model [filters; inorm] (fun input  ->
+            dsharp.convTranspose2d(input, filters.value, stride=stride, padding=filter_size/stride, outputPadding=filter_size % stride) 
+            |> inorm.forward
+        )
+
+    let residual_block filter_size = 
+        let conv1 = conv_layer (128I, 128I, filter_size, 1I)
+        let conv2 = conv_layer (128I, 128I, filter_size, 1I) 
+        Model [conv1; conv2] (fun input  ->
+            input + conv1.forward input |> dsharp.relu |> conv2.forward
+        )
 
     let to_pixel_value (input: Tensor) = 
         dsharp.tanh input * 150.0 + (255.0 / 2.0)
@@ -100,31 +108,48 @@ type NeuralStyles(sym: ISymScope, numChannels: Int) =
         dsharp.clamp(input, min, max)
 
     let model : Model =
-        conv_layer (numChannels, 32I, 9I, 1I, "conv1") --> dsharp.relu
-        --> conv_layer (32I, 64I, 3I, 2I, "conv2") --> dsharp.relu
-        --> conv_layer (64I, 128I, 3I, 2I, "conv3") --> dsharp.relu
-        --> residual_block (3I, "resid1")
-        --> residual_block (3I, "resid2")
-        --> residual_block (3I, "resid3")
-        --> residual_block (3I, "resid4")
-        --> residual_block (3I, "resid5")
-        --> conv_transpose_layer (64I, 3I, 2I, "conv_t1") --> dsharp.relu
-        --> conv_transpose_layer (32I, 3I, 2I, "conv_t2") --> dsharp.relu
-        --> conv_layer (32I, numChannels, 9I, 1I, "conv_t3")
+        conv_layer (C, 32I, 9I, 1I) --> dsharp.relu
+        --> conv_layer (32I, 64I, 3I, 2I) --> dsharp.relu
+        --> conv_layer (64I, 128I, 3I, 2I) --> dsharp.relu
+        --> residual_block 3I
+        --> residual_block 3I
+        --> residual_block 3I
+        --> residual_block 3I
+        --> residual_block 3I
+        --> conv_transpose_layer (128I, 64I, 3I, 2I) --> dsharp.relu
+        --> conv_transpose_layer (64I, 32I, 3I, 2I) --> dsharp.relu
+        --> conv_layer (32I, C, 9I, 1I)
         --> to_pixel_value 
         --> clip 0.0 255.0
 
-    [<LiveCheck( "𝑁,𝐶,𝐻,𝑊", ReturnShape="𝑁,𝐶,𝐻,𝑊")>]
-//    [<LiveCheck( "5,3,64,64", ReturnShape="5,3,64,64")>]
-//    [<LiveCheck( "5,3,65,65", ReturnShape="5,3,68,68")>]
-//    [<LiveCheck( "5,3,66,66", ReturnShape="5,3,68,68")>]
-    //[<LiveCheck( "5,3,68,68")>] //, ReturnShape="5,3,68,68")>]
-    //[<LiveCheck( "5,3,67,67")>] //, ReturnShape="5,3,68,68")>]
-    //[<LiveCheck( "5,3,67,67", ReturnShape="5,3,68,68")>]
-    //[<LiveCheck( "5,3,68,68", ReturnShape="5,3,68,68")>]
+    //[<ShapeCheck( "5,3,65,65", ReturnShape="5,3,68,68")>]
+    //[<ShapeCheck( "5,3,68,68", ReturnShape="5,3,68,68")>]
+    [<ShapeCheck("𝑁,𝐶,𝐻,𝑊")>] 
     override _.forward(input) = 
-        model.forward(input)
+        let H = input.shapex.[2]
+        //let W = input.shapex.[3]
+        Assert (H % 4I =~= 0I)
+        //Assert (H >~ 4I)
+        //Assert (H <~ 6I)
+        //Assert (W % 4I =~= 0I)
+        model.forward(input) 
         
+         
+
+
+//[<ShapeCheck( "5,3,68,68")>]
+ //, ReturnShape="5,3,68,68")>]
+//[<ShapeCheck( "5,3,68,68")>] //, ReturnShape="5,3,68,68")>]
+
+//[<ShapeCheck(1, "𝑁,𝐶,𝐻,𝑊")>]
+//[<ShapeCheck( "𝑁,𝐶,𝐻,𝑊", ReturnShape="𝑁,𝐶,𝐻,𝑊")>]
+//    [<ShapeCheck( "5,3,64,64", ReturnShape="5,3,64,64")>]
+//    [<ShapeCheck( "5,3,65,65", ReturnShape="5,3,68,68")>]
+//    [<ShapeCheck( "5,3,66,66", ReturnShape="5,3,68,68")>]
+//[<ShapeCheck( "5,3,68,68")>] //, ReturnShape="5,3,68,68")>]
+//[<ShapeCheck( "5,3,67,67")>] //, ReturnShape="5,3,68,68")>]
+//[<ShapeCheck( "5,3,67,67", ReturnShape="5,3,68,68")>]
+//[<ShapeCheck( "5,3,68,68", ReturnShape="5,3,68,68")>]
 
 (*
 dsharp.config(backend=Backend.Torch, device=Device.CPU)
@@ -153,5 +178,6 @@ for epoch = 0 to epochs do
             let samples = model.sample(Int 64).view([-1; 1; 28; 28])
             samples.saveImage(sprintf "samples_%A_%A.png" epoch i)
 
-*)
 
+
+*)

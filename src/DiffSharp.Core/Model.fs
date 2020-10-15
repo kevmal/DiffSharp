@@ -292,9 +292,16 @@ type Weight() =
         w * s
 
     /// <summary>TBD</summary>
-    static member uniform(shape:Shape, k:float) =
-        -k + dsharp.rand(shape) * 2*k
+    static member kaiming(fanIn:int, fanOut:int, ?a:float) =  Weight.kaiming(Int fanIn, Int fanOut, ?a=a)
 
+    /// <summary>TBD</summary>
+    static member uniform(shape:Shape, k:float) = -k + dsharp.rand(shape) * 2*k
+    
+    /// <summary>TBD</summary>
+    static member uniform(shape:seq<int>, k:float) = Weight.uniform (Shape shape, k)
+    
+    /// <summary>TBD</summary>
+    static member uniform(shape:seq<Int>, k:float) = Weight.uniform (Shape shape, k)
 
 /// <summary>TBD</summary>
 type Linear(inFeatures:Int, outFeatures:Int, ?bias:bool) =

@@ -159,7 +159,9 @@ type SymScope() =
                 match location with 
                 | :? SourceLocation as loc ->  loc
                 | _ -> { File = "?"; StartLine = 0; StartColumn = 0; EndLine = 0; EndColumn= 80 }
-            syms.CreateVar (name, loc) :> ISym
+            let sym = syms.CreateVar (name, loc) :> ISym
+            sym.TryGetConst() |> ignore
+            sym
 
         override syms.AssertConstraint(func: string, args: ISym[]) =
             let args = args |> Array.map (fun (Sym x) -> x)

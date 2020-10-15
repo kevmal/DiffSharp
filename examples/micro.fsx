@@ -11,16 +11,29 @@ open DiffSharp.Data
 open DiffSharp.ShapeChecking
 
 
-[<LiveCheck>]
+
+
+
+[<ShapeCheck>]
+module SomeTensorCode =
+    
+    [<ShapeCheck>]
+    let someFunction (C: Int, H: Int) = 
+          let res = C + H + 2
+          res
+    
+
+(*    
+[<ShapeCheck>]
 type SomeModel(sym: SymScope, x1: Int) =
 
     //do Assert (x1 >~ 0)
     
-    [<LiveCheck("𝐵,3,(𝐻/4)+3,(𝑊/4)+3", "5,64,16,16")>]
+    [<ShapeCheck("𝐵,3,(𝐻/4)+3,(𝑊/4)+3", "5,64,16,16")>]
     member _.Add(input: Tensor) = 
         //let res = dsharp.convTranspose2d(input, filters, stride=Int 2, padding=Int 9, outputPadding=Int 1)   // , paddings=[sym?FH/Int 2; sym?FW/Int 2])
         input
-
+        *)
 
 (*
 open DiffSharp.ShapeChecking

@@ -42,7 +42,7 @@ let Assert b = if not b then failwith "assertion constraint failed"
 /// Variational auto-encoder example in DiffSharp (shape-aware)
 //
 // See https://www.compart.com/en/unicode/block/U+1D400 for nice italic characters
-[<LiveCheck( "𝑋", "𝑌", "𝑍" )>]
+[<ShapeCheck( "𝑋", "𝑌", "𝑍" )>]
 type VAE(xDim:Int, yDim: Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Tensor, ?activationLast:Tensor->Tensor) =
     inherit Model()
     let xyDim = xDim * yDim 
@@ -87,7 +87,7 @@ type VAE(xDim:Int, yDim: Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Ten
         let z = latent mu logVar
         decode z, mu, logVar
 
-    [<LiveCheck( [| "𝐵"; "𝑋"; "𝑌" |], ReturnShape=[| |])>]
+    [<ShapeCheck( [| "𝐵"; "𝑋"; "𝑌" |], ReturnShape=[| |])>]
     member m.loss(x: Tensor) =
         let xRecon, mu, logVar = m.encodeDecode x
         let target = x.view(Shape [|Int -1; xyDim|])
@@ -95,12 +95,12 @@ type VAE(xDim:Int, yDim: Int, zDim:Int, ?hDims:seq<Int>, ?activation:Tensor->Ten
         let kl = -0.5 * dsharp.sum(1. + logVar - mu.pow(2.) - logVar.exp())
         bce + kl
 
-    [<LiveCheck( "𝑁" , ReturnShape=[| "𝑁"; "𝑋*𝑌" |] )>]
+    [<ShapeCheck( "𝑁" , ReturnShape=[| "𝑁"; "𝑋*𝑌" |] )>]
     member _.sample(?numSamples:Int) = 
         let numSamples = defaultArg numSamples (Int 1)
         dsharp.randn(Shape [|numSamples; zDim|]) |> decode
 
-    [<LiveCheck( [| "𝐵"; "𝑋"; "𝑌" |] , ReturnShape=[| "𝐵"; "𝑋*𝑌" |] )>]
+    [<ShapeCheck( [| "𝐵"; "𝑋"; "𝑌" |] , ReturnShape=[| "𝐵"; "𝑋*𝑌" |] )>]
     override m.forward(x) =
         let x, _, _ = m.encodeDecode(x) in x
 

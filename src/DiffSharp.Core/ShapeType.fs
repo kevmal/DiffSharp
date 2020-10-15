@@ -192,13 +192,18 @@ type Shape internal (values: int[], dims: Int[]) =
         | _, _ -> f2 x.Dims y.Dims
 
     /// Creates a constant shape from an array of integers
-    new (values: int[]) = Shape(values, null)
+    new (values: seq<int>) = 
+        let arr = Seq.toArrayQuick values
+        for d in arr do
+            if not (d = -1 || d > 0) then failwithf "The shape dimension '%O' is zero or negative. Shape dimensions must be positive, or else the indicator -1." d
+        Shape(arr, null)
 
     /// Creates a possibly-symbolic shape from an array of possibly-symbolic integers
-    new (arr: Int[]) =
+    new (dims: seq<Int>) =
         // assert all are either syntactically -1 placeholders or constrained > 0
+        let arr = Seq.toArrayQuick dims
         for d in arr do
-           (d = Int -1 || d >~ Int 0) |> ignore
+            if not (d = Int -1 || d >~ Int 0) then failwithf "The shape dimension '%O' is zero or negative. Shape dimensions must be positive, or else the indicator -1." d
         Shape(null, arr)
 
     /// Get the number of dimensions in the shape
