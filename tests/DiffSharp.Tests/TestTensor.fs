@@ -764,9 +764,6 @@ type TestTensor () =
                 | Int64 -> ""
                 | Float32 -> ".000000"
                 | Float64 -> ".000000"
-#if SYMBOLIC_SHAPES
-                | Sym _ -> failwith "unexpected symbolic"
-#endif
             let dtypeText = if dtype = Dtype.Default then "" else ",dtype=" + dtype.ToString()
             let t0StringCorrect = sprintf "tensor(2%s%s)" suffix dtypeText
             let t1StringCorrect = sprintf "tensor([[2%s],\n        [2%s]]%s)" suffix suffix dtypeText

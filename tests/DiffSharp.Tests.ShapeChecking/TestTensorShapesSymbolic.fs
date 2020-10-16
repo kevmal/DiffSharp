@@ -1,6 +1,5 @@
 ﻿namespace Tests
 
-#if SYMBOLIC_SHAPES
 open NUnit.Framework
 open DiffSharp
 open DiffSharp.ShapeChecking
@@ -44,4 +43,3 @@ type TestTensorShapesSymbolic () =
             Assert.True(t3ShapeCorrect =~= t3Shape)
             Assert.True(t4ShapeCorrect =~= t4Shape)
             Assert.True(t1.dtype =~= combo.dtype)
-#endif

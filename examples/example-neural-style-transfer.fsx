@@ -55,10 +55,15 @@ type Tensor with
 module Test =
 
     [<ShapeCheck("N,C,H,W", "K,C,F1,F2")>]
+    //[<ShapeCheck("N,C,748,748", "32,C,9,9")>]
     let someFunction (t1: Tensor, t2: Tensor) = 
-           let res = t1.conv2d(t2)
+           let res = t1.conv2d(t2, stride=2I, padding=4I)
            res
 
+
+           
+
+[<ShapeCheck(3)>]
 type NeuralStyles(C: Int) =
     inherit Model()
 
@@ -116,6 +121,8 @@ type NeuralStyles(C: Int) =
         --> to_pixel_value 
         --> clip 0.0 255.0
 
+    [<ShapeCheck( "5,3,65,65", ReturnShape="5,3,65,65")>]
+    //[<ShapeCheck( "5,C,65,65")>]
     override _.forward(input) = 
         model.forward(input) 
         

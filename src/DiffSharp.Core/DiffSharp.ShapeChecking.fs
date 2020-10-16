@@ -285,6 +285,16 @@ module ShapedInferenceAutoOpens =
         static member zeros(shape:seq<Int>, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
             Tensor(RawTensor.Zeros(Shape shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
+        /// <summary>Returns a new tensor filled with '0' values for the given shape, element type and configuration.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="length">The length of the returned tensor.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, uses Dtype.Default.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, uses Device.Default.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, uses Backend.Default.</param>
+        static member zeros(length:Int, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            Tensor(RawTensor.Zeros(Shape [| length |], ?dtype=dtype, ?device=device, ?backend=backend))
+
         /// <summary>Returns a new tensor filled with '1' values for the given shape, element type and configuration.
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
         /// </summary>
@@ -304,6 +314,16 @@ module ShapedInferenceAutoOpens =
         /// <param name="backend">The desired backend of returned tensor. Default: if None, uses Backend.Default.</param>
         static member ones(shape:seq<Int>, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
             Tensor(RawTensor.Ones(Shape shape, ?dtype=dtype, ?device=device, ?backend=backend))
+
+        /// <summary>Returns a new tensor filled with '1' values for the given shape, element type and configuration.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="length">The length of the returned tensor.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, uses Dtype.Default.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, uses Device.Default.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, uses Backend.Default.</param>
+        static member ones(length:Int, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            Tensor(RawTensor.Ones(Shape [| length |], ?dtype=dtype, ?device=device, ?backend=backend))
 
         /// <summary>Returns a new tensor filled with the scalar <paramref name="value" />, for the given shape, element type and configuration.
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
@@ -326,6 +346,17 @@ module ShapedInferenceAutoOpens =
         /// <param name="backend">The desired backend of returned tensor. Default: if None, uses Backend.Default.</param>
         static member full(shape:seq<Int>, value:obj, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
             Tensor(RawTensor.Full(Shape shape, value, ?dtype=dtype, ?device=device, ?backend=backend))
+
+        /// <summary>Returns a new tensor filled with the scalar <paramref name="value" />, for the given shape, element type and configuration.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="length">The length of the returned tensor.</param>
+        /// <param name="value">The .NET object used to form the initial values for the tensor.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, uses Dtype.Default.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, uses Device.Default.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, uses Backend.Default.</param>
+        static member full(length:Int, value:obj, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            Tensor(RawTensor.Full(Shape [| length |], value, ?dtype=dtype, ?device=device, ?backend=backend))
 
         // /// <summary>TBD</summary>
         // static member arange(endVal:int, ?startVal:int, ?step:int, ?dtype:Dtype, ?device:Device, ?backend:Backend) = dsharp.zero(?dtype=dtype, ?device=device, ?backend=backend).arangeLike(endVal=endVal, ?startVal=startVal, ?step=step)
@@ -414,7 +445,8 @@ module ShapedInferenceAutoOpens =
         /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
         /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
         /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
-        static member zerosLike(input:Tensor, shape:Shape, ?dtype, ?device, ?backend) = input.zerosLike(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+        static member zerosLike(input:Tensor, shape:Shape, ?dtype, ?device, ?backend) =
+            input.zerosLike(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>Returns a new tensor filled with '0' values with characteristics based on the input tensor.
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
@@ -424,7 +456,8 @@ module ShapedInferenceAutoOpens =
         /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
         /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
         /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
-        static member zerosLike(input:Tensor, shape:seq<Int>, ?dtype, ?device, ?backend) = input.zerosLike(shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
+        static member zerosLike(input:Tensor, shape:seq<Int>, ?dtype, ?device, ?backend) =
+            input.zerosLike(shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>Returns a new tensor filled with '1' values with characteristics based on the input tensor.
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
@@ -434,7 +467,8 @@ module ShapedInferenceAutoOpens =
         /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
         /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
         /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
-        static member onesLike(input:Tensor, shape:Shape, ?dtype, ?device, ?backend) = input.onesLike(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+        static member onesLike(input:Tensor, shape:Shape, ?dtype, ?device, ?backend) =
+            input.onesLike(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>Returns a new tensor filled with '1' values with characteristics based on the input tensor.
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
@@ -444,7 +478,8 @@ module ShapedInferenceAutoOpens =
         /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
         /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
         /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
-        static member onesLike(input:Tensor, shape:seq<Int>, ?dtype, ?device, ?backend) = input.onesLike(shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
+        static member onesLike(input:Tensor, shape:seq<Int>, ?dtype, ?device, ?backend) =
+            input.onesLike(shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>Returns a new tensor filled with the given scalar value with characteristics based on the input tensor.
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
@@ -455,7 +490,8 @@ module ShapedInferenceAutoOpens =
         /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
         /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
         /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
-        static member fullLike(input:Tensor, value:scalar, shape:Shape, ?dtype, ?device, ?backend) = input.fullLike(value, shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+        static member fullLike(input:Tensor, value:scalar, shape:Shape, ?dtype, ?device, ?backend) =
+            input.fullLike(value, shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>Returns a new tensor filled with the given scalar value with characteristics based on the input tensor.
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
@@ -466,7 +502,8 @@ module ShapedInferenceAutoOpens =
         /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
         /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
         /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
-        static member fullLike(input:Tensor, value:scalar, shape:seq<Int>, ?dtype, ?device, ?backend) = input.fullLike(value, shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
+        static member fullLike(input:Tensor, value:scalar, shape:seq<Int>, ?dtype, ?device, ?backend) =
+            input.fullLike(value, shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
         // /// <summary>TBD</summary>
         // static member arangeLike(input:Tensor, endVal:float, ?startVal:float, ?step:float, ?dtype:Dtype, ?device:Device, ?backend:Backend) = input.arangeLike(endVal=endVal, ?startVal=startVal, ?step=step, ?dtype=dtype, ?device=device, ?backend=backend)

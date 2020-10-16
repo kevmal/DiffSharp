@@ -20,9 +20,6 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
         | Int32 -> box 0
         | Int64 -> box 0L
         | Bool -> box false
-#if SYMBOLIC_SHAPES
-        | Sym _ -> box 0.0
-#endif
 
     member t.MakeLike(?shape: Shape, ?device: Device, ?dtype) =
         ShapeCheckingTensor(defaultArg shape t.Shape, defaultArg dtype t.Dtype, defaultArg device t.Device) :> RawTensor
@@ -92,11 +89,6 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
             | Int32 -> arrayND dims (fun _ -> 0)
             | Int64 -> arrayND dims (fun _ -> 0L)
             | Bool -> arrayND dims (fun _ -> false)
-#if SYMBOLIC_SHAPES
-            | Sym _ -> 
-                printfn "ToValues not available for symbolic dtype"
-                arrayND dims (fun _ -> 0)
-#endif
 
     override _.StackTs(tensors, dim) =
         let shapes = tensors |> Array.map (fun t -> t.Shape)

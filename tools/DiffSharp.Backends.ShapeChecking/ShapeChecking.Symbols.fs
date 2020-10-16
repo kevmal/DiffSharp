@@ -1,11 +1,8 @@
 ﻿namespace rec DiffSharp.ShapeChecking
 
-//#if SYMBOLIC_SHAPES
 open System
 open System.Collections.Concurrent
 open System.Collections.Generic
-open System.Reflection
-open DiffSharp
 open DiffSharp.ShapeChecking
 open Microsoft.Z3
 
@@ -341,5 +338,3 @@ type SymScope() =
         //printfn "post-elim%O" simp2
         print 0 simp2
 
-
-//#endif

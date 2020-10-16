@@ -291,12 +291,12 @@ type Weight =
     static member kaiming(fanIn:Int, fanOut:Int, ?a:float) = 
         // He et al. 2015. https://arxiv.org/abs/1502.01852
         let a = defaultArg a (sqrt 5.)
-        let w = dsharp.randn(Shape [| fanIn; fanOut |])
+        let w = dsharp.randn([ fanIn; fanOut ])
         let s = sqrt (2. / ((1. + a*a) * (float fanIn.ValueOrOne)))
         w * s
 
     /// <summary>TBD</summary>
-    static member kaiming(fanIn:int, fanOut:int, ?a:float) =  Weight.kaiming(Int fanIn, Int fanOut, ?a=a)
+    static member kaiming(fanIn:int, fanOut:int, ?a:float) = Weight.kaiming(Int fanIn, Int fanOut, ?a=a)
 
     /// <summary>TBD</summary>
     static member uniform(shape:Shape, k:float) = -k + dsharp.rand(shape) * 2*k
@@ -313,7 +313,7 @@ type Linear(inFeatures:Int, outFeatures:Int, ?bias:bool) =
     let bias = defaultArg bias true
     let w = Parameter(Weight.kaiming(inFeatures, outFeatures))
     let k = 1./sqrt (float outFeatures.ValueOrOne)
-    let b = Parameter(if bias then Weight.uniform(Shape [|outFeatures|], k) else dsharp.zero())
+    let b = Parameter(if bias then Weight.uniform([outFeatures], k) else dsharp.zero())
     do base.add([w;b],["Linear__weight";"Linear__bias"])
 
     /// <summary>TBD</summary>
@@ -333,8 +333,8 @@ type Conv1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:Int, ?paddi
     inherit Model()
     let bias = defaultArg bias true
     let k = 1./ sqrt (float (inChannels*kernelSize).ValueOrOne)
-    let w = Parameter <| Weight.uniform(Shape [|outChannels; inChannels; kernelSize|], k)
-    let b = Parameter <| if bias then Weight.uniform(Shape [|outChannels|], k) else dsharp.zero()
+    let w = Parameter <| Weight.uniform([outChannels; inChannels; kernelSize], k)
+    let b = Parameter <| if bias then Weight.uniform([outChannels], k) else dsharp.zero()
     do base.add([w;b],["Conv1d__weight";"Conv1d__bias"])
 
     /// <summary>TBD</summary>
@@ -343,7 +343,7 @@ type Conv1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:Int, ?paddi
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.conv1d(value, w.value, ?stride=stride, ?padding=padding, ?dilation=dilation)
-        if bias then f + b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1 |]) else f
+        if bias then f + b.value.expand([ value.shapex.[0]; outChannels ]).view([ value.shapex.[0]; outChannels; 1I]) else f
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
@@ -357,11 +357,11 @@ type Conv2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padd
         | Some _ , Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
         | Some k, None -> [|k; k|]
         | None, Some k -> let k = k |> Array.ofSeq in if k.Length <> 2 then failwithf "Expecting kernelSizes to have length two" else k
-        | _ -> [|Int 1; Int 1|]
+        | _ -> [|1I; 1I|]
     let bias = defaultArg bias true
     let k = 1./ sqrt (float (inChannels*kernelSizes.[0]*kernelSizes.[1]).ValueOrOne)
-    let w = Parameter <| Weight.uniform(Shape [|outChannels; inChannels; kernelSizes.[0]; kernelSizes.[1]|], k)
-    let b = Parameter <| if bias then Weight.uniform(Shape [|outChannels|], k) else dsharp.zero()
+    let w = Parameter <| Weight.uniform([outChannels; inChannels; kernelSizes.[0]; kernelSizes.[1]], k)
+    let b = Parameter <| if bias then Weight.uniform([outChannels], k) else dsharp.zero()
     do base.add([w;b],["Conv2d__weight";"Conv2d__bias"])
 
     /// <summary>TBD</summary>
@@ -370,7 +370,7 @@ type Conv2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padd
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.conv2d(value, w.value, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
-        if bias then f + b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1; Int 1 |]) else f
+        if bias then f + b.value.expand([ value.shapex.[0]; outChannels ]).view([ value.shapex.[0]; outChannels; 1I; 1I ]) else f
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
@@ -384,11 +384,11 @@ type Conv3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padd
         | Some _ , Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
         | Some k, None -> [|k; k; k|]
         | None, Some k -> let k = k |> Array.ofSeq in if k.Length <> 3 then failwithf "Expecting kernelSizes to have length three" else k
-        | _ -> [|Int 1; Int 1; Int 1|]
+        | _ -> [|1I; 1I; 1I|]
     let bias = defaultArg bias true
     let k = 1./ sqrt (float (inChannels.ValueOrOne*kernelSizes.[0]*kernelSizes.[1]*kernelSizes.[2]).ValueOrOne)
-    let w = Parameter <| Weight.uniform(Shape [|outChannels; inChannels; kernelSizes.[0]; kernelSizes.[1]; kernelSizes.[2]|], k)
-    let b = Parameter <| if bias then Weight.uniform(Shape [|outChannels|], k) else dsharp.zero()
+    let w = Parameter <| Weight.uniform([outChannels; inChannels; kernelSizes.[0]; kernelSizes.[1]; kernelSizes.[2]], k)
+    let b = Parameter <| if bias then Weight.uniform([outChannels], k) else dsharp.zero()
     do base.add([w;b],["Conv3d__weight";"Conv3d__bias"])
 
     /// <summary>TBD</summary>
@@ -397,7 +397,7 @@ type Conv3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padd
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.conv3d(value, w.value, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
-        if bias then f + b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1; Int 1; Int 1 |]) else f
+        if bias then f + b.value.expand([ value.shapex.[0]; outChannels ]).view([ value.shapex.[0]; outChannels; 1I; 1I; 1I ]) else f
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
@@ -409,8 +409,8 @@ type ConvTranspose1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:In
     inherit Model()
     let bias = defaultArg bias true
     let k = 1./ sqrt (float (inChannels*kernelSize).ValueOrOne)
-    let w = Parameter <| Weight.uniform(Shape [|inChannels; outChannels; kernelSize|], k)
-    let b = Parameter <| if bias then Weight.uniform(Shape [|outChannels|], k) else dsharp.zero()
+    let w = Parameter <| Weight.uniform([inChannels; outChannels; kernelSize], k)
+    let b = Parameter <| if bias then Weight.uniform([outChannels], k) else dsharp.zero()
     do base.add([w;b],["ConvTranspose1d__weight";"ConvTranspose1d__bias"])
 
     /// <summary>TBD</summary>
@@ -419,7 +419,7 @@ type ConvTranspose1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:In
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.convTranspose1d(value, w.value, ?stride=stride, ?padding=padding, ?dilation=dilation)
-        if bias then f + b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1 |]) else f
+        if bias then f + b.value.expand([ value.shapex.[0]; outChannels ]).view([ value.shapex.[0]; outChannels; 1I ]) else f
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
@@ -433,11 +433,11 @@ type ConvTranspose2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:I
         | Some _ , Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
         | Some k, None -> [|k; k|]
         | None, Some k -> let k = k |> Array.ofSeq in if k.Length <> 2 then failwithf "Expecting kernelSizes to have length two" else k
-        | _ -> [|Int 1; Int 1|]
+        | _ -> [|1I; 1I|]
     let bias = defaultArg bias true
     let k = 1./ sqrt (float (inChannels*kernelSizes.[0]*kernelSizes.[1]).ValueOrOne)
-    let w = Parameter <| Weight.uniform(Shape [|inChannels; outChannels; kernelSizes.[0]; kernelSizes.[1]|], k)
-    let b = Parameter <| if bias then Weight.uniform(Shape [|outChannels|], k) else dsharp.zero()
+    let w = Parameter <| Weight.uniform([inChannels; outChannels; kernelSizes.[0]; kernelSizes.[1]], k)
+    let b = Parameter <| if bias then Weight.uniform([outChannels], k) else dsharp.zero()
     do base.add([w;b],["ConvTranspose2d__weight";"ConvTranspose2d__bias"])
 
     /// <summary>TBD</summary>
@@ -446,7 +446,7 @@ type ConvTranspose2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:I
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.convTranspose2d(value, w.value, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
-        if bias then f + b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1; Int 1 |]) else f
+        if bias then f + b.value.expand([ value.shapex.[0]; outChannels ]).view([ value.shapex.[0]; outChannels; 1I; 1I ]) else f
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
@@ -460,11 +460,11 @@ type ConvTranspose3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:I
         | Some _ , Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
         | Some k, None -> [|k; k; k|]
         | None, Some k -> let k = k |> Array.ofSeq in if k.Length <> 3 then failwithf "Expecting kernelSizes to have length three" else k
-        | _ -> [|Int 1; Int 1; Int 1|]
+        | _ -> [|1I; 1I; 1I|]
     let bias = defaultArg bias true
     let k = 1./ sqrt (float (inChannels*kernelSizes.[0]*kernelSizes.[1]*kernelSizes.[2]).ValueOrOne)
-    let w = Parameter <| Weight.uniform(Shape [|inChannels; outChannels; kernelSizes.[0]; kernelSizes.[1]; kernelSizes.[2]|], k)
-    let b = Parameter <| if bias then Weight.uniform(Shape [|outChannels|], k) else dsharp.zero()
+    let w = Parameter <| Weight.uniform([inChannels; outChannels; kernelSizes.[0]; kernelSizes.[1]; kernelSizes.[2]], k)
+    let b = Parameter <| if bias then Weight.uniform([outChannels], k) else dsharp.zero()
     do base.add([w;b],["ConvTranspose3d__weight";"ConvTranspose3d__bias"])
 
     /// <summary>TBD</summary>
@@ -473,7 +473,7 @@ type ConvTranspose3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:I
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.convTranspose3d(value, w.value, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
-        if bias then f + b.value.expand(Shape [| value.shapex.[0]; outChannels |]).view(Shape [| value.shapex.[0]; outChannels; Int 1; Int 1; Int 1 |]) else f
+        if bias then f + b.value.expand([ value.shapex.[0]; outChannels ]).view([ value.shapex.[0]; outChannels; 1I; 1I; 1I ]) else f
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
@@ -540,8 +540,8 @@ type BatchNorm1d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
     let affine = defaultArg affine true
     let trackRunningStats = defaultArg trackRunningStats true
     let reversible = defaultArg reversible false
-    let w = Parameter <| if affine then dsharp.ones(Shape [| numFeatures |]) else dsharp.zero() // gamma
-    let b = Parameter <| if affine then dsharp.zeros(Shape [| numFeatures |]) else dsharp.zero() // beta
+    let w = Parameter <| if affine then dsharp.ones(numFeatures) else dsharp.zero() // gamma
+    let b = Parameter <| if affine then dsharp.zeros(numFeatures) else dsharp.zero() // beta
     let _mean = Parameter <| dsharp.zero()
     let _variance = Parameter <| dsharp.zero()
     do base.add([w;b],["BatchNorm1d__weight";"BatchNorm1d__bias"]) // We don't add mean and variance here because they hold running statistics and are not subject to gradient-based optimization
@@ -591,7 +591,7 @@ type BatchNorm1d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
             if affine then res * w.value + b.value else res
         elif value.dim = 3 then
             if not (value.shapex.[1] =~= numFeatures) then failwithf "Expecting value to have shape NxCxL (batchSize x numFeatures x length) where numFeatures=%A, received value with shape %A" numFeatures value.shape
-            let vt = value.transpose(0,1).view(Shape [| numFeatures; Int -1 |])
+            let vt = value.transpose(0,1).view([ numFeatures; Int -1 ])
             let mean, var =
                 if m.mode = Mode.Train || (m.mode = Mode.Eval && not trackRunningStats) then
                     vt.mean(1), vt.variance(1, unbiased=false)
@@ -600,8 +600,8 @@ type BatchNorm1d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
             if not value.symbolic && m.mode = Mode.Train && trackRunningStats then
                 let n = vt.shape.[1]
                 m.updateStats mean var n
-            let res = (value - mean.view(Shape[|Int 1;numFeatures;Int 1 |])) / (var.view(Shape [| Int 1;numFeatures;Int 1|]) + eps).sqrt()
-            if affine then res * w.value.view(Shape [| Int 1;numFeatures;Int 1|]) + b.value.view(Shape [| Int 1;numFeatures;Int 1|]) else res
+            let res = (value - mean.view([1I;numFeatures;1I ])) / (var.view([ 1I;numFeatures;1I]) + eps).sqrt()
+            if affine then res * w.value.view([ 1I;numFeatures;1I]) + b.value.view([ 1I;numFeatures;1I]) else res
         else failwithf "Expecting value to have shape NxL (batchSize x Length) or NxCxL (batchSize x numChannels x Length), received value with shape %A" value.shape
 
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
@@ -633,8 +633,8 @@ type BatchNorm2d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
     let affine = defaultArg affine true
     let trackRunningStats = defaultArg trackRunningStats true
     let reversible = defaultArg reversible false
-    let w = Parameter <| if affine then dsharp.ones(Shape [| numFeatures |]) else dsharp.zero() // gamma
-    let b = Parameter <| if affine then dsharp.zeros(Shape [| numFeatures |]) else dsharp.zero() // beta
+    let w = Parameter <| if affine then dsharp.ones(numFeatures) else dsharp.zero() // gamma
+    let b = Parameter <| if affine then dsharp.zeros(numFeatures) else dsharp.zero() // beta
     let _mean = Parameter <| dsharp.zero()
     let _variance = Parameter <| dsharp.zero()
     do base.add([w;b],["BatchNorm2d__weight";"BatchNorm2d__bias"]) // We don't add mean and variance here because they hold running statistics and are not subject to gradient-based optimization
@@ -671,7 +671,7 @@ type BatchNorm2d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
     /// <summary>TBD</summary>
     override m.forward(value) =
         if value.dim <> 4 || not (value.shapex.[1] =~= numFeatures) then failwithf "Expecting value to have shape NxCxHxW (batchSize x numFeatures x height x width) where numFeatures=%A, received value with shape %A" numFeatures value.shape
-        let vt = value.transpose(0,1).view(Shape [| numFeatures;Int -1 |])
+        let vt = value.transpose(0,1).view([ numFeatures;Int -1 ])
         let mean, var =
             if m.mode = Mode.Train || (m.mode = Mode.Eval && not trackRunningStats) then
                 vt.mean(1), vt.variance(1, unbiased=false)
@@ -680,8 +680,8 @@ type BatchNorm2d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
         if not value.symbolic && m.mode = Mode.Train && trackRunningStats then
             let n = vt.shape.[1]
             m.updateStats mean var n
-        let res = (value - mean.view(Shape [|Int 1;numFeatures;Int 1;Int 1 |])) / (var.view(Shape [| Int 1;numFeatures;Int 1;Int 1|]) + eps).sqrt()
-        if affine then res * w.value.view(Shape [| Int 1;numFeatures;Int 1;Int 1|]) + b.value.view(Shape [| Int 1;numFeatures;Int 1;Int 1 |]) else res
+        let res = (value - mean.view([1I;numFeatures;1I;1I ])) / (var.view([1I;numFeatures;1I;1I]) + eps).sqrt()
+        if affine then res * w.value.view([ 1I;numFeatures;1I;1I]) + b.value.view([ 1I;numFeatures;1I;1I ]) else res
 
     /// <summary>TBD</summary>
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
@@ -713,8 +713,8 @@ type BatchNorm3d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
     let affine = defaultArg affine true
     let trackRunningStats = defaultArg trackRunningStats true
     let reversible = defaultArg reversible false
-    let w = Parameter <| if affine then dsharp.ones(Shape [| numFeatures |]) else dsharp.zero() // gamma
-    let b = Parameter <| if affine then dsharp.zeros(Shape [| numFeatures |]) else dsharp.zero() // beta
+    let w = Parameter <| if affine then dsharp.ones(numFeatures) else dsharp.zero() // gamma
+    let b = Parameter <| if affine then dsharp.zeros(numFeatures) else dsharp.zero() // beta
     let _mean = Parameter <| dsharp.zero()
     let _variance = Parameter <| dsharp.zero()
     do base.add([w;b],["BatchNorm3d__weight";"BatchNorm3d__bias"]) // We don't add mean and variance here because they hold running statistics and are not subject to gradient-based optimization
@@ -751,7 +751,7 @@ type BatchNorm3d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
     /// <summary>TBD</summary>
     override m.forward(value) =
         if value.dim <> 5 || not (value.shapex.[1] =~= numFeatures) then failwithf "Expecting value to have shape NxCxDxHxW (batchSize x numFeatures x depth x height x width) where numFeatures=%A, received value with shape %A" numFeatures value.shape
-        let vt = value.transpose(0,1).view(Shape [|numFeatures; Int -1 |])
+        let vt = value.transpose(0,1).view([numFeatures; Int -1])
         let mean, var =
             if m.mode = Mode.Train || (m.mode = Mode.Eval && not trackRunningStats) then
                 vt.mean(1), vt.variance(1, unbiased=false)
@@ -760,8 +760,8 @@ type BatchNorm3d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
         if not value.symbolic && m.mode = Mode.Train && trackRunningStats then
             let n = vt.shape.[1]
             m.updateStats mean var n
-        let res = (value - mean.view(Shape [| Int 1;numFeatures;Int 1;Int 1;Int 1 |])) / (var.view(Shape [| Int 1;numFeatures;Int 1;Int 1;Int 1|]) + eps).sqrt()
-        if affine then res * w.value.view(Shape [| Int 1;numFeatures;Int 1;Int 1;Int 1 |]) + b.value.view(Shape [| Int 1;numFeatures;Int 1;Int 1; Int 1 |]) else res        
+        let res = (value - mean.view([1I;numFeatures;1I;1I;1I])) / (var.view([1I;numFeatures;1I;1I;1I]) + eps).sqrt()
+        if affine then res * w.value.view([1I;numFeatures;1I;1I;1I]) + b.value.view([1I;numFeatures;1I;1I; 1I]) else res        
 
     /// <summary>TBD</summary>
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =

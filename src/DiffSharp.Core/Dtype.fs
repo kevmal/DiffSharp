@@ -23,10 +23,6 @@ type Dtype =
     | Int64
     /// Store elements as booleans
     | Bool
-#if SYMBOLIC_SHAPES
-    /// Allows symbolic dtypes
-    | Sym of ISym
-#endif
 
     member internal x.Name =
         match x with
@@ -39,34 +35,15 @@ type Dtype =
         | Int32 -> "Int32"
         | Int64 -> "Int64"
         | Bool -> "Bool"
-#if SYMBOLIC_SHAPES
-        | Sym sym -> sym.ToString()
-#endif
 
     /// Gets the natural result of the Sum(), SumToSize() and Sum(dim) operation on this dtype
     member t.SummationType =
         match t with
         | Bool | Byte | Int8 | Int16 | Int32 | Int64 -> Dtype.Int64
-#if SYMBOLIC_SHAPES
-        | Sym symb -> Sym (ISym.unop "summationType" symb)
-#endif
         | dt -> dt
 
-#if SYMBOLIC_SHAPES
-    member t.AsSymbol(syms: ISymScope) =
-        match t with
-        | Sym sym -> sym
-        | _ ->
-            syms.CreateConst(t.Name)
-    /// Constraint equality
-    static member (=~=) (a:Dtype,b:Dtype) : bool = 
-        match a, b with 
-        | Sym sym, v2 | v2, Sym sym -> sym.AssertEqualityConstraint(v2.AsSymbol(sym.SymScope))
-        | a, b -> (a = b)
-#else
     /// Constraint equality
     static member (=~=) (a:Dtype,b:Dtype) : bool = (a = b)
-#endif
 
 
 /// Contains functions and settings related to tensor element types
@@ -75,18 +52,12 @@ module Dtype =
     let (|FloatingPoint|_|) x =
         match x with
         | Float32 | Float64 -> Some()
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "FloatingPoint - symbolic dtype"
-#endif
         | _ -> None
 
     /// Matches all integral tensor element types
     let (|Integral|_|) x =
         match x with
         | Byte | Int8 | Int16 | Int32 | Int64 -> Some()
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "Integral - symbolic dtype"
-#endif
         | _ -> None
 
     /// Matches all integral or boolean tensor element types
@@ -100,11 +71,6 @@ module Dtype =
         if dtype1 = dtype2 then Some dtype1
         else
             match dtype1, dtype2 with 
-#if SYMBOLIC_SHAPES
-            | Sym sym, _ | _, Sym sym ->
-                // TODO: this lays down a constraint
-                Some (Sym (ISym.binop "widen" (dtype1.AsSymbol(sym.SymScope)) (dtype2.AsSymbol(sym.SymScope))))
-#endif
             | Float64, _ | _, Float64 -> Some Float64
             | Float32, _ | _, Float32 -> Some Float32
             | Int64, _ | _, Int64 -> Some Int64
@@ -119,10 +85,6 @@ module Dtype =
 
     /// Get or set the default element type used when creating tensors. Note, use <c>dsharp.config(...)</c> instead.
     let mutable Default = Dtype.Float32
-
-#if SYMBOLIC_SHAPES
-    let Symbolic (s: ISym) : Dtype = Dtype.Sym s
-#endif
 
 /// Contains global functions and settings related to tensor element types, used when writing backends.
 [<AutoOpen>]

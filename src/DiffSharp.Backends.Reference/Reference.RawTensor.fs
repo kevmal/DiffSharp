@@ -693,7 +693,7 @@ module internal RawTensorCPU =
         // t1: input, NxCxI (batchSize x inputChannels x inputLength)
         // t2: filters, KxCxF (outputChannels x inputChannels x kernelLength)
         let batchSize, inputChannels, kernelSize, outputChannels, outputSize, outputShape =
-            Shape.checkCanConv1d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding (Int 1)
+            Shape.checkCanConv1d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding 1I
         let batchSize, inputChannels, kernelSize, outputChannels, outputSize = batchSize.Value, inputChannels.Value, kernelSize.Value, outputChannels.Value, outputSize.Value
         let stride, padding = stride.Value, padding.Value
         let result = t1.ZerosLike(outputShape) :?> RawTensorCPU<'T>
@@ -720,7 +720,7 @@ module internal RawTensorCPU =
         // t1: input, NxCxHxW (batchSize x inputChannels x inputHeight x inputWidth)
         // t2: filters, KxCxFxG (outputChannels x inputChannels x kernelHeight x kernelWidth)
         let batchSize, inputChannels, (kernelHeight, kernelWidth), (outputChannels, outputHeight, outputWidth), outputShape =
-            Shape.checkCanConv2d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|Int 1;Int 1|]
+            Shape.checkCanConv2d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|1I;1I|]
         let batchSize, inputChannels, kernelHeight, kernelWidth, outputChannels, outputHeight, outputWidth =
             batchSize.Value, inputChannels.Value, kernelHeight.Value, kernelWidth.Value, outputChannels.Value, outputHeight.Value, outputWidth.Value
         let stride = stride |> Int.values
@@ -752,7 +752,7 @@ module internal RawTensorCPU =
         // t1: input, NxCxDxHxW (batchSize x inputChannels x inputDepth x inputHeight x inputWidth)
         // t2: filters, KxCxExFxG (outputChannels x inputChannels x kernelDepth x kernelHeight x kernelWidth)
         let batchSize, inputChannels, (kernelDepth, kernelHeight, kernelWidth), (outputChannels, outputDepth, outputHeight, outputWidth), outputShape = 
-            Shape.checkCanConv3d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|Int 1;Int 1;Int 1|]  
+            Shape.checkCanConv3d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|1I;1I;1I|]  
         let batchSize, inputChannels, kernelDepth, kernelHeight, kernelWidth, outputChannels, outputDepth, outputHeight, outputWidth =
             batchSize.Value, inputChannels.Value, kernelDepth.Value, kernelHeight.Value, kernelWidth.Value, outputChannels.Value, outputDepth.Value, outputHeight.Value, outputWidth.Value
         let stride = stride |> Int.values
@@ -1588,9 +1588,6 @@ type ReferenceBackendTensorStatics() =
         | Int32 -> RawTensorInt32.Zero(device)
         | Int64 -> RawTensorInt64.Zero(device)
         | Bool -> RawTensorBool.Zero(device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic dtypes require Backend.ShapeChecking"
-#endif
     override _.One(dtype, device) = 
         match dtype with 
         | Float32 -> RawTensorFloat32.One(device)
@@ -1601,9 +1598,6 @@ type ReferenceBackendTensorStatics() =
         | Int32 -> RawTensorInt32.One(device)
         | Int64 -> RawTensorInt64.One(device)
         | Bool -> RawTensorBool.One(device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic dtypes require Backend.ShapeChecking"
-#endif
     override _.Zeros(shape:Shape, dtype, device) =
         match dtype with 
         | Float32 -> RawTensorFloat32.Zeros(shape, device)
@@ -1614,9 +1608,6 @@ type ReferenceBackendTensorStatics() =
         | Int32 -> RawTensorInt32.Zeros(shape, device)
         | Int64 -> RawTensorInt64.Zeros(shape, device)
         | Bool -> RawTensorBool.Zeros(shape, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic dtypes require Backend.ShapeChecking"
-#endif
     override _.Empty(shape:Shape, dtype, device) =
         match dtype with 
         | Float32 -> RawTensorFloat32.Empty(shape, device)
@@ -1627,9 +1618,6 @@ type ReferenceBackendTensorStatics() =
         | Int32 -> RawTensorInt32.Empty(shape, device)
         | Int64 -> RawTensorInt64.Empty(shape, device)
         | Bool -> RawTensorBool.Empty(shape, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic dtypes require Backend.ShapeChecking"
-#endif
     override _.Ones(shape:Shape, dtype, device) =
         match dtype with 
         | Float32 -> RawTensorFloat32.Ones(shape, device)
@@ -1640,9 +1628,6 @@ type ReferenceBackendTensorStatics() =
         | Int32 -> RawTensorInt32.Ones(shape, device)
         | Int64 -> RawTensorInt64.Ones(shape, device)
         | Bool -> RawTensorBool.Ones(shape, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic dtypes require Backend.ShapeChecking"
-#endif
     override _.Full(shape:Shape, value:obj, dtype, device) = 
         match dtype with 
         | Float32 -> RawTensorFloat32.Full(shape, value, device)
@@ -1653,9 +1638,6 @@ type ReferenceBackendTensorStatics() =
         | Int32 -> RawTensorInt32.Full(shape, value, device)
         | Int64 -> RawTensorInt64.Full(shape, value, device)
         | Bool -> RawTensorBool.Full(shape, value, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic dtypes require Backend.ShapeChecking"
-#endif
     override _.Random(shape:Shape, dtype, device) =
         match dtype with 
         | Float32 -> RawTensorFloat32.Random(shape, device)
@@ -1666,9 +1648,6 @@ type ReferenceBackendTensorStatics() =
         | Int32 -> RawTensorInt32.Random(shape, device)
         | Int64 -> RawTensorInt64.Random(shape, device)
         | Bool -> RawTensorBool.Random(shape, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic dtypes require Backend.ShapeChecking"
-#endif
     override _.RandomNormal(shape:Shape, dtype, device) =
         match dtype with 
         | Float32 -> RawTensorFloat32.RandomNormal(shape, device)
@@ -1679,9 +1658,6 @@ type ReferenceBackendTensorStatics() =
         | Int32 -> RawTensorInt32.RandomNormal(shape, device)
         | Int64 -> RawTensorInt64.RandomNormal(shape, device)
         | Bool -> RawTensorBool.RandomNormal(shape, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic dtypes require Backend.ShapeChecking"
-#endif
     override _.RandomInt(shape:Shape, low:int, high:int, dtype, device) = 
         match dtype with 
         | Float32 -> RawTensorFloat32.RandomInt(shape, low, high, device)
@@ -1692,9 +1668,6 @@ type ReferenceBackendTensorStatics() =
         | Int32 -> RawTensorInt32.RandomInt(shape, low, high, device)
         | Int64 -> RawTensorInt64.RandomInt(shape, low, high, device)
         | Bool -> RawTensorBool.RandomInt(shape, low, high, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic dtypes require Backend.ShapeChecking"
-#endif
     override _.CreateFromFlatArray(values:Array, shape, dtype, device) =
         match dtype with 
         | Float32 -> RawTensorFloat32.CreateFromFlatArray(values, shape, device)
@@ -1705,6 +1678,3 @@ type ReferenceBackendTensorStatics() =
         | Int32 -> RawTensorInt32.CreateFromFlatArray(values, shape, device)
         | Int64 -> RawTensorInt64.CreateFromFlatArray(values, shape, device)
         | Bool -> RawTensorBool.CreateFromFlatArray(values, shape, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic dtypes require Backend.ShapeChecking"
-#endif

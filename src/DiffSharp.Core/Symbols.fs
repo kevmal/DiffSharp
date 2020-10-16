@@ -1,6 +1,5 @@
 ﻿namespace rec DiffSharp.ShapeChecking
 
-#if SYMBOLIC_SHAPES
 type ISym =
     abstract SymScope : ISymScope
 
@@ -46,5 +45,3 @@ module internal SymbolExtensions =
         /// Assert the two symbols to be equal
         member sym1.AssertEqualityConstraint(sym2) =
             sym1.SymScope.AssertConstraint("eq", [|sym1; sym2|])
-
-#endif

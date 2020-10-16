@@ -205,9 +205,6 @@ type RawTensor() =
             | Some Dtype.Float32 ->
                 let a,s = DataConverter.dataOfValuesForFloat32 values
                 (a :> Array), s, Dtype.Float32
-#if SYMBOLIC_SHAPES
-            | Some (Dtype.Sym _ ) // infer a type then constrain, see below
-#endif
             | None ->
                 // Prefer Bool tensor if all bool
                 match values |> DataConverter.tryFlatArrayAndShape<bool> with
@@ -216,14 +213,6 @@ type RawTensor() =
                 // Otherwise prefer float32
                 let a,s = DataConverter.dataOfValuesForFloat32 values 
                 (a :> Array), s, Dtype.Float32
-
-#if SYMBOLIC_SHAPES
-        // If the input dtype was given, it must be the same as the inferred dtype
-        match dtype with 
-        | Some dtype when not (dtype =~= dtype2) ->
-            failwithf "the symbolic dtype %A didn't match the inferred dtype %A" dtype dtype2
-        | _ -> ()
-#endif
 
         let statics = BackendTensorStatics.Get(?backend=backend)
         let device = defaultArg device Device.Default

@@ -24,9 +24,6 @@ module internal Utils =
         | Dtype.Int64 -> ScalarType.Long
         | Dtype.Float32 -> ScalarType.Float
         | Dtype.Float64 -> ScalarType.Double
-#if SYMBOLIC_SHAPES
-        | Dtype.Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
 
     let fromTorchType ttype =
         match ttype with 
@@ -160,9 +157,6 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
             let data = tt.Data<double>()
             for i in 0 .. n-1 do
                  res <- combineHashes res (hash data.[i])
-#if SYMBOLIC_SHAPES
-        | Dtype.Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
         res
     
     override t.Expand(newShape) =
@@ -194,9 +188,6 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
             | Dtype.Int64 -> box (item.DataItem<int64>())
             | Dtype.Float32 -> box (item.DataItem<float32>())
             | Dtype.Float64 -> box (item.DataItem<double>())
-#if SYMBOLIC_SHAPES
-            | Dtype.Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
         obj
 
     member t.ToValuesTyped<'T, 'T2>(conv) : obj =
@@ -222,9 +213,6 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
         | Dtype.Int64 -> t.ToValuesTyped<int64, int64>(id)
         | Dtype.Float32 -> t.ToValuesTyped<float32, float32>(id)
         | Dtype.Float64 -> t.ToValuesTyped<double, double>(id)
-#if SYMBOLIC_SHAPES
-        | Dtype.Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
 
     member _.ToRawData<'T>() : 'T[] =
         // Torch Tensors must be CPU before raw data can be accessed
@@ -246,9 +234,6 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
         | Dtype.Int64 -> t.ToRawData<int64>() |> box
         | Dtype.Float32 -> t.ToRawData<float32>() |> box
         | Dtype.Float64 -> t.ToRawData<double>() |> box
-#if SYMBOLIC_SHAPES
-        | Dtype.Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
 
     override _.StackTs(tensors, dim) =
         let tts, shapes = tensors |> Array.map (fun t -> (t :?> TorchRawTensor).TorchTensor, t.Shape) |> Array.unzip
@@ -828,9 +813,6 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
             | Dtype.Float64 -> 
                 let data = info.GetValue("data", typeof<double[]>)  :?> double[]
                 DoubleTensor.From (data, toTorchShape shape) 
-#if SYMBOLIC_SHAPES
-            | Dtype.Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
 
         TorchRawTensor(tt, shape, dtype, Device.CPU)
 
@@ -1072,9 +1054,6 @@ type TorchBackendTensorStatics() =
         | Int32 -> torchInt32.Zero(device)
         | Int64 -> torchInt64.Zero(device)
         | Bool -> torchBool.Zero(device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
 
     override _.One(dtype, device) = 
         match dtype with 
@@ -1086,9 +1065,6 @@ type TorchBackendTensorStatics() =
         | Int32 -> torchInt32.One(device)
         | Int64 -> torchInt64.One(device)
         | Bool -> torchBool.One(device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
 
     override _.Zeros(shape:Shape, dtype, device) =
         match dtype with 
@@ -1100,9 +1076,6 @@ type TorchBackendTensorStatics() =
         | Int32 -> torchInt32.Zeros(shape, device)
         | Int64 -> torchInt64.Zeros(shape, device)
         | Bool -> torchBool.Zeros(shape, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
 
     override _.Empty(shape:Shape, dtype, device) =
         match dtype with 
@@ -1114,9 +1087,6 @@ type TorchBackendTensorStatics() =
         | Int32 -> torchInt32.Empty(shape, device)
         | Int64 -> torchInt64.Empty(shape, device)
         | Bool -> torchBool.Empty(shape, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
 
     override _.Ones(shape:Shape, dtype, device) =
         match dtype with 
@@ -1128,9 +1098,6 @@ type TorchBackendTensorStatics() =
         | Int32 -> torchInt32.Ones(shape, device)
         | Int64 -> torchInt64.Ones(shape, device)
         | Bool -> torchBool.Ones(shape, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
 
     override _.Full(shape:Shape, value:obj, dtype, device) = 
         match dtype with 
@@ -1142,9 +1109,6 @@ type TorchBackendTensorStatics() =
         | Int32 -> torchInt32.Full(shape, value, device)
         | Int64 -> torchInt64.Full(shape, value, device)
         | Bool -> torchBool.Full(shape, value, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
 
     override _.Random(shape:Shape, dtype, device) =
         match dtype with 
@@ -1156,9 +1120,6 @@ type TorchBackendTensorStatics() =
         | Int32 -> torchInt32.Random(shape, device)
         | Int64 -> torchInt64.Random(shape, device)
         | Bool -> torchBool.Random(shape, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
 
     override _.RandomNormal(shape:Shape, dtype, device) =
         match dtype with 
@@ -1170,9 +1131,6 @@ type TorchBackendTensorStatics() =
         | Int32 -> torchInt32.RandomNormal(shape, device)
         | Int64 -> torchInt64.RandomNormal(shape, device)
         | Bool -> torchBool.RandomNormal(shape, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
 
     override _.RandomInt(shape:Shape, low:int, high:int, dtype, device) = 
         match dtype with 
@@ -1184,9 +1142,6 @@ type TorchBackendTensorStatics() =
         | Int32 -> torchInt32.RandomInt(shape, low, high, device)
         | Int64 -> torchInt64.RandomInt(shape, low, high, device)
         | Bool -> torchBool.RandomInt(shape, low, high, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif
 
     override _.CreateFromFlatArray(values:Array, shape, dtype, device) =
         match dtype with 
@@ -1198,6 +1153,3 @@ type TorchBackendTensorStatics() =
         | Int32 -> torchInt32.CreateFromFlatArray(values, shape, device)
         | Int64 -> torchInt64.CreateFromFlatArray(values, shape, device)
         | Bool -> torchBool.CreateFromFlatArray(values, shape, device)
-#if SYMBOLIC_SHAPES
-        | Sym _ -> failwith "symbolic requires Backend.ShapeChecking"
-#endif

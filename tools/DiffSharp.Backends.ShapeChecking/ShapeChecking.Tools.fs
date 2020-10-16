@@ -23,12 +23,6 @@ module ShapeCheckingAutoOpens =
     /// Create a symbol in the global symbol context of the given name
     let (?) (syms: SymScope) (name: string) : Int = syms.CreateIntVar(name)
 
-    // Shen using shape checking the syntax 128I is hijacked
-    module NumericLiteralI = 
-        let FromZero () : Int = Int 0
-        let FromOne () : Int = Int 1
-        let FromInt32 (value:int32): Int = Int value
-        
 
 [<AutoOpen>]
 module Tools =
