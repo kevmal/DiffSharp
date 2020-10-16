@@ -1,7 +1,6 @@
 ﻿namespace DiffSharp.ShapeChecking
 
 open DiffSharp
-open DiffSharp.ShapeChecking
 open System.Diagnostics.CodeAnalysis
 
 [<AutoOpen>]
