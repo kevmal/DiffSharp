@@ -1026,7 +1026,7 @@ type dsharp =
     static member convTranspose3d(input:Tensor, filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?outputPaddings:seq<int>) =
         input.convTranspose3d(filters, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
 
-    /// <summary>Add zero padding to each side of a tensor</summary>
+    /// <summary>Add zero padding to each side of each dimension of a tensor</summary>
     /// <param name="input">The input tensor.</param>
     /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
     static member pad(input:Tensor, paddings:seq<int>) = input.pad(paddings)
@@ -1163,7 +1163,7 @@ type dsharp with
     /// <param name="mapping">The function is passed the index of each element. The function to apply to each element of the tensor.</param>
     /// <param name="tensor">The input tensor.</param>
     static member mapi (mapping:int[]->Tensor->Tensor) (tensor:Tensor) = // Differentiable map
-        // TODO: the shape is correct, but dtype and device are taken from results (which must be consistent)
+        // Note, the shape here is correct, but dtype and device are taken from results 
         if tensor.symbolic then tensor else 
         
         let tflat = tensor.view(-1)
@@ -1178,7 +1178,7 @@ type dsharp with
     static member mapi2 (mapping:int[]->Tensor->Tensor->Tensor) (tensor1:Tensor) (tensor2:Tensor) =  // Differentiable map2
         if tensor1.shape <> tensor2.shape then failwithf "Expecting tensor1.shape (%A) and tensor2.shape (%A) to be the same" tensor1.shape tensor2.shape
 
-        // TODO: the shape is correct, but dtype and device are taken from results (which must be consistent)
+        // Note, the shape is correct, but dtype and device are taken from results (which must be consistent)
         if tensor1.symbolic then tensor1 else
         
         let tflat1 = tensor1.view(-1)
@@ -1195,7 +1195,7 @@ type dsharp with
     static member mapi3 (mapping:int[]->Tensor->Tensor->Tensor->Tensor) (tensor1:Tensor) (tensor2:Tensor) (tensor3:Tensor) =  // Differentiable map3
         if (tensor1.shape <> tensor2.shape) || (tensor2.shape <> tensor3.shape) then failwithf "Expecting tensor1.shape (%A), tensor2.shape (%A), tensor3.shape (%A) to be the same" tensor1.shape tensor2.shape tensor3.shape
 
-        // TODO: the shape is correct, but dtype and device are taken from results (which must be consistent)
+        // Note, the shape is correct, but dtype and device are taken from results (which must be consistent)
         if tensor1.symbolic then tensor1 else
         
         let tflat1 = tensor1.view(-1)

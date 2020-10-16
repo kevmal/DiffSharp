@@ -1,6 +1,5 @@
 ﻿namespace DiffSharp
 
-open DiffSharp.ShapeChecking
 open DiffSharp.Util
 
 #if !NO_SYMBOLIC_SHAPES

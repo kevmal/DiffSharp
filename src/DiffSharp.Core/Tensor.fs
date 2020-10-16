@@ -140,7 +140,7 @@ type Tensor =
     /// Gets the backend of the tensor
     member t.backend = t.primalRaw.Backend
 
-    /// Determine if the tensor might have symbolic shape, dtype, device
+    /// Determine if the tensor might have symbolic shape
     member t.symbolic = (t.backend = Backend.ShapeChecking)
 
     /// Gets the differentiation depth of the tensor
@@ -255,8 +255,8 @@ type Tensor =
     /// Gets the number of elements in the tensor
     member t.nelement = t.primalRaw.Nelement
 
-    /// Gets the number of elements in the tensor as a Int
-    member internal t.nelementx = Shape.nelementx t.primalRaw.Shape
+    /// Gets the number of elements in the tensor as an Int
+    member t.nelementx = Shape.nelementx t.primalRaw.Shape
 
     /// Returns the value of a (non-scalar) tensor as an array
     member t.toArray() = t.primalRaw.ToArray()
@@ -443,66 +443,60 @@ type Tensor =
     /// Returns a new tensor filled with '0' values for the given shape, element type and configuration, defaulting to the 
     /// shape and configuration of the input tensor.
     member a.zerosLike(?shape:seq<int>, ?dtype, ?device, ?backend) = 
-        let shape = shape |> Option.map Shape.constant
-        let shape = defaultArg shape a.shapex
-        Tensor(a.primalRaw.ZerosLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
+        a.zerosLikex(?shape=optShape shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
-    member a.zerosLike(shape:Shape, ?dtype, ?device, ?backend) = 
+    member internal a.zerosLikex(?shape:Shape, ?dtype, ?device, ?backend) = 
+        let shape = defaultArg shape a.shapex
         Tensor(a.primalRaw.ZerosLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// Returns a new tensor filled with '1' values for the given shape, element type and configuration, defaulting to the 
     /// shape and configuration of the input tensor.
     member a.onesLike(?shape:seq<int>, ?dtype, ?device, ?backend) = 
-        let shape = shape |> Option.map Shape.constant
-        let shape = defaultArg shape a.shapex
-        Tensor(a.primalRaw.OnesLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
+        a.onesLikex(?shape=optShape shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
-    member a.onesLike(shape:Shape, ?dtype, ?device, ?backend) = 
+    member internal a.onesLikex(?shape:Shape, ?dtype, ?device, ?backend) = 
+        let shape = defaultArg shape a.shapex
         Tensor(a.primalRaw.OnesLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// Returns a new tensor filled with the given scalar value for the given shape, element type and configuration, defaulting to the 
     /// shape and configuration of the input tensor.
     member a.fullLike(value:scalar, ?shape:seq<int>, ?dtype, ?device, ?backend) = 
-        let shape = shape |> Option.map Shape.constant
-        let shape = defaultArg shape a.shapex
-        Tensor(a.primalRaw.FullLike(shape, value, ?dtype=dtype, ?device=device, ?backend=backend))
+        a.fullLikex(value, ?shape=optShape shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
-    member a.fullLike(value:scalar, shape:Shape, ?dtype, ?device, ?backend) = 
+    member internal a.fullLikex(value:scalar, ?shape:Shape, ?dtype, ?device, ?backend) = 
+        let shape = defaultArg shape a.shapex
         Tensor(a.primalRaw.FullLike(shape, value, ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// Returns a new scalar tensor for the given shape, element type and configuration, defaulting to the 
     /// shape and configuration of the input tensor.
-    member a.scalarLike(scalar:IConvertible, ?dtype, ?device, ?backend) = 
+    member a.scalarLike(scalar:scalar, ?dtype, ?device, ?backend) = 
         a.fullLike(scalar, [], ?dtype=dtype, ?device=device, ?backend=backend)
 
     /// Returns a new tensor with random values drawn from the uniform distribution [0,1) for the
     /// given shape, element type and configuration, defaulting to the shape and configuration of the input tensor.
     member a.randLike(?shape:seq<int>, ?dtype, ?device, ?backend) = 
-        let shape = shape |> Option.map Shape.constant
-        let shape = defaultArg shape a.shapex
-        Tensor(a.primalRaw.RandomLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
+        a.randLikex(?shape=optShape shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
-    member a.randLike(shape:Shape, ?dtype, ?device, ?backend) = 
+    member internal a.randLikex(?shape:Shape, ?dtype, ?device, ?backend) = 
+        let shape = defaultArg shape a.shapex
         Tensor(a.primalRaw.RandomLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// Returns a new tensor with random values drawn from the standard normal distribution, for the
     /// given shape, element type and configuration, defaulting to the shape and configuration of the input tensor.
     member a.randnLike(?shape:seq<int>, ?dtype, ?device, ?backend) = 
-        let shape = shape |> Option.map Shape.constant
-        let shape = defaultArg shape a.shapex
-        Tensor(a.primalRaw.RandomNormalLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
+        a.randnLikex(?shape=optShape shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
-    member a.randnLike(shape:Shape, ?dtype, ?device, ?backend) = 
+    member internal a.randnLikex(?shape:Shape, ?dtype, ?device, ?backend) = 
+        let shape = defaultArg shape a.shapex
         Tensor(a.primalRaw.RandomNormalLike(shape, ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// Returns a new tensor with random integer values drawn from the given range, for the
     /// given shape, element type and configuration, defaulting to the shape and configuration of the input tensor.
     member a.randintLike(low:int, high:int, ?shape:seq<int>, ?dtype, ?device, ?backend) = 
-        let shape = shape |> Option.map Shape.constant
-        let shape = defaultArg shape a.shapex
-        Tensor(a.primalRaw.RandomIntLike(shape, low, high, ?dtype=dtype, ?device=device, ?backend=backend))
+        a.randintLikex(low, high, ?shape=optShape shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
-    member a.randintLike(low:int, high:int, shape: Shape, ?dtype, ?device, ?backend) = 
+    member internal a.randintLikex(low:int, high:int, ?shape: Shape, ?dtype, ?device, ?backend) = 
+        let shape = defaultArg shape a.shapex
         Tensor(a.primalRaw.RandomIntLike(shape, low, high, ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// Returns a scalar '0' tensor for the given element type and configuration, defaulting to
@@ -542,10 +536,13 @@ type Tensor =
 
     /// Returns a tensor in the manner of <see cref="M:DiffSharp.dsharp.onehot"/> for the given element type and configuration, defaulting to
     /// the element type and configuration of the input tensor.
-    /// TODO: consider symbolics
     member a.onehotLike(length:int, hot:int, ?dtype, ?device, ?backend) =
-        if hot < 0 || hot >= length then failwithf "Expecting 0 <= hot < length"
-        a.zerosLike([|length|], ?dtype=dtype, ?device=device, ?backend=backend).addSlice([|hot|], a.onesLike([|1|], ?dtype=dtype, ?device=device, ?backend=backend))
+        a.onehotLikex(Int length, Int hot, ?dtype=dtype, ?device=device, ?backend=backend)
+
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
+    member internal a.onehotLikex(length:Int, hot:Int, ?dtype, ?device, ?backend) =
+        if not (hot >=~ 0I) || not (hot <~ length) then failwithf "Expecting 0 <= hot < length"
+        a.zerosLikex(Shape [|length|], ?dtype=dtype, ?device=device, ?backend=backend).addSlice([|hot|], a.onesLike([|1|], ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// <summary>Computes element-wise (\a &lt; b\), returning a boolean tensor containing a <c>true</c> at each location where the comparison is true</summary>
     member a.lt(b:Tensor) = Tensor(a.primalRaw.LtTT(b.primalRaw))
@@ -648,6 +645,7 @@ type Tensor =
     member a.expand(newShape:seq<int>) =
         a.expandx(newShape|>Shape.constant)
         
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
     member internal a.expandx(newShape:Shape) =
         if a.shapex = newShape then a 
         else
@@ -778,7 +776,6 @@ type Tensor =
     member internal t.GetSlice(bounds:int[,]) =
         t.GetSlice(bounds |> Array2D.map Int)
 
-    /// <summary>TBD</summary>
     member internal t.GetSlice(bounds:Int[,]) =
         // printfn "t.GetSlice bounds\n %A" bounds
         if t.dim = 0 then failwith "Cannot slice a scalar Tensor"
@@ -1305,7 +1302,7 @@ type Tensor =
           if a.symbolic then 
               let outputShape = Array.copy a.shapex.Dims
               outputShape.[dim] <- 1I
-              a.zerosLike(shape=Shape outputShape)
+              a.zerosLikex(shape=Shape outputShape)
           else
             let sBounds = Array2D.init a.dim 3 (fun i j -> if j=0 then 0I elif j=1 then a.shapex.[i]-1 else 0I)
             sBounds.[dim, 1] <- 0I
@@ -1434,7 +1431,7 @@ type Tensor =
         if normalize then probs <- probs / probs.sum(-1, keepDim=true)
         if probs.dim = 1 then
             // skip the dice throwing for symbolics
-            if probs.symbolic then probs.zerosLike(Shape [| Int numSamples |]) else
+            if probs.symbolic then probs.zerosLikex(Shape [| Int numSamples |]) else
 
             let p = 
                 match probs.dtype with
@@ -1444,7 +1441,7 @@ type Tensor =
             Tensor.create(Random.Multinomial(p, numSamples), dtype=dtype, device=device, backend=backend)
         else
             // skip the dice throwing for symbolics
-            if probs.symbolic then probs.zerosLike(Shape [|probs.shapex.[0]; Int numSamples|]) else
+            if probs.symbolic then probs.zerosLikex(Shape [|probs.shapex.[0]; Int numSamples|]) else
 
             let p = 
                 match probs.dtype with
@@ -1464,7 +1461,7 @@ type Tensor =
         let device = defaultArg device probs.device
         let backend = defaultArg backend probs.backend
         // skip the dice throwing for symbolics
-        if probs.symbolic then probs.zerosLike(probs.shapex) else
+        if probs.symbolic then probs.zerosLikex(probs.shapex) else
         if probs.dim = 0 then
             let b = Random.Bernoulli (float probs)
             Tensor.create(b, dtype=dtype, device=device, backend=backend).viewx(probs.shapex)
@@ -1497,7 +1494,7 @@ type Tensor =
             a * a.zerosLike()
         else
             let shape = Shape (Array.append a.shapex.[0..1].Dims [|1I;1I|])
-            let mask = a.fullLike(1.-p, shape).bernoulli()
+            let mask = a.fullLikex(1.-p, shape).bernoulli()
             a * mask
 
     /// <summary>Randomly zero out entire channels (a channel is a 3D feature map, e.g., the jj -th channel of the ii -th sample in the batched input is a 3D tensor \text{input}[i, j]input[i,j] ). Each channel will be zeroed out independently on every forward call with probability p using samples from a Bernoulli distribution.</summary>
@@ -1511,7 +1508,7 @@ type Tensor =
             a * a.zerosLike()
         else
             let shape = Shape (Array.append a.shapex.[0..1].Dims [|1I;1I;1I|])
-            let mask = a.fullLike(1.-p, shape).bernoulli()
+            let mask = a.fullLikex(1.-p, shape).bernoulli()
             a * mask
 
     // This is useful to keep as a special case of sum for performance reasons because it's involved in reverse mode of broadcasting addition of bias in NN linear layers
@@ -1570,7 +1567,7 @@ type Tensor =
     /// <summary>Reverse the order of a n-D tensor along given axis in dims</summary>
     /// <param name="dims">The axis to flip on.</param>
     member a.flip(dims:seq<int>) =
-        let dims = dims |> Array.ofSeq
+        let dims = dims |> Seq.toArrayQuick
         Shape.checkCanFlip a.dim dims
         let fRaw(a:RawTensor) = a.FlipT(dims)
         let fTensor(a:Tensor) = a.flip(dims)
@@ -1584,7 +1581,7 @@ type Tensor =
         a.dilatex(Ints dilations)
 
     member a.dilatex(dilations:seq<Int>) =
-        let dilations = dilations |> Array.ofSeq
+        let dilations = dilations |> Seq.toArrayQuick
         Shape.checkCanDilate a.dim dilations
         let fRaw(a:RawTensor) = a.DilateT(dilations)
         let fTensor(a:Tensor) = a.dilatex(dilations)
@@ -1598,7 +1595,7 @@ type Tensor =
         a.undilatex(Ints dilations)
 
     member a.undilatex(dilations:seq<Int>) =
-        let dilations = dilations |> Array.ofSeq
+        let dilations = dilations |> Seq.toArrayQuick
         let fRaw(a:RawTensor) = a.UndilateT(dilations)
         let fTensor(a:Tensor) = a.undilatex(dilations)
         let dfTensorFwd(cp,ap,ad:Tensor) = ad.undilatex(dilations)
@@ -1609,15 +1606,16 @@ type Tensor =
     /// <param name="dim">The dimension along which to repeat values.</param>
     /// <param name="times">The number of repetitions for each element.</param>
     member a.repeat(dim:int, times:int) =
-        a.repeat(dim, Int times)
+        a.repeatx(dim, Int times)
 
-    member a.repeat(dim:int, times:Int) =
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
+    member internal a.repeatx(dim:int, times:Int) =
         Shape.checkCanRepeat a.shapex dim
         let newShape = a.shapex.Dims |> Array.copy
         newShape.[dim] <- times
         // Note: symbolics skip this
-        if a.symbolic then a.zerosLike(Shape newShape) else
-        let mutable ret = a.zerosLike(Shape newShape)
+        if a.symbolic then a.zerosLikex(Shape newShape) else
+        let mutable ret = a.zerosLikex(Shape newShape)
         let location = Array.create a.dim 0
         for i=0 to times.Value-1 do
             location.[dim] <- i
@@ -1969,7 +1967,7 @@ type Tensor =
     member a.softmax(dim:int) =
         let dim = Shape.completeDim a.dim dim  // Handles -1 semantics
         let e = (a - a.max().noDiff()).exp()
-        let esum = e.sum(dim, keepDim=true).repeat(dim, a.shapex.[dim])
+        let esum = e.sum(dim, keepDim=true).repeatx(dim, a.shapex.[dim])
         e / esum
 
     /// <summary>Applies a softmax followed by a logarithm.</summary>
@@ -2015,7 +2013,7 @@ type Tensor =
         if input.dim < 1 then let ret:Tensor = input.view(-1).bceLoss(target.view(-1), ?weight=weight, ?reduction=reduction) in if ret.dim = 0 then ret else ret.[0]
         else
         let n = input.shapex.[0]
-        let weight = defaultArg weight (input.onesLike(shape=Shape[|n|]))
+        let weight = defaultArg weight (input.onesLikex(shape=Shape[|n|]))
         if not (weight.shapex.[0] =~= n) then failwithf "Expecting weight to be a vector of size %A, but received %A" n weight.shapex.[0]
         let reduction = defaultArg reduction "mean"
         if not (reduction = "none" || reduction = "mean" || reduction = "sum") then failwithf "Expecting reduction (%A) to be one of (none, mean, sum)" reduction
@@ -2097,18 +2095,22 @@ type Tensor =
             else // reduction = "sum"
                 l.sum()
 
-    /// <summary>Add zero padding to each side of a tensor</summary>
+    /// <summary>Add zero padding to each side of each dimension of a tensor</summary>
     /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
     member a.pad(paddings:seq<int>) =
-        let paddings = paddings |> Array.ofSeq
+        a.padx(Ints paddings)
+
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
+    member internal a.padx(paddings:seq<Int>) =
+        let paddings = paddings |> Seq.toArrayQuick
         Shape.checkCanPad a.shapex paddings
-        if paddings |> Array.sum = 0 then
+        if not a.symbolic && paddings |> Int.values |> Array.sum = 0 then
             a
         else
             let shape = Array.copy a.shapex.Dims
             for i in 0..shape.Length-1 do
                 shape.[i] <- shape.[i] + paddings.[i] * 2
-            let ret = a.zerosLike(Shape shape)
+            let ret = a.zerosLikex(Shape shape)
             ret.addSlice(paddings, a)
 
     /// <summary>Applies a 1D max pooling over an input signal composed of several input planes, returning the max indices along with the outputs.</summary>
@@ -2118,6 +2120,7 @@ type Tensor =
     member a.maxpool1di(kernelSize:int, ?stride:int, ?padding:int) =
         a.maxpool1dix(Int kernelSize, ?stride=optInt stride, ?padding=optInt padding) 
 
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
     member internal a.maxpool1dix(kernelSize:Int, ?stride:Int, ?padding:Int) =
         let stride = defaultArg stride kernelSize
         let padding = defaultArg padding (0I)
@@ -2142,13 +2145,13 @@ type Tensor =
     member a.maxunpool1d(indices:Tensor, kernelSize:int, ?stride:int, ?padding:int, ?outputSize:seq<int>) =
         a.maxunpool1dx(indices, kernelSize=Int kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?outputSize=optInts outputSize)
 
-    /// <summary>TBD</summary>
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
     member internal a.maxunpool1dx(indices:Tensor, kernelSize:Int, ?stride:Int, ?padding:Int, ?outputSize:seq<Int>) =
         let stride = defaultArg stride kernelSize
         let padding = defaultArg padding (0I)
         let outputSize = 
             match outputSize with
-            | Some o -> let o = o |> Array.ofSeq in if o.Length <> 3 then failwithf "Expecting outputSize to be 3-dimensional" else o
+            | Some o -> let o = o |> Seq.toArrayQuick in if o.Length <> 3 then failwithf "Expecting outputSize to be 3-dimensional" else o
             | None -> 
                 let inputSize = a.shapex.[2]
                 [|indices.shapex.[0]; indices.shapex.[1]; ((inputSize-1) * stride - 2*padding + kernelSize)|]
@@ -2169,24 +2172,25 @@ type Tensor =
     member a.maxpool2di(?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) =
         a.maxpool2dix(?kernelSize=optInt kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings)
 
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
     member internal a.maxpool2dix(?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
         let kernelSizes =
             match kernelSize, kernelSizes with
             | Some _, Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
             | Some k, None -> [|k; k|]
-            | None, Some k -> let k = k |> Array.ofSeq in if k.Length <> 2 then failwithf "Expecting kernelSizes to be 2-dimensional" else k
+            | None, Some k -> let k = k |> Seq.toArrayQuick in if k.Length <> 2 then failwithf "Expecting kernelSizes to be 2-dimensional" else k
             | _ -> failwithf "Expecting either kernelSize or kernelSizes"
         let strides =
             match stride, strides with
             | Some _, Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s|]
-            | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 2 then failwithf "Expecting strides to be 2-dimensional" else s
+            | None, Some s -> let s = s |> Seq.toArrayQuick in if s.Length <> 2 then failwithf "Expecting strides to be 2-dimensional" else s
             | _ -> kernelSizes
         let paddings =
             match padding, paddings with
             | Some _, Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p|]
-            | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
+            | None, Some p -> let p = p |> Seq.toArrayQuick in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
             | _ -> [|0I; 0I|]
         Shape.checkCanMaxpool2d a.dtype a.shapex kernelSizes strides paddings  |> ignore
         match a with
@@ -2215,29 +2219,29 @@ type Tensor =
     member a.maxunpool2d(indices:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?outputSize:seq<int>) =
         a.maxunpool2dx(indices, ?kernelSize=optInt kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?outputSize=optInts outputSize)
 
-    /// <summary>TBD</summary>
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
     member internal a.maxunpool2dx(indices:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>, ?outputSize:seq<Int>) =
         let kernelSizes =
             match kernelSize, kernelSizes with
             | Some _, Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
             | Some k, None -> [|k; k|]
-            | None, Some k -> let k = k |> Array.ofSeq in if k.Length <> 2 then failwithf "Expecting kernelSizes to be 2-dimensional" else k
+            | None, Some k -> let k = k |> Seq.toArrayQuick in if k.Length <> 2 then failwithf "Expecting kernelSizes to be 2-dimensional" else k
             | _ -> failwithf "Expecting either kernelSize or kernelSizes"
         let strides =
             match stride, strides with
             | Some _, Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s|]
-            | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 2 then failwithf "Expecting strides to be 2-dimensional" else s
+            | None, Some s -> let s = s |> Seq.toArrayQuick in if s.Length <> 2 then failwithf "Expecting strides to be 2-dimensional" else s
             | _ -> kernelSizes
         let paddings =
             match padding, paddings with
             | Some _, Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p|]
-            | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
+            | None, Some p -> let p = p |> Seq.toArrayQuick in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
             | _ -> [|0I; 0I|]
         let outputSize = 
             match outputSize with
-            | Some o -> let o = o |> Array.ofSeq in if o.Length <> 4 then failwithf "Expecting outputSize to be 4-dimensional" else o
+            | Some o -> let o = o |> Seq.toArrayQuick in if o.Length <> 4 then failwithf "Expecting outputSize to be 4-dimensional" else o
             | None -> 
                 let inputHeight = a.shapex.[2]
                 let inputWidth = a.shapex.[3]
@@ -2259,24 +2263,25 @@ type Tensor =
     member a.maxpool3di(?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>) =
         a.maxpool3dix(?kernelSize=optInt kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings)
 
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
     member internal a.maxpool3dix(?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>) =
         let kernelSizes =
             match kernelSize, kernelSizes with
             | Some _, Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
             | Some k, None -> [|k; k; k|]
-            | None, Some k -> let k = k |> Array.ofSeq in if k.Length <> 3 then failwithf "Expecting kernelSizes to be 3-dimensional" else k
+            | None, Some k -> let k = k |> Seq.toArrayQuick in if k.Length <> 3 then failwithf "Expecting kernelSizes to be 3-dimensional" else k
             | _ -> failwithf "Expecting either kernelSize or kernelSizes"
         let strides =
             match stride, strides with
             | Some _, Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s; s|]
-            | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 3 then failwithf "Expecting strides to be 3-dimensional" else s
+            | None, Some s -> let s = s |> Seq.toArrayQuick in if s.Length <> 3 then failwithf "Expecting strides to be 3-dimensional" else s
             | _ -> kernelSizes
         let paddings =
             match padding, paddings with
             | Some _, Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p; p|]
-            | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
+            | None, Some p -> let p = p |> Seq.toArrayQuick in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
             | _ -> [|0I; 0I; 0I|]
         Shape.checkCanMaxpool3d a.dtype a.shapex kernelSizes strides paddings |> ignore
         match a with
@@ -2305,29 +2310,29 @@ type Tensor =
     member a.maxunpool3d(indices:Tensor, ?kernelSize:int, ?stride:int, ?padding:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?outputSize:seq<int>) =
         a.maxunpool3dx(indices, ?kernelSize=optInt kernelSize, ?stride=optInt stride, ?padding=optInt padding, ?kernelSizes=optInts kernelSizes, ?strides=optInts strides, ?paddings=optInts paddings, ?outputSize=optInts outputSize)
 
-    /// <summary>TBD</summary>
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
     member internal a.maxunpool3dx(indices:Tensor, ?kernelSize:Int, ?stride:Int, ?padding:Int, ?kernelSizes:seq<Int>, ?strides:seq<Int>, ?paddings:seq<Int>, ?outputSize:seq<Int>) =
         let kernelSizes =
             match kernelSize, kernelSizes with
             | Some _, Some _ -> failwithf "Expecting only one of kernelSize, kernelSizes"
             | Some k, None -> [|k; k; k|]
-            | None, Some k -> let k = k |> Array.ofSeq in if k.Length <> 3 then failwithf "Expecting kernelSizes to be 3-dimensional" else k
+            | None, Some k -> let k = k |> Seq.toArrayQuick in if k.Length <> 3 then failwithf "Expecting kernelSizes to be 3-dimensional" else k
             | _ -> failwithf "Expecting either kernelSize or kernelSizes"
         let strides =
             match stride, strides with
             | Some _, Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s; s|]
-            | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 3 then failwithf "Expecting strides to be 3-dimensional" else s
+            | None, Some s -> let s = s |> Seq.toArrayQuick in if s.Length <> 3 then failwithf "Expecting strides to be 3-dimensional" else s
             | _ -> kernelSizes
         let paddings =
             match padding, paddings with
             | Some _, Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p; p|]
-            | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
+            | None, Some p -> let p = p |> Seq.toArrayQuick in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
             | _ -> [|0I; 0I; 0I|]
         let outputSize = 
             match outputSize with
-            | Some o -> let o = o |> Array.ofSeq in if o.Length <> 5 then failwithf "Expecting outputSize to be 5-dimensional" else o
+            | Some o -> let o = o |> Seq.toArrayQuick in if o.Length <> 5 then failwithf "Expecting outputSize to be 5-dimensional" else o
             | None -> 
                 let inputDepth = a.shapex.[2]
                 let inputHeight = a.shapex.[3]
@@ -2348,6 +2353,7 @@ type Tensor =
     member a.conv1d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int) =
         a.conv1dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=optInt dilation)
 
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
     member internal a.conv1dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int) =
         let b = filters
         // a: input, b: filter
@@ -2427,6 +2433,7 @@ type Tensor =
     member a.convTranspose1d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int) =
         a.convTranspose1dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=optInt dilation, ?outputPadding=optInt outputPadding)
 
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
     member internal a.convTranspose1dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int) =
         let b = filters
         let stride = defaultArg stride (1I)
@@ -2440,7 +2447,7 @@ type Tensor =
         if a.symbolic || dilation.Value > 1 then
             b <- b.dilatex([|1I; 1I; dilation|])
         let cderivative = a
-        let a = a.zerosLike(outputShape)
+        let a = a.zerosLikex(outputShape)
         // Use convolution reverse mode to implement transposed convolution
         let (aderivative:Tensor), _ = Tensor.conv1dReverseDiff(a, b, cderivative, aConst=false, bConst=true, stride=stride, padding=padding)
         aderivative
@@ -2456,25 +2463,26 @@ type Tensor =
     member a.conv2d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>) =
         a.conv2dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=optInt dilation, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=optInts dilations)
 
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
     member internal a.conv2dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>) =
         let b = filters
         let strides = 
             match stride, strides with
             | Some _, Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s|]
-            | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 2 then failwithf "Expecting strides to be 2-dimensional" else s
+            | None, Some s -> let s = s |> Seq.toArrayQuick in if s.Length <> 2 then failwithf "Expecting strides to be 2-dimensional" else s
             | _ -> [|1I; 1I|]
         let paddings = 
             match padding, paddings with
             | Some _ , Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p|]
-            | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
+            | None, Some p -> let p = p |> Seq.toArrayQuick in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
             | _ -> [|0I; 0I|]
         let dilations = 
             match dilation, dilations with
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
             | Some d, None -> [|d; d|]
-            | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 2 then failwithf "Expecting dilations to be 2-dimensional" else d
+            | None, Some d -> let d = d |> Seq.toArrayQuick in if d.Length <> 2 then failwithf "Expecting dilations to be 2-dimensional" else d
             | _ -> [|1I; 1I|]
         Shape.checkCanConv2d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations |> ignore
         let mutable b = b
@@ -2560,31 +2568,32 @@ type Tensor =
     member a.convTranspose2d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?outputPaddings:seq<int>) =
         a.convTranspose2dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=optInt dilation, ?outputPadding=optInt outputPadding, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=optInts dilations, ?outputPaddings=optInts outputPaddings)
 
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
     member internal a.convTranspose2dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>, ?outputPaddings:seq<Int>) =
         let b = filters
         let strides = 
             match stride, strides with
             | Some _, Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s|]
-            | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 2 then failwithf "Expecting strides to be 2-dimensional" else s
+            | None, Some s -> let s = s |> Seq.toArrayQuick in if s.Length <> 2 then failwithf "Expecting strides to be 2-dimensional" else s
             | _ -> [|1I; 1I|]
         let paddings = 
             match padding, paddings with
             | Some _ , Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p|]
-            | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
+            | None, Some p -> let p = p |> Seq.toArrayQuick in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
             | _ -> [|0I; 0I|]
         let dilations = 
             match dilation, dilations with
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
             | Some d, None -> [|d; d|]
-            | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 2 then failwithf "Expecting dilations to be 2-dimensional" else d
+            | None, Some d -> let d = d |> Seq.toArrayQuick in if d.Length <> 2 then failwithf "Expecting dilations to be 2-dimensional" else d
             | _ -> [|1I; 1I|]
         let outputPaddings = 
             match outputPadding, outputPaddings with
             | Some _ , Some _ -> failwithf "Expecting only one of outputPadding, outputPaddings"
             | Some p, None -> [|p; p|]
-            | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting outputPaddings to be 2-dimensional" else p
+            | None, Some p -> let p = p |> Seq.toArrayQuick in if p.Length <> 2 then failwithf "Expecting outputPaddings to be 2-dimensional" else p
             | _ -> [|0I; 0I|]
 
         let _, _, _, _, outputShape =
@@ -2593,7 +2602,7 @@ type Tensor =
         if a.symbolic || dilations.[0].Value > 1 || dilations.[1].Value > 1 then
             b <- b.dilatex([|1I; 1I; dilations.[0]; dilations.[1]|])
         let cderivative = a
-        let a = a.zerosLike(outputShape)
+        let a = a.zerosLikex(outputShape)
         // Use convolution reverse mode to implement transposed convolution
         let (aderivative:Tensor), _ = Tensor.conv2dReverseDiff(a, b, cderivative, aConst=false, bConst=true, strides=strides, paddings=paddings)
         aderivative
@@ -2615,19 +2624,19 @@ type Tensor =
             match stride, strides with
             | Some _ , Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s; s|]
-            | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 3 then failwithf "Expecting strides to be 3-dimensional" else s
+            | None, Some s -> let s = s |> Seq.toArrayQuick in if s.Length <> 3 then failwithf "Expecting strides to be 3-dimensional" else s
             | _ -> [|1I; 1I; 1I|]
         let paddings = 
             match padding, paddings with
             | Some _ , Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p; p|]
-            | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
+            | None, Some p -> let p = p |> Seq.toArrayQuick in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
             | _ -> [|0I; 0I; 0I|]
         let dilations = 
             match dilation, dilations with
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
             | Some d, None -> [|d; d; d|]
-            | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 3 then failwithf "Expecting dilations to be 3-dimensional" else d
+            | None, Some d -> let d = d |> Seq.toArrayQuick in if d.Length <> 3 then failwithf "Expecting dilations to be 3-dimensional" else d
             | _ -> [|1I; 1I; 1I|]
         Shape.checkCanConv3d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations |> ignore
         let mutable b = b
@@ -2720,31 +2729,32 @@ type Tensor =
     member a.convTranspose3d(filters:Tensor, ?stride:int, ?padding:int, ?dilation:int, ?outputPadding:int, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?outputPaddings:seq<int>) =
         a.convTranspose3dx(filters, ?stride=optInt stride, ?padding=optInt padding, ?dilation=optInt dilation, ?outputPadding=optInt outputPadding, ?strides=optInts strides, ?paddings=optInts paddings, ?dilations=optInts dilations, ?outputPaddings=optInts outputPaddings)
 
+    /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
     member internal a.convTranspose3dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>, ?outputPaddings:seq<Int>) =
         let b = filters
         let strides = 
             match stride, strides with
             | Some _ , Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s; s|]
-            | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 3 then failwithf "Expecting strides to be 3-dimensional" else s
+            | None, Some s -> let s = s |> Seq.toArrayQuick in if s.Length <> 3 then failwithf "Expecting strides to be 3-dimensional" else s
             | _ -> [|1I; 1I; 1I|]
         let paddings = 
             match padding, paddings with
             | Some _ , Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p; p|]
-            | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
+            | None, Some p -> let p = p |> Seq.toArrayQuick in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
             | _ -> [|0I; 0I; 0I|]
         let dilations = 
             match dilation, dilations with
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
             | Some d, None -> [|d; d; d|]
-            | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 3 then failwithf "Expecting dilations to be 3-dimensional" else d
+            | None, Some d -> let d = d |> Seq.toArrayQuick in if d.Length <> 3 then failwithf "Expecting dilations to be 3-dimensional" else d
             | _ -> [|1I; 1I; 1I|]
         let outputPaddings = 
             match outputPadding, outputPaddings with
             | Some _ , Some _ -> failwithf "Expecting only one of outputPadding, outputPaddings"
             | Some p, None -> [|p; p; p|]
-            | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting outputPaddings to be 3-dimensional" else p
+            | None, Some p -> let p = p |> Seq.toArrayQuick in if p.Length <> 3 then failwithf "Expecting outputPaddings to be 3-dimensional" else p
             | _ -> [|0I; 0I; 0I|]
 
         let _, _, _, _, outputShape =
@@ -2753,7 +2763,7 @@ type Tensor =
         if a.symbolic || dilations.[0].Value > 1 || dilations.[1].Value > 1 || dilations.[2].Value > 1 then
             b <- b.dilatex([|1I; 1I; dilations.[0]; dilations.[1]; dilations.[2]|])
         let cderivative = a
-        let a = a.zerosLike(outputShape)
+        let a = a.zerosLikex(outputShape)
         // Use convolution reverse mode to implement transposed convolution
         let (aderivative:Tensor), _ = Tensor.conv3dReverseDiff(a, b, cderivative, aConst=false, bConst=true, strides=strides, paddings=paddings)
         aderivative

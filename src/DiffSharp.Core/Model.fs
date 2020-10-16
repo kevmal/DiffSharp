@@ -27,11 +27,7 @@ type Parameter =
     member p.move(?dtype, ?device, ?backend) = p.value <- p.value.move(?dtype=dtype, ?device=device, ?backend=backend)
 
     /// <summary>TBD</summary>
-    override p.ToString() =
-        if p.value.symbolic then 
-            sprintf "%A" p.value.shapex
-        else 
-            sprintf "Parameter(shape:%A, value:%A)" p.value.shape p.value
+    override p.ToString() = sprintf "Parameter(%A)" p.value
 
 
 /// <summary>Represents a collection of named parameters in a model.</summary>

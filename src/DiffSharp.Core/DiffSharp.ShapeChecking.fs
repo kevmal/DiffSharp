@@ -3,6 +3,9 @@
 open DiffSharp
 open DiffSharp.Backends
 
+// Note: this file exposes internal functionality from 'Tensor' as public only
+// if you open DiffSharp.ShapeChecking.
+
 [<AutoOpen>]
 /// Augments the dsharp and Tensor APIs with inputs accepting potentially-symbolic shapes (Shape) and lengths/indicies (Int)
 module ShapedInferenceAutoOpens =
@@ -13,34 +16,44 @@ module ShapedInferenceAutoOpens =
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
         /// </summary>
         /// <param name="newShape">The requested shape.</param>
-        member a.expand(newShape:Shape) = a.expandx(newShape)
+        member a.expand(newShape:Shape) =
+            a.expandx(newShape)
 
         /// <summary>Returns a new view of the object tensor with singleton dimensions expanded to a larger size.
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
         /// </summary>
         /// <param name="newShape">The requested shape.</param>
-        member a.expand(newShape:seq<Int>) = a.expandx(Shape newShape)
+        member a.expand(newShape:seq<Int>) =
+            a.expandx(Shape newShape)
 
         /// <summary>Returns a new tensor with the same data as the self tensor but of a different shape.
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
         /// </summary>
-        member a.view(shape:Shape) = a.viewx(shape)
+        member a.view(shape:Shape) =
+            a.viewx(shape)
 
         /// <summary>Returns a new tensor with the same data as the self tensor but of a different shape.
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
         /// </summary>
         /// <param name="shape">The desired shape of returned tensor.</param>
-        member a.view(shape:seq<Int>) = a.viewx(Shape shape)
+        member a.view(shape:seq<Int>) =
+            a.viewx(Shape shape)
 
         /// <summary>Dilate the tensor in using the given dilations in each corresponding dimension.</summary>
         /// <param name="dilations">The dilations to use.</param>
-        member a.dilate(dilations:seq<Int>) = a.dilatex(dilations)
+        member a.dilate(dilations:seq<Int>) =
+            a.dilatex(dilations)
 
-        // /// <summary>TBD</summary>
-        //member a.undilate(dilations:seq<Int>) = a.undilate(dilations)
+        /// <summary>Reverse the dilation of the tensor in using the given dilations in each corresponding dimension.</summary>
+        /// <param name="dilations">The dilations to use.</param>
+        member a.undilate(dilations:seq<Int>) =
+            a.undilatex(dilations)
 
-        // /// <summary>TBD</summary>
-        //member a.repeat(dim:int, times:int) = a.repeat(dim, times)
+        /// <summary>Repeat elements of a tensor</summary>
+        /// <param name="dim">The dimension along which to repeat values.</param>
+        /// <param name="times">The number of repetitions for each element.</param>
+        member a.repeat(dim:int, times:Int) =
+            a.repeatx(dim, times)
 
         /// <summary>Applies a 1D max pooling over an input signal composed of several input planes.
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
@@ -221,10 +234,153 @@ module ShapedInferenceAutoOpens =
         /// <param name="dilations">The spacings between kernel elements.</param>
         /// <param name="outputPadding">The additional size added to one side of each dimension in the output shape.</param>
         /// <param name="outputPaddings">The additional sizes added to one side of each dimension in the output shape.</param>
-        member a.convTranspose3d(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>, ?outputPaddings:seq<Int>) = a.convTranspose3dx(filters, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
+        member a.convTranspose3d(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>, ?outputPaddings:seq<Int>) =
+            a.convTranspose3dx(filters, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
 
-        // /// <summary>TBD</summary>
-        // member a.pad(paddings:seq<int>) = a.pad(paddings)
+        /// <summary>Add zero padding to each side of each dimension of a tensor. 
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
+        member a.pad(paddings:seq<Int>) = a.padx(paddings)
+
+        /// <summary>Returns a new tensor filled with '0' values with characteristics based on the input tensor.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="shape">The desired shape of returned tensor. Default: If None, the shape of the input tensor is used.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        member a.zerosLike(shape:Shape, ?dtype, ?device, ?backend) = 
+            a.zerosLikex(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>Returns a new tensor filled with '0' values with characteristics based on the input tensor.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="shape">The desired shape of returned tensor. Default: If None, the shape of the input tensor is used.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        member a.zerosLike(shape:Int[], ?dtype, ?device, ?backend) = 
+            a.zerosLikex(shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>Returns a new tensor filled with '1' values with characteristics based on the input tensor.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="shape">The desired shape of returned tensor. Default: If None, the shape of the input tensor is used.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        member a.onesLike(shape:Shape, ?dtype, ?device, ?backend) = 
+            a.onesLikex(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>Returns a new tensor filled with '1' values with characteristics based on the input tensor.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="shape">The desired shape of returned tensor. Default: If None, the shape of the input tensor is used.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        member a.onesLike(shape:Int[], ?dtype, ?device, ?backend) = 
+            a.onesLikex(shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>Returns a new tensor filled with the given scalar value with characteristics based on the input tensor.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="value">The scalar giving the the initial values for the tensor.</param>
+        /// <param name="shape">The desired shape of returned tensor. Default: If None, the shape of the input tensor is used.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        member a.fullLike(value:scalar, shape:Shape, ?dtype, ?device, ?backend) = 
+            a.fullLikex(value, shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>Returns a new tensor filled with the given scalar value with characteristics based on the input tensor.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="value">The scalar giving the the initial values for the tensor.</param>
+        /// <param name="shape">The desired shape of returned tensor. Default: If None, the shape of the input tensor is used.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        member a.fullLike(value:scalar, shape:Int[], ?dtype, ?device, ?backend) = 
+            a.fullLikex(value, shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>Returns a tensor filled with random numbers from a uniform distribution on the interval [0, 1) with characteristics based on the input tensor
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="shape">The desired shape of returned tensor. Default: If None, the shape of the input tensor is used.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        member a.randLike(shape:Shape, ?dtype, ?device, ?backend) = 
+            a.randLikex(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>Returns a tensor filled with random numbers from a uniform distribution on the interval [0, 1) with characteristics based on the input tensor
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="shape">The desired shape of returned tensor. Default: If None, the shape of the input tensor is used.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        member a.randLike(shape:Int[], ?dtype, ?device, ?backend) = 
+            a.randLikex(shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>Returns a tensor filled with random numbers from a normal distribution with mean 0 and variance 1 (also called the standard normal distribution) with characteristics based on the input tensor.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="shape">The desired shape of returned tensor. Default: If None, the shape of the input tensor is used.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        member a.randnLike(shape:Shape, ?dtype, ?device, ?backend) = 
+            a.randnLikex(shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>Returns a tensor filled with random numbers from a normal distribution with mean 0 and variance 1 (also called the standard normal distribution) with characteristics based on the input tensor.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="shape">The desired shape of returned tensor. Default: If None, the shape of the input tensor is used.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        member a.randnLike(shape:Int[], ?dtype, ?device, ?backend) = 
+            a.randnLikex(shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>Returns a tensor with the same shape as Tensor input filled with random integers generated uniformly between low (inclusive) and high (exclusive) with characteristics based on the input tensor.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="low">Lowest integer to be drawn from the distribution. Default: 0..</param>
+        /// <param name="high">One above the highest integer to be drawn from the distribution.</param>
+        /// <param name="shape">The desired shape of returned tensor. Default: If None, the shape of the input tensor is used.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        member a.randintLike(low:int, high:int, shape: Shape, ?dtype, ?device, ?backend) = 
+            a.randintLikex(low, high, shape=shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>Returns a tensor with the same shape as Tensor input filled with random integers generated uniformly between low (inclusive) and high (exclusive) with characteristics based on the input tensor.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="low">Lowest integer to be drawn from the distribution. Default: 0..</param>
+        /// <param name="high">One above the highest integer to be drawn from the distribution.</param>
+        /// <param name="shape">The desired shape of returned tensor. Default: If None, the shape of the input tensor is used.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        member a.randintLike(low:int, high:int, shape:Int[], ?dtype, ?device, ?backend) = 
+            a.randintLikex(low, high, shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
+
+        /// <summary>
+        /// A version of dsharp.onehot with characteristics based on the input tensor. 
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// 
+        /// <param name="length">The length of the returned tensor.</param>
+        /// <param name="hot">The location to set to 1.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        member a.onehotLike(length:Int, hot:Int, ?dtype, ?device, ?backend) =
+            a.onehotLikex(length, hot, ?dtype=dtype, ?device=device, ?backend=backend)
 
     type dsharp with
 
@@ -359,13 +515,18 @@ module ShapedInferenceAutoOpens =
             Tensor(RawTensor.Full(Shape [| length |], value, ?dtype=dtype, ?device=device, ?backend=backend))
 
         // /// <summary>TBD</summary>
-        // static member arange(endVal:int, ?startVal:int, ?step:int, ?dtype:Dtype, ?device:Device, ?backend:Backend) = dsharp.zero(?dtype=dtype, ?device=device, ?backend=backend).arangeLike(endVal=endVal, ?startVal=startVal, ?step=step)
-
-        // /// <summary>TBD</summary>
         // static member eye(rows:int, ?cols:int, ?dtype:Dtype, ?device:Device, ?backend:Backend) = Tensor.eye(rows=rows, ?cols=cols, ?dtype=dtype, ?device=device, ?backend=backend)
 
-        // /// <summary>TBD</summary>
-        // static member onehot(length:int, hot:int, ?dtype:Dtype, ?device:Device, ?backend:Backend) = dsharp.zero(?dtype=dtype, ?device=device, ?backend=backend).onehotLike(length, hot)
+        /// <summary>Returns a one-hot tensor, with one location set to 1, and all others 0.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="length">The length of the returned tensor.</param>
+        /// <param name="hot">The location to set to 1.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, uses Dtype.Default.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, uses Device.Default.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, uses Backend.Default.</param>
+        static member onehot(length:Int, hot:Int, ?dtype:Dtype, ?device:Device, ?backend:Backend) =
+            dsharp.zero(?dtype=dtype, ?device=device, ?backend=backend).onehotLikex(length, hot)
 
         /// <summary>Returns a tensor filled with random numbers from a uniform distribution on the interval [0, 1).
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
@@ -505,11 +666,18 @@ module ShapedInferenceAutoOpens =
         static member fullLike(input:Tensor, value:scalar, shape:seq<Int>, ?dtype, ?device, ?backend) =
             input.fullLike(value, shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
-        // /// <summary>TBD</summary>
-        // static member arangeLike(input:Tensor, endVal:float, ?startVal:float, ?step:float, ?dtype:Dtype, ?device:Device, ?backend:Backend) = input.arangeLike(endVal=endVal, ?startVal=startVal, ?step=step, ?dtype=dtype, ?device=device, ?backend=backend)
-
-        // /// <summary>TBD</summary>
-        // static member onehotLike(input:Tensor, length:int, hot:int, ?dtype, ?device, ?backend) = input.onehotLike(length, hot, ?dtype=dtype, ?device=device, ?backend=backend)
+        /// <summary>
+        /// A version of dsharp.onehot with characteristics based on the input tensor.
+        /// </summary>
+        /// 
+        /// <param name="input">The shape and characteristics of input will determine those of the output tensor.</param>
+        /// <param name="length">The length of the returned tensor.</param>
+        /// <param name="hot">The location to set to 1.</param>
+        /// <param name="dtype">The desired element type of returned tensor. Default: if None, the element type of the input tensor is used.</param>
+        /// <param name="device">The desired device of returned tensor. Default: if None, the device of the input tensor is used.</param>
+        /// <param name="backend">The desired backend of returned tensor. Default: if None, the backend of the input tensor is used.</param>
+        static member onehotLike(input:Tensor, length:Int, hot:Int, ?dtype, ?device, ?backend) =
+            input.onehotLikex(length, hot, ?dtype=dtype, ?device=device, ?backend=backend)
 
         /// <summary>Returns a tensor filled with random numbers from a uniform distribution on the interval [0, 1) with characteristics based on the input tensor
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
@@ -581,18 +749,37 @@ module ShapedInferenceAutoOpens =
         static member randintLike(input:Tensor, low:int, high:int, shape:seq<Int>, ?dtype, ?device, ?backend) =
             input.randintLike(low=low, high=high, shape=Shape shape, ?dtype=dtype, ?device=device, ?backend=backend)
 
+        /// <summary>Add zero padding to each side of each dimension of a tensor</summary>
+        /// <param name="input">The input tensor.</param>
+        /// <param name="paddings">The implicit paddings on corresponding sides of the input.</param>
+        static member pad(input:Tensor, paddings:seq<Int>) =
+            input.pad(paddings)
+
         /// <summary>Returns the full shape information about the tensor, returning potentially symbolic shape information (Shape and Int).
         /// </summary>
         static member fullshape(input:Tensor) = input.shapex
 
-        // /// <summary>TBD</summary>
-        //static member dilate(input:Tensor, dilations:seq<Int>) = input.dilate(dilations)
+        /// <summary>Dilate the tensor in using the given dilations in each corresponding dimension.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="input">The input tensor.</param>
+        /// <param name="dilations">The dilations to use.</param>
+        static member dilate(input:Tensor, dilations:seq<Int>) = input.dilate(dilations)
 
-        // /// <summary>TBD</summary>
-        //static member undilate(input:Tensor, dilations:seq<Int>) = input.undilate(dilations)
+        /// <summary>Reverse the dilation of the tensor in using the given dilations in each corresponding dimension.
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="input">The input tensor.</param>
+        /// <param name="dilations">The dilations to use.</param>
+        static member undilate(input:Tensor, dilations:seq<Int>) = input.undilate(dilations)
 
-        // /// <summary>TBD</summary>
-        //static member repeat(input:Tensor, dim:int, times:int) = input.repeat(dim, times)
+        /// <summary>Repeat elements of a tensor. 
+        ///   This overload acceps potentially symbolic shape information (Shape and Int).
+        /// </summary>
+        /// <param name="input">The input tensor.</param>
+        /// <param name="dim">The dimension along which to repeat values.</param>
+        /// <param name="times">The number of repetitions for each element.</param>
+        static member repeat(input:Tensor, dim:int, times:Int) = input.repeat(dim, times)
 
         /// <summary>Returns a new tensor with the same data as the self tensor but of a different shape.
         ///   This overload acceps potentially symbolic shape information (Shape and Int).
@@ -804,7 +991,4 @@ module ShapedInferenceAutoOpens =
         /// <param name="outputPaddings">The additional sizes added to one side of each dimension in the output shape.</param>
         static member convTranspose3d(input:Tensor, filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int, ?strides:seq<Int>, ?paddings:seq<Int>, ?dilations:seq<Int>, ?outputPaddings:seq<Int>) =
             input.convTranspose3dx(filters, ?stride=stride, ?padding=padding, ?dilation=dilation, ?outputPadding=outputPadding, ?strides=strides, ?paddings=paddings, ?dilations=dilations, ?outputPaddings=outputPaddings)
-
-        // /// <summary>TBD</summary>
-        // static member pad(input:Tensor, paddings:seq<int>) = input.pad(paddings)
 

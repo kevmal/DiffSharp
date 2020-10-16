@@ -498,9 +498,10 @@ module Shape =
         if not (shape1.[0] =~= shape2.[0]) then failwithf "dot: Cannot multiply vectors with different lengths %A, %A" shape1.[0] shape2.[0]
 
     /// Checks if the given shape is appropriate for a pad operation.
-    let checkCanPad (shape: Shape) (paddings: int[]) =
+    let checkCanPad (shape: Shape) (paddings: Int[]) =
         if shape.Length <> paddings.Length then failwithf "pad: Expecting shape (%A) and paddings (%A) to have the same length" shape paddings
-        if not (paddings |> Array.forall (fun p -> p >= 0)) then failwithf "pad: Expecting all paddings (%A) >= 0" paddings
+        for p in paddings do
+            if not (p >=~ 0I) then failwithf "pad: Expecting all paddings (%A) >= 0" paddings
 
     /// Checks if the given shape is appropriate for a dropout operation.
     let checkCanDropout (p:double) =
@@ -663,6 +664,7 @@ module ShapeAutoOpens =
             fi <- fi - index.[i-1] * mul
         index |> Array.rev
 
-    let optInt x = Option.map Int x
-    let Ints x = Seq.map Int x
-    let optInts x = Option.map Ints x
+    let Ints (x: seq<int>) : seq<Int> = Seq.map Int x
+    let optInt (x: int option) : Int option = Option.map Int x
+    let optInts (x: seq<int> option) : seq<Int> option = Option.map Ints x
+    let optShape (x: seq<int> option) : Shape option = x |> Option.map Shape
