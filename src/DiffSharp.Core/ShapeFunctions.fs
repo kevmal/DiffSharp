@@ -61,7 +61,7 @@ module Shape =
             [|for i=0 to (fullBounds.GetLength(0) - 1) do
                 let len = fullBounds.[i,1] - fullBounds.[i,0] + 1
                 if fullBounds.[i, 2].Value = 1 then
-                    if len <> Int 1 then yield len // if len=1 then squeeze this dimension
+                    if len <> 1I then yield len // if len=1 then squeeze this dimension
                 else
                     yield len|]
         Shape outputShape
@@ -355,7 +355,7 @@ module Shape =
         | Dtype.Bool | Dtype.Integral -> opNotSupported "maxpool3d" dtype
         | _ ->
         if shape.Length <> 5 then failwithf "Expecting a 5d tensor (NxCxDxHxW: batchSize x inputChannels x inputDepth x inputHeight x inputWidth), received tensor with shape %A" shape
-        if not (kernelSize.[0] >=~ 1) || not (kernelSize.[1] >=~ 1) || not (kernelSize.[2] >=~ Int 1) then failwithf "Expecting all kernelSizes (%A) >= 1" kernelSize
+        if not (kernelSize.[0] >=~ 1) || not (kernelSize.[1] >=~ 1) || not (kernelSize.[2] >=~ 1I) then failwithf "Expecting all kernelSizes (%A) >= 1" kernelSize
         if not (paddings.[0] >=~ 0) || not (paddings.[1] >=~ 0) || not (paddings.[2] >=~ 0) then failwithf "Expecting all paddings (%A) >= 0" paddings
         if not (paddings.[0] <=~ kernelSize.[0]/2) || not (paddings.[1] <=~ kernelSize.[1]/2) || not (paddings.[2] <=~ kernelSize.[2]/2) then failwithf "Expecting all paddings (%A) < kernelSizes (%A) / 2" paddings kernelSize
         if not (strides.[0] >=~ 1) || not (strides.[1] >=~ 1) || not (strides.[2] >=~ 1) then failwithf "Expecting all strides (%A) >= 1" strides
@@ -428,8 +428,8 @@ module Shape =
     let canExpand (oldShape: Shape) (newShape: Shape) =
         newShape.Length >= oldShape.Length &&
         let trim = newShape.Length - oldShape.Length
-        newShape.[..trim-1].Dims |> Array.forall (fun m -> m >=~ Int 1)
-            && (oldShape.Dims,newShape.[trim..].Dims) ||> Array.forall2 (fun n m -> n = Int 1 || m = Int 1 || n =~= m)
+        newShape.[..trim-1].Dims |> Array.forall (fun m -> m >=~ 1I)
+            && (oldShape.Dims,newShape.[trim..].Dims) ||> Array.forall2 (fun n m -> n = 1I || m = 1I || n =~= m)
 
     /// Checks if one shape can expand into another through the addition of broadcast dimensions.
     let checkCanExpand (oldShape: Shape) (newShape: Shape) =
@@ -453,7 +453,7 @@ module Shape =
 
     /// Checks if the given shape is appropriate for a repeat operation.
     let checkCanRepeat (shape: Shape) (dim: int) =
-        if not (shape.[dim] =~= Int 1) then failwithf "Expecting Tensor's shape (%A) at dim (%A) to be 1" shape dim
+        if not (shape.[dim] =~= 1I) then failwithf "Expecting Tensor's shape (%A) at dim (%A) to be 1" shape dim
 
     /// Checks if the given shape is appropriate for a dilate operation.
     let checkCanDilate (dim: int) (dilations: Int[]) =
@@ -465,7 +465,7 @@ module Shape =
     let checkCanGather (shape: Shape) (dim: int) (indicesShape: Shape) (indicesDtype:Dtype) =
         if shape.Length <> indicesShape.Length then failwithf "Expecting tensorShape (%A) and indicesShape (%A) to have the same number of dimensions" shape indicesShape
         if dim < 0 || dim > shape.Length-1 then failwithf "Expecting 0<= dim (%A) < tensorShape.Length (%A)" dim shape.Length
-        if not (indicesShape.[dim] >=~ Int 1) then failwithf "Expecting indicesShape.[dim] (%A) >= 1" indicesShape.[dim]
+        if not (indicesShape.[dim] >=~ 1I) then failwithf "Expecting indicesShape.[dim] (%A) >= 1" indicesShape.[dim]
         if not (indicesDtype =~= Dtype.Int32) then failwithf "Expecting indices to have type %A" Dtype.Int32
 
     /// Checks if the given shape is appropriate for a view operation.
@@ -519,9 +519,9 @@ module Shape =
     /// Computes the shape that results from a squeeze operation.
     let squeeze (dim: int) (shape: Shape) =
         if dim = -1 then
-            [|for s in shape.Dims do if s <> Int 1 then yield s|]
+            [|for s in shape.Dims do if s <> 1I then yield s|]
             |> Shape
-        elif shape.[dim] = Int 1 then
+        elif shape.[dim] = 1I then
             [|for i=0 to shape.Length - 1 do
                 if i < dim then yield shape.[i]
                 elif i > dim then yield shape.[i]|]
@@ -534,19 +534,19 @@ module Shape =
         if dim < 0 || dim > shape.Length then failwithf "Expecting dim in range [0, %A] but received %A" shape.Length dim
         [|for i=0 to shape.Length - 1 + 1 do
             if i < dim then yield shape.[i]
-            elif i = dim then yield Int 1
+            elif i = dim then yield 1I
             else yield shape.[i-1]|]
         |> Shape
 
     /// Computes the shape that results from an unsqueezeAs operation.
     let unsqueezeAs (shape1: Shape) (shape2: Shape) =
         if shape1.Length > shape2.Length then failwithf "Expecting shape1.Length (%A) <= shape2.Length (%A)" shape1.Length shape2.Length
-        let ones = Array.create (shape2.Length - shape1.Length) (Int 1)
+        let ones = Array.create (shape2.Length - shape1.Length) (1I)
         Shape (Array.append ones shape1.Dims)
 
     /// Converts the given location to a three-element bounds array in the context of the given shape.
     let locationToBounds (shape: Shape) (location: Int[]) : Int[,] =
-        Array2D.init location.Length 3 (fun i j -> if j=0 then location.[i] elif j=1 then location.[i] + shape.[i].Value - 1 else Int 1)
+        Array2D.init location.Length 3 (fun i j -> if j=0 then location.[i] elif j=1 then location.[i] + shape.[i].Value - 1 else 1I)
 
     /// Finds the shape into which `shape1` and `shape2` can be expanded.
     let broadcast2 (shape1: Shape) (shape2: Shape) =
@@ -559,9 +559,9 @@ module Shape =
               let res =
                 if i < mn then (if n1 > n2 then shape1.[i] else shape2.[i])
                 elif n1 > n2 then 
-                    if shape1.[i] = Int 1 then shape2.[i-mn] else shape1.[i]
+                    if shape1.[i] = 1I then shape2.[i-mn] else shape1.[i]
                 else 
-                    if shape2.[i] = Int 1 then shape1.[i-mn] else shape2.[i]
+                    if shape2.[i] = 1I then shape1.[i-mn] else shape2.[i]
               res
             )
             |> Shape
@@ -589,7 +589,7 @@ module Shape =
             shape
         else
             let divisor = shape.Dims  |> Array.filter (fun d -> not d.IsUnspecified) |> Shape |> nelementx
-            if not (nelement % divisor =~= Int 0) then failwithf "Cannot complete shape %A to have %A elements" shape nelement
+            if not (nelement % divisor =~= 0I) then failwithf "Cannot complete shape %A to have %A elements" shape nelement
             let missing = nelement / divisor
             [|for d in shape.Dims -> if d.IsUnspecified then missing else d|]
             |> Shape

@@ -704,7 +704,7 @@ module internal RawTensorCPU =
                 let tshape = Array.copy t1.Shape.Dims
                 tshape.[2] <- t1.Shape.[2] + padding * 2
                 let t = t1.ZerosLike(Shape tshape)
-                t.AddTTSlice([|Int 0; Int 0; Int padding|], t1) :?> RawTensorCPU< ^T >
+                t.AddTTSlice([|0I; 0I; Int padding|], t1) :?> RawTensorCPU< ^T >
         let t2 = t2 :?> RawTensorCPU< ^T >
         for n=0 to batchSize-1 do
             for k=0 to outputChannels-1 do
@@ -734,7 +734,7 @@ module internal RawTensorCPU =
                 tshape.[2] <- t1.Shape.[2] + padding.[0] * 2
                 tshape.[3] <- t1.Shape.[3] + padding.[1] * 2
                 let t = t1.ZerosLike(Shape tshape)
-                t.AddTTSlice([|Int 0; Int 0; Int padding.[0]; Int padding.[1]|], t1) :?> RawTensorCPU< ^T >
+                t.AddTTSlice([|0I; 0I; Int padding.[0]; Int padding.[1]|], t1) :?> RawTensorCPU< ^T >
         let t2 = t2 :?> RawTensorCPU< ^T >
         for n=0 to batchSize-1 do
             for k=0 to outputChannels-1 do
@@ -767,7 +767,7 @@ module internal RawTensorCPU =
                 tshape.[3] <- t1.Shape.[3] + padding.[1] * 2
                 tshape.[4] <- t1.Shape.[4] + padding.[2] * 2
                 let t = t1.ZerosLike(Shape tshape)
-                t.AddTTSlice([|Int 0; Int 0; Int padding.[0]; Int padding.[1]; Int padding.[2]|], t1) :?> RawTensorCPU< ^T >
+                t.AddTTSlice([|0I; 0I; Int padding.[0]; Int padding.[1]; Int padding.[2]|], t1) :?> RawTensorCPU< ^T >
         let t2 = t2 :?> RawTensorCPU< ^T >
         for n=0 to batchSize-1 do
             for k=0 to outputChannels-1 do

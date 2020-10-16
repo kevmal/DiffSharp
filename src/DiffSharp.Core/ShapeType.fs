@@ -31,7 +31,7 @@ type Shape internal (values: int[], dims: Int[]) =
         // assert all are either syntactically -1 placeholders or constrained > 0
         let arr = Seq.toArrayQuick dims
         for d in arr do
-            if not (d = Int -1 || d >~ Int 0) then failwithf "The shape dimension '%O' is zero or negative. Shape dimensions must be positive, or else the indicator -1." d
+            if not (d = Int -1 || d >~ 0I) then failwithf "The shape dimension '%O' is zero or negative. Shape dimensions must be positive, or else the indicator -1." d
         Shape(null, arr)
 
     /// Get the number of dimensions in the shape

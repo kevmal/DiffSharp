@@ -296,10 +296,12 @@ type Weight =
         w * s
 
     /// <summary>TBD</summary>
-    static member kaiming(fanIn:int, fanOut:int, ?a:float) = Weight.kaiming(Int fanIn, Int fanOut, ?a=a)
+    static member kaiming(fanIn:int, fanOut:int, ?a:float) =
+        Weight.kaiming(Int fanIn, Int fanOut, ?a=a)
 
     /// <summary>TBD</summary>
-    static member uniform(shape:Shape, k:float) = -k + dsharp.rand(shape) * 2*k
+    static member uniform(shape:Shape, k:float) =
+        -k + dsharp.rand(shape) * 2*k
     
     /// <summary>TBD</summary>
     static member uniform(shape:seq<int>, k:float) = Weight.uniform (Shape shape, k)
@@ -333,8 +335,8 @@ type Conv1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:Int, ?paddi
     inherit Model()
     let bias = defaultArg bias true
     let k = 1./ sqrt (float (inChannels*kernelSize).ValueOrOne)
-    let w = Parameter <| Weight.uniform([outChannels; inChannels; kernelSize], k)
-    let b = Parameter <| if bias then Weight.uniform([outChannels], k) else dsharp.zero()
+    let w = Parameter <| Weight.uniform([|outChannels; inChannels; kernelSize|], k)
+    let b = Parameter <| if bias then Weight.uniform([|outChannels|], k) else dsharp.zero()
     do base.add([w;b],["Conv1d__weight";"Conv1d__bias"])
 
     /// <summary>TBD</summary>
@@ -360,8 +362,8 @@ type Conv2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padd
         | _ -> [|1I; 1I|]
     let bias = defaultArg bias true
     let k = 1./ sqrt (float (inChannels*kernelSizes.[0]*kernelSizes.[1]).ValueOrOne)
-    let w = Parameter <| Weight.uniform([outChannels; inChannels; kernelSizes.[0]; kernelSizes.[1]], k)
-    let b = Parameter <| if bias then Weight.uniform([outChannels], k) else dsharp.zero()
+    let w = Parameter <| Weight.uniform([|outChannels; inChannels; kernelSizes.[0]; kernelSizes.[1]|], k)
+    let b = Parameter <| if bias then Weight.uniform([|outChannels|], k) else dsharp.zero()
     do base.add([w;b],["Conv2d__weight";"Conv2d__bias"])
 
     /// <summary>TBD</summary>
@@ -387,8 +389,8 @@ type Conv3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padd
         | _ -> [|1I; 1I; 1I|]
     let bias = defaultArg bias true
     let k = 1./ sqrt (float (inChannels.ValueOrOne*kernelSizes.[0]*kernelSizes.[1]*kernelSizes.[2]).ValueOrOne)
-    let w = Parameter <| Weight.uniform([outChannels; inChannels; kernelSizes.[0]; kernelSizes.[1]; kernelSizes.[2]], k)
-    let b = Parameter <| if bias then Weight.uniform([outChannels], k) else dsharp.zero()
+    let w = Parameter <| Weight.uniform([|outChannels; inChannels; kernelSizes.[0]; kernelSizes.[1]; kernelSizes.[2]|], k)
+    let b = Parameter <| if bias then Weight.uniform([|outChannels|], k) else dsharp.zero()
     do base.add([w;b],["Conv3d__weight";"Conv3d__bias"])
 
     /// <summary>TBD</summary>
@@ -410,7 +412,7 @@ type ConvTranspose1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:In
     let bias = defaultArg bias true
     let k = 1./ sqrt (float (inChannels*kernelSize).ValueOrOne)
     let w = Parameter <| Weight.uniform([inChannels; outChannels; kernelSize], k)
-    let b = Parameter <| if bias then Weight.uniform([outChannels], k) else dsharp.zero()
+    let b = Parameter <| if bias then Weight.uniform([|outChannels|], k) else dsharp.zero()
     do base.add([w;b],["ConvTranspose1d__weight";"ConvTranspose1d__bias"])
 
     /// <summary>TBD</summary>
@@ -437,7 +439,7 @@ type ConvTranspose2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:I
     let bias = defaultArg bias true
     let k = 1./ sqrt (float (inChannels*kernelSizes.[0]*kernelSizes.[1]).ValueOrOne)
     let w = Parameter <| Weight.uniform([inChannels; outChannels; kernelSizes.[0]; kernelSizes.[1]], k)
-    let b = Parameter <| if bias then Weight.uniform([outChannels], k) else dsharp.zero()
+    let b = Parameter <| if bias then Weight.uniform([|outChannels|], k) else dsharp.zero()
     do base.add([w;b],["ConvTranspose2d__weight";"ConvTranspose2d__bias"])
 
     /// <summary>TBD</summary>
@@ -464,7 +466,7 @@ type ConvTranspose3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:I
     let bias = defaultArg bias true
     let k = 1./ sqrt (float (inChannels*kernelSizes.[0]*kernelSizes.[1]*kernelSizes.[2]).ValueOrOne)
     let w = Parameter <| Weight.uniform([inChannels; outChannels; kernelSizes.[0]; kernelSizes.[1]; kernelSizes.[2]], k)
-    let b = Parameter <| if bias then Weight.uniform([outChannels], k) else dsharp.zero()
+    let b = Parameter <| if bias then Weight.uniform([|outChannels|], k) else dsharp.zero()
     do base.add([w;b],["ConvTranspose3d__weight";"ConvTranspose3d__bias"])
 
     /// <summary>TBD</summary>
@@ -489,6 +491,7 @@ type Dropout(?p:double) =
     /// <summary>TBD</summary>
     override m.forward(value) =
         if m.mode = Mode.Train then value.dropout(?p=p) else value
+
 
 /// <summary>A model which during training, randomly zero out entire channels. Each channel will be zeroed out independently on every forward call with probability p using samples from a Bernoulli distribution.</summary>
 type Dropout2d(?p:double) =

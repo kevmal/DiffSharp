@@ -782,7 +782,7 @@ type Tensor =
     member internal t.GetSlice(bounds:Int[,]) =
         // printfn "t.GetSlice bounds\n %A" bounds
         if t.dim = 0 then failwith "Cannot slice a scalar Tensor"
-        let fullBounds = Array2D.init t.dim 3 (fun i j -> if j=0 then Int 0 elif j=1 then t.shapex.[i]-1 else Int 0)
+        let fullBounds = Array2D.init t.dim 3 (fun i j -> if j=0 then 0I elif j=1 then t.shapex.[i]-1 else 0I)
         bounds |> Array2D.iteri (fun i j v -> 
             if j=1 && v >= t.shapex.[i] then failwithf "Index outside the bounds of Tensor shape %A" t.shapex
             fullBounds.[i, j] <- v)
@@ -798,7 +798,7 @@ type Tensor =
             if t.symbolic then t.zeroLike() else
             if t.dim = 0 then failwith "Cannot index a scalar Tensor"
             if index.Length > t.dim then failwithf "Expecting an index with <=%i dimensions" t.dim
-            let bounds = Array2D.init index.Length 3 (fun i j -> if j=2 then Int 1 else Int index.[i])
+            let bounds = Array2D.init index.Length 3 (fun i j -> if j=2 then 1I else Int index.[i])
             t.GetSlice(bounds)
 
     /// <summary>
@@ -1304,17 +1304,17 @@ type Tensor =
           // Note: symbolics skip this
           if a.symbolic then 
               let outputShape = Array.copy a.shapex.Dims
-              outputShape.[dim] <- Int 1
+              outputShape.[dim] <- 1I
               a.zerosLike(shape=Shape outputShape)
           else
-            let sBounds = Array2D.init a.dim 3 (fun i j -> if j=0 then Int 0 elif j=1 then a.shapex.[i]-1 else Int 0)
-            sBounds.[dim, 1] <- Int 0
-            sBounds.[dim, 2] <- Int 1
+            let sBounds = Array2D.init a.dim 3 (fun i j -> if j=0 then 0I elif j=1 then a.shapex.[i]-1 else 0I)
+            sBounds.[dim, 1] <- 0I
+            sBounds.[dim, 2] <- 1I
             let mutable s = a.zerosLike(dtype=a.dtype.SummationType).GetSlice(sBounds)
             for i=0 to a.shape.[dim]-1 do
                 sBounds.[dim,0] <- Int i
                 sBounds.[dim,1] <- Int i
-                sBounds.[dim,2] <- Int 1
+                sBounds.[dim,2] <- 1I
                 s <- s + a.GetSlice(sBounds).cast(a.dtype.SummationType)
             s
        let res2 = if keepDim then res.unsqueeze(dim) else res
@@ -1385,16 +1385,16 @@ type Tensor =
         let keepDim = defaultArg keepDim false
         let unbiased = defaultArg unbiased true  // Use Bessel's correction if unbiased=true
         let dim = Shape.completeDim a.dim dim  // Handles -1 semantics
-        let sBounds = Array2D.init a.dim 3 (fun i j -> if j=0 then Int 0 elif j=1 then a.shapex.[i]-1 else Int 0)
-        sBounds.[dim, 1] <- Int 0
-        sBounds.[dim, 2] <- Int 1
+        let sBounds = Array2D.init a.dim 3 (fun i j -> if j=0 then 0I elif j=1 then a.shapex.[i]-1 else 0I)
+        sBounds.[dim, 1] <- 0I
+        sBounds.[dim, 2] <- 1I
         let mutable s = a.zerosLike().GetSlice(sBounds)
         let mutable sSquare = a.zerosLike().GetSlice(sBounds)
         let n = a.shapex.[dim].Value
         for i=0 to n-1 do
             sBounds.[dim,0] <- Int i
             sBounds.[dim,1] <- Int i
-            sBounds.[dim,2] <- Int 1
+            sBounds.[dim,2] <- 1I
             let slice = a.GetSlice(sBounds)
             s <- s + slice
             sSquare <- sSquare + slice * slice
@@ -1496,7 +1496,7 @@ type Tensor =
         elif p = 1. then
             a * a.zerosLike()
         else
-            let shape = Shape (Array.append a.shapex.[0..1].Dims [|Int 1;Int 1|])
+            let shape = Shape (Array.append a.shapex.[0..1].Dims [|1I;1I|])
             let mask = a.fullLike(1.-p, shape).bernoulli()
             a * mask
 
@@ -1510,7 +1510,7 @@ type Tensor =
         elif p = 1. then
             a * a.zerosLike()
         else
-            let shape = Shape (Array.append a.shapex.[0..1].Dims [|Int 1;Int 1;Int 1|])
+            let shape = Shape (Array.append a.shapex.[0..1].Dims [|1I;1I;1I|])
             let mask = a.fullLike(1.-p, shape).bernoulli()
             a * mask
 
@@ -2120,7 +2120,7 @@ type Tensor =
 
     member internal a.maxpool1dix(kernelSize:Int, ?stride:Int, ?padding:Int) =
         let stride = defaultArg stride kernelSize
-        let padding = defaultArg padding (Int 0)
+        let padding = defaultArg padding (0I)
         Shape.checkCanMaxpool1d a.dtype a.shapex kernelSize stride padding  |> ignore
         match a with
         | Tensor(ap)           -> let result, indices = ap.MaxPool1D(kernelSize, stride, padding) in Tensor(result), Tensor(indices)
@@ -2145,7 +2145,7 @@ type Tensor =
     /// <summary>TBD</summary>
     member internal a.maxunpool1dx(indices:Tensor, kernelSize:Int, ?stride:Int, ?padding:Int, ?outputSize:seq<Int>) =
         let stride = defaultArg stride kernelSize
-        let padding = defaultArg padding (Int 0)
+        let padding = defaultArg padding (0I)
         let outputSize = 
             match outputSize with
             | Some o -> let o = o |> Array.ofSeq in if o.Length <> 3 then failwithf "Expecting outputSize to be 3-dimensional" else o
@@ -2187,7 +2187,7 @@ type Tensor =
             | Some _, Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
-            | _ -> [|Int 0; Int 0|]
+            | _ -> [|0I; 0I|]
         Shape.checkCanMaxpool2d a.dtype a.shapex kernelSizes strides paddings  |> ignore
         match a with
         | Tensor(ap)           -> let result, indices = ap.MaxPool2D(kernelSizes, strides, paddings) in Tensor(result), Tensor(indices)
@@ -2234,7 +2234,7 @@ type Tensor =
             | Some _, Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
-            | _ -> [|Int 0; Int 0|]
+            | _ -> [|0I; 0I|]
         let outputSize = 
             match outputSize with
             | Some o -> let o = o |> Array.ofSeq in if o.Length <> 4 then failwithf "Expecting outputSize to be 4-dimensional" else o
@@ -2277,7 +2277,7 @@ type Tensor =
             | Some _, Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
-            | _ -> [|Int 0; Int 0; Int 0|]
+            | _ -> [|0I; 0I; 0I|]
         Shape.checkCanMaxpool3d a.dtype a.shapex kernelSizes strides paddings |> ignore
         match a with
         | Tensor(ap)           -> let result, indices = ap.MaxPool3D(kernelSizes, strides, paddings) in Tensor(result), Tensor(indices)
@@ -2324,7 +2324,7 @@ type Tensor =
             | Some _, Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
-            | _ -> [|Int 0; Int 0; Int 0|]
+            | _ -> [|0I; 0I; 0I|]
         let outputSize = 
             match outputSize with
             | Some o -> let o = o |> Array.ofSeq in if o.Length <> 5 then failwithf "Expecting outputSize to be 5-dimensional" else o
@@ -2351,13 +2351,13 @@ type Tensor =
     member internal a.conv1dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int) =
         let b = filters
         // a: input, b: filter
-        let stride = defaultArg stride (Int 1)
-        let padding = defaultArg padding (Int 0)
-        let dilation = defaultArg dilation (Int 1)
+        let stride = defaultArg stride (1I)
+        let padding = defaultArg padding (0I)
+        let dilation = defaultArg dilation (1I)
         Shape.checkCanConv1d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex stride padding dilation |> ignore
         let mutable b = b
         if a.symbolic || dilation.Value > 1 then
-            b <- b.dilatex([|Int 1;Int 1;dilation|])
+            b <- b.dilatex([|1I;1I;dilation|])
         let fRaw(a:RawTensor,b) = a.Conv1D(b, stride, padding)
         let fTensor(a:Tensor,b) = a.conv1dx(b, stride, padding)
         let dfTensorFwdTT(cp,ap:Tensor,ad:Tensor,bp:Tensor,bd:Tensor) = ad.conv1dx(bp, stride, padding) + ap.conv1dx(bd, stride, padding)
@@ -2429,16 +2429,16 @@ type Tensor =
 
     member internal a.convTranspose1dx(filters:Tensor, ?stride:Int, ?padding:Int, ?dilation:Int, ?outputPadding:Int) =
         let b = filters
-        let stride = defaultArg stride (Int 1)
-        let padding = defaultArg padding (Int 0)
-        let dilation = defaultArg dilation (Int 1)
-        let outputPadding = defaultArg outputPadding (Int 0)
+        let stride = defaultArg stride (1I)
+        let padding = defaultArg padding (0I)
+        let dilation = defaultArg dilation (1I)
+        let outputPadding = defaultArg outputPadding (0I)
 
         let _, _, _, _, _, outputShape =
             Shape.checkCanConvTranspose1d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex stride padding dilation outputPadding
         let mutable b = b
         if a.symbolic || dilation.Value > 1 then
-            b <- b.dilatex([|Int 1; Int 1; dilation|])
+            b <- b.dilatex([|1I; 1I; dilation|])
         let cderivative = a
         let a = a.zerosLike(outputShape)
         // Use convolution reverse mode to implement transposed convolution
@@ -2463,23 +2463,23 @@ type Tensor =
             | Some _, Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s|]
             | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 2 then failwithf "Expecting strides to be 2-dimensional" else s
-            | _ -> [|Int 1; Int 1|]
+            | _ -> [|1I; 1I|]
         let paddings = 
             match padding, paddings with
             | Some _ , Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
-            | _ -> [|Int 0; Int 0|]
+            | _ -> [|0I; 0I|]
         let dilations = 
             match dilation, dilations with
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
             | Some d, None -> [|d; d|]
             | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 2 then failwithf "Expecting dilations to be 2-dimensional" else d
-            | _ -> [|Int 1; Int 1|]
+            | _ -> [|1I; 1I|]
         Shape.checkCanConv2d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations |> ignore
         let mutable b = b
         if a.symbolic || dilations.[0].Value > 1 || dilations.[1].Value > 1 then
-            b <- b.dilatex([|Int 1; Int 1; dilations.[0]; dilations.[1]|])
+            b <- b.dilatex([|1I; 1I; dilations.[0]; dilations.[1]|])
         let fRaw(a:RawTensor,b) = a.Conv2D(b, strides, paddings)
         let fTensor(a:Tensor,b) = a.conv2dx(b, strides=strides, paddings=paddings)
         let dfTensorFwdTT(cp,ap:Tensor,ad:Tensor,bp,bd) = ad.conv2dx(bp, strides=strides, paddings=paddings) + ap.conv2dx(bd, strides=strides, paddings=paddings)
@@ -2567,31 +2567,31 @@ type Tensor =
             | Some _, Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s|]
             | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 2 then failwithf "Expecting strides to be 2-dimensional" else s
-            | _ -> [|Int 1; Int 1|]
+            | _ -> [|1I; 1I|]
         let paddings = 
             match padding, paddings with
             | Some _ , Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting paddings to be 2-dimensional" else p
-            | _ -> [|Int 0; Int 0|]
+            | _ -> [|0I; 0I|]
         let dilations = 
             match dilation, dilations with
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
             | Some d, None -> [|d; d|]
             | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 2 then failwithf "Expecting dilations to be 2-dimensional" else d
-            | _ -> [|Int 1; Int 1|]
+            | _ -> [|1I; 1I|]
         let outputPaddings = 
             match outputPadding, outputPaddings with
             | Some _ , Some _ -> failwithf "Expecting only one of outputPadding, outputPaddings"
             | Some p, None -> [|p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 2 then failwithf "Expecting outputPaddings to be 2-dimensional" else p
-            | _ -> [|Int 0; Int 0|]
+            | _ -> [|0I; 0I|]
 
         let _, _, _, _, outputShape =
             Shape.checkCanConvTranspose2d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations outputPaddings
         let mutable b = b
         if a.symbolic || dilations.[0].Value > 1 || dilations.[1].Value > 1 then
-            b <- b.dilatex([|Int 1; Int 1; dilations.[0]; dilations.[1]|])
+            b <- b.dilatex([|1I; 1I; dilations.[0]; dilations.[1]|])
         let cderivative = a
         let a = a.zerosLike(outputShape)
         // Use convolution reverse mode to implement transposed convolution
@@ -2616,23 +2616,23 @@ type Tensor =
             | Some _ , Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s; s|]
             | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 3 then failwithf "Expecting strides to be 3-dimensional" else s
-            | _ -> [|Int 1; Int 1; Int 1|]
+            | _ -> [|1I; 1I; 1I|]
         let paddings = 
             match padding, paddings with
             | Some _ , Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
-            | _ -> [|Int 0; Int 0; Int 0|]
+            | _ -> [|0I; 0I; 0I|]
         let dilations = 
             match dilation, dilations with
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
             | Some d, None -> [|d; d; d|]
             | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 3 then failwithf "Expecting dilations to be 3-dimensional" else d
-            | _ -> [|Int 1; Int 1; Int 1|]
+            | _ -> [|1I; 1I; 1I|]
         Shape.checkCanConv3d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations |> ignore
         let mutable b = b
         if a.symbolic || dilations.[0].Value > 1 || dilations.[1].Value > 1 || dilations.[2].Value > 1 then
-            b <- b.dilatex([|Int 1; Int 1; dilations.[0]; dilations.[1]; dilations.[2]|])
+            b <- b.dilatex([|1I; 1I; dilations.[0]; dilations.[1]; dilations.[2]|])
         let fRaw(a:RawTensor,b) = a.Conv3D(b, strides, paddings)
         let fTensor(a:Tensor,b) = a.conv3dx(b, strides=strides, paddings=paddings)
         let dfTensorFwdTT(cp,ap:Tensor,ad:Tensor,bp,bd) = ad.conv3dx(bp, strides=strides, paddings=paddings) + ap.conv3dx(bd, strides=strides, paddings=paddings)
@@ -2727,31 +2727,31 @@ type Tensor =
             | Some _ , Some _ -> failwithf "Expecting only one of stride, strides"
             | Some s, None -> [|s; s; s|]
             | None, Some s -> let s = s |> Array.ofSeq in if s.Length <> 3 then failwithf "Expecting strides to be 3-dimensional" else s
-            | _ -> [|Int 1; Int 1; Int 1|]
+            | _ -> [|1I; 1I; 1I|]
         let paddings = 
             match padding, paddings with
             | Some _ , Some _ -> failwithf "Expecting only one of padding, paddings"
             | Some p, None -> [|p; p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting paddings to be 3-dimensional" else p
-            | _ -> [|Int 0; Int 0; Int 0|]
+            | _ -> [|0I; 0I; 0I|]
         let dilations = 
             match dilation, dilations with
             | Some _ , Some _ -> failwithf "Expecting only one of dilation, dilations"
             | Some d, None -> [|d; d; d|]
             | None, Some d -> let d = d |> Array.ofSeq in if d.Length <> 3 then failwithf "Expecting dilations to be 3-dimensional" else d
-            | _ -> [|Int 1; Int 1; Int 1|]
+            | _ -> [|1I; 1I; 1I|]
         let outputPaddings = 
             match outputPadding, outputPaddings with
             | Some _ , Some _ -> failwithf "Expecting only one of outputPadding, outputPaddings"
             | Some p, None -> [|p; p; p|]
             | None, Some p -> let p = p |> Array.ofSeq in if p.Length <> 3 then failwithf "Expecting outputPaddings to be 3-dimensional" else p
-            | _ -> [|Int 0; Int 0; Int 0|]
+            | _ -> [|0I; 0I; 0I|]
 
         let _, _, _, _, outputShape =
             Shape.checkCanConvTranspose3d a.deviceType b.deviceType a.dtype b.dtype a.shapex b.shapex strides paddings dilations outputPaddings
         let mutable b = b
         if a.symbolic || dilations.[0].Value > 1 || dilations.[1].Value > 1 || dilations.[2].Value > 1 then
-            b <- b.dilatex([|Int 1; Int 1; dilations.[0]; dilations.[1]; dilations.[2]|])
+            b <- b.dilatex([|1I; 1I; dilations.[0]; dilations.[1]; dilations.[2]|])
         let cderivative = a
         let a = a.zerosLike(outputShape)
         // Use convolution reverse mode to implement transposed convolution
@@ -2995,8 +2995,8 @@ type Tensor =
                             push (List.append (Array.zip (t.derivative.split(sizes, dim=dim)) a |> Array.toList) tt)
                         | SplitT(a,sizes,dim,i) -> 
                             if a.derivative.dim = 0 then a.derivative <- a.zerosLike() + a.derivative
-                            let locs = (Int 0,sizes) ||> Array.scan (+)
-                            a.derivative <- a.derivative.addSlice(Array.init a.dim (fun j -> if j=dim then locs.[i] else Int 0), t.derivative)
+                            let locs = (0I,sizes) ||> Array.scan (+)
+                            a.derivative <- a.derivative.addSlice(Array.init a.dim (fun j -> if j=dim then locs.[i] else 0I), t.derivative)
                             push ((a.zeroLike(), a) :: tt)
                         | GatherT(a,dim,indices) -> 
                             // TODO: The following is a minimal correct implementation. Faster and more memory efficient implementations should be possible.

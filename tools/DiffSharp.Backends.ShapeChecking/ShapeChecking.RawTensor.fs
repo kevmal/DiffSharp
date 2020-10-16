@@ -211,15 +211,15 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
         t1.MakeLike(outputShape)
 
     override t1.Conv1D(t2, stride, padding) = 
-        let _, _, _, _, _, outputShape = Shape.checkCanConv1d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding (Int 1)
+        let _, _, _, _, _, outputShape = Shape.checkCanConv1d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding 1I
         t1.MakeLike(outputShape)
 
     override t1.Conv2D(t2, stride, padding) = 
-        let _, _, _, _, outputShape = Shape.checkCanConv2d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|Int 1;Int 1|]
+        let _, _, _, _, outputShape = Shape.checkCanConv2d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|1I;1I|]
         t1.MakeLike(outputShape) 
 
     override t1.Conv3D(t2, stride, padding) = 
-        let _, _, _, _, outputShape = Shape.checkCanConv3d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|Int 1;Int 1;Int 1|]  
+        let _, _, _, _, outputShape = Shape.checkCanConv3d t1.DeviceType t2.DeviceType t1.Dtype t2.Dtype t1.Shape t2.Shape stride padding [|1I;1I;1I|]  
         t1.MakeLike(outputShape) 
 
     override t.NegT() = t :> _

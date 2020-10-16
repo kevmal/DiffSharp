@@ -545,7 +545,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
 
     override t1.Conv1D(t2, stride, padding) = // TODO: bias, dilation and groups
         let _, _, _, _, _, outputShape =
-            Shape.checkCanConv1d t1.DeviceType t2.DeviceType dtype t2.Dtype t1.Shape t2.Shape stride padding (Int 1)
+            Shape.checkCanConv1d t1.DeviceType t2.DeviceType dtype t2.Dtype t1.Shape t2.Shape stride padding 1I
         let stride = stride.Value
         let padding = padding.Value
         let resultt =
@@ -559,7 +559,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
 
     override t1.Conv2D(t2, strides, paddings) = // TODO: bias, dilation and groups
         let _, _, _, _, outputShape =
-            Shape.checkCanConv2d t1.DeviceType t2.DeviceType dtype t2.Dtype t1.Shape t2.Shape strides paddings [| Int 1;Int 1 |]
+            Shape.checkCanConv2d t1.DeviceType t2.DeviceType dtype t2.Dtype t1.Shape t2.Shape strides paddings [| 1I;1I |]
         let strides = strides |> Int.values
         let paddings = paddings |> Int.values
         let resultt =
@@ -573,7 +573,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
 
     override t1.Conv3D(t2, strides, paddings) = // TODO: bias, dilation and groups
         let _, _, _, _, outputShape =
-            Shape.checkCanConv3d t1.DeviceType t2.DeviceType dtype t2.Dtype  t1.Shape t2.Shape strides paddings [| Int 1;Int 1;Int 1 |]
+            Shape.checkCanConv3d t1.DeviceType t2.DeviceType dtype t2.Dtype  t1.Shape t2.Shape strides paddings [| 1I;1I;1I |]
         let strides = strides |> Int.values
         let paddings = paddings |> Int.values
         let resultt =
@@ -628,7 +628,7 @@ type TorchRawTensor(tt: TorchTensor, shape: Shape, dtype: Dtype, device: Device)
         //let batchSize, channels, _inputSize, _outputShape = Shape.computeMaxUnpool1d t1.Shape outputSize
         let t1X = t1.UnsqueezeT(2)
         let indicesX = indices.UnsqueezeT(2)
-        let resulttX = t1X.MaxUnpool2D(indicesX, [| outputSize.[0]; outputSize.[1]; Int 1; outputSize.[2] |])
+        let resulttX = t1X.MaxUnpool2D(indicesX, [| outputSize.[0]; outputSize.[1]; 1I; outputSize.[2] |])
         let resultt = resulttX.SqueezeT(2)
         resultt
 

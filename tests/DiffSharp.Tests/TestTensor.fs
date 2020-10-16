@@ -488,8 +488,8 @@ type TestTensor () =
         Assert.CheckEqual(2.0, System.Convert.ToDouble (t0.toScalar()))
 
         let t1 = combo.tensor([ 0 .. 10 ])
-        let t1slice1 = t1.primalRaw.GetSlice(array2D [ [ Int 3; Int 4; Int 0 ] ])
-        let t1slice2 = t1.primalRaw.GetSlice(array2D [ [ Int 3; Int 3; Int 0 ] ])
+        let t1slice1 = t1.primalRaw.GetSlice(array2D [ [ 3I; Int 4; 0I ] ])
+        let t1slice2 = t1.primalRaw.GetSlice(array2D [ [ 3I; 3I; 0I ] ])
 
         Assert.CheckEqual(3, (t1slice1.GetItem(0) |> Convert.ToInt32))
         Assert.CheckEqual(4, (t1slice1.GetItem(1) |> Convert.ToInt32))
@@ -506,7 +506,7 @@ type TestTensor () =
         //Assert.CheckEqual(0, t1slice3.Dim)
 
         let t2 = combo.tensor([ for i in 0 .. 10 -> [ i*10 .. i*10+10 ] ])
-        let t2slice1 = t2.primalRaw.GetSlice(array2D [ [ Int 3; Int 5; Int 0 ]; [ Int 3; Int 5; Int 0 ] ])
+        let t2slice1 = t2.primalRaw.GetSlice(array2D [ [ 3I; 5I; 0I ]; [ 3I; 5I; 0I ] ])
 
         Assert.CheckEqual(33, t2slice1.GetItem(0, 0) |> Convert.ToInt32)
         Assert.CheckEqual(34, t2slice1.GetItem(0, 1) |> Convert.ToInt32)
@@ -518,12 +518,12 @@ type TestTensor () =
         Assert.CheckEqual(54, t2slice1.GetItem(2, 1) |> Convert.ToInt32)
         Assert.CheckEqual(55, t2slice1.GetItem(2, 2) |> Convert.ToInt32)
 
-        let t2slice2 = t2.primalRaw.GetSlice(array2D [ [ Int 3; Int 5; Int 0 ]; [ Int 3; Int 3; Int 1 ] ])
+        let t2slice2 = t2.primalRaw.GetSlice(array2D [ [ 3I; 5I; 0I ]; [ 3I; 3I; 1I ] ])
         Assert.CheckEqual(33, t2slice2.GetItem(0) |> Convert.ToInt32)
         Assert.CheckEqual(43, t2slice2.GetItem(1) |> Convert.ToInt32)
         Assert.CheckEqual(53, t2slice2.GetItem(2) |> Convert.ToInt32)
 
-        let t2slice3 = t2.primalRaw.GetSlice(array2D [ [ Int 3; Int 3; Int 1 ]; [ Int 3; Int 5; Int 0 ] ])
+        let t2slice3 = t2.primalRaw.GetSlice(array2D [ [ 3I; 3I; 1I ]; [ 3I; 5I; 0I ] ])
         Assert.CheckEqual(33, t2slice3.GetItem(0) |> Convert.ToInt32)
         Assert.CheckEqual(34, t2slice3.GetItem(1) |> Convert.ToInt32)
         Assert.CheckEqual(35, t2slice3.GetItem(2) |> Convert.ToInt32)
