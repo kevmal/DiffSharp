@@ -52,12 +52,17 @@ type Int internal (n: int, sym: ISym) =
     member x.TryGetValue() =
         match box sym with 
         | null -> ValueSome n
-        | _ -> Int.TryGetConst(sym)
+        | _ ->
+            match sym.SymScope.TryGetConst(sym) with 
+            | ValueSome (:? int as n) -> ValueSome n
+            | _ -> ValueNone
 
-    static member TryGetConst(sym: ISym) =
-        match sym.TryGetConst() with 
-        | ValueSome (:? int as n) -> ValueSome n
-        | _ -> ValueNone
+    /// <summary>Try to get a SymScope associated with a symbolic integer.</summary>
+    /// <remarks>Symbolic integers will only appear when Backend.ShapeChecking is used.</remarks>
+    member _.TryGetSymScope() =
+        match box sym with 
+        | null -> None
+        | _ -> Some sym.SymScope
 
     /// Return the value, exception if symbolic
     member x.Value =
@@ -65,9 +70,10 @@ type Int internal (n: int, sym: ISym) =
         | ValueNone -> 
             failwithf """A construct required the value of a symbolic integer expression %s. Consider either 
 
-- Changing your livechecks to use concrete inputs, rather than symbolic, or
+- Changing your ShapeCheck to use concrete inputs, rather than symbolic, or
 - Adjust the construct to propagate symbolic information, or
-- Adjust your model to avoid dynamic dependencies on model inputs.
+- Adjust your model to avoid dynamic dependencies on model inputs, or
+- Add a check for symbolic tensor shapes, e.g. 'if tensor.symbolic then <return-dummy-tensor> else <main-code>'
 
 Call stack: %A""" (sym.ToString()) (System.Diagnostics.StackTrace(fNeedFileInfo=true).ToString())
         | ValueSome v -> v
@@ -228,6 +234,13 @@ type Shape internal (values: int[], dims: Int[]) =
                 ValueSome (vs |> Array.map (fun v -> v.Value))
             else ValueNone
         | _ -> ValueSome values
+
+    /// <summary>Try to get a SymScope associated with a symbolic shape.</summary>
+    /// <remarks>Symbolic shapes and dimensions will only appear when Backend.ShapeChecking is used.</remarks>
+    member _.TryGetSymScope() =
+        match values with 
+        | null -> dims |> Array.tryPick (fun dim -> dim.TryGetSymScope())
+        | _ -> None
 
     /// <summary>Get the values of the shape. Raises an exception if any of the dimensions are symbolic.</summary>
     /// <remarks>Symbolic dimensions will only appear when Backend.ShapeChecking is used.</remarks>

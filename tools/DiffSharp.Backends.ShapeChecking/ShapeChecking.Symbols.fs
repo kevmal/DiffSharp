@@ -9,6 +9,21 @@ open DiffSharp
 open DiffSharp.ShapeChecking
 open Microsoft.Z3
 
+type SourceLocation = 
+   { File: string
+     StartLine: int 
+     StartColumn: int 
+     EndLine: int 
+     EndColumn: int }
+   override loc.ToString() = sprintf "%s: (%d,%d)-(%d,%d)" loc.File loc.StartLine loc.StartColumn loc.EndLine loc.EndColumn
+
+type Diagnostic =
+   { Severity: int
+     Number: int
+     Message: string
+     LocationStack: SourceLocation[] }
+   member x.Location = Array.last x.LocationStack
+
 [<AutoOpen>]
 module internal Util = 
 
@@ -73,13 +88,6 @@ type Sym(syms: SymScope, z3Expr: Expr) =
     interface ISym with 
       member sym.SymScope = (sym:Sym).SymScope :> ISymScope
 
-      member sym.GetVarName() = (sym:Sym).SymScope.GetVarName(sym)
-
-      member sym.TryGetConst() =
-          match sym.Z3Expr with 
-          | IntNum n -> ValueSome (box n)
-          | _ -> ValueNone
-
 [<AutoOpen>]
 module SymbolPatterns =
     let (|Sym|) (x: ISym) : Sym = (x :?> Sym)
@@ -95,7 +103,7 @@ type SymScope() =
     let solver = zctx.MkSolver()
     let mutable elimCache = None
     //let zparams = zctx.MkParams()
-    let mapping = ConcurrentDictionary<uint32, string * SourceLocation>()
+    let mapping = ConcurrentDictionary<uint32, string * SourceLocation option>()
     let vars = ResizeArray<Expr>() // the variables 
     let synAssertions = ResizeArray<BoolExpr>() // the assertions made
     let diagnostics = ResizeArray<_>()
@@ -115,13 +123,13 @@ type SymScope() =
             synAssertions.Add(zexpr)
             true
 
-    member syms.CreateFreshVar (name: string, location: SourceLocation) : Sym =
+    member syms.CreateFreshVar (name: string, ?location: SourceLocation) : Sym =
         let zsym = zctx.MkFreshConst(name, zctx.IntSort)
         mapping.[zsym.Id] <- (name, location)
         vars.Add(zsym)
         Sym (syms, zsym)
 
-    member syms.CreateVar (name: string, location: SourceLocation) : Sym =
+    member syms.CreateVar (name: string, ?location: SourceLocation) : Sym =
         let zbytes = System.Text.Encoding.UTF7.GetBytes(name)
         let zname = String(Array.map char zbytes)
         let zsym = zctx.MkConst(zname, zctx.IntSort)
@@ -141,6 +149,11 @@ type SymScope() =
 
     interface ISymScope with
     
+        override _.TryGetConst(sym) =
+          match (sym :?> Sym).Z3Expr with 
+          | IntNum n -> ValueSome (box n)
+          | _ -> ValueNone
+
         override syms.CreateConst (v: obj) : ISym = syms.CreateConst (v) :> ISym
 
         override syms.CreateApp (f: string, args: ISym[]) : ISym =
@@ -154,26 +167,10 @@ type SymScope() =
                 | _ -> { File = "?"; StartLine = 0; StartColumn = 0; EndLine = 0; EndColumn= 80 }
             syms.CreateFreshVar (name, loc) :> ISym
 
-        override syms.CreateVar (name: string, location) : ISym =
-            let loc = 
-                match location with 
-                | :? SourceLocation as loc ->  loc
-                | _ -> { File = "?"; StartLine = 0; StartColumn = 0; EndLine = 0; EndColumn= 80 }
-            let sym = syms.CreateVar (name, loc) :> ISym
-            sym.TryGetConst() |> ignore
-            sym
-
         override syms.AssertConstraint(func: string, args: ISym[]) =
             let args = args |> Array.map (fun (Sym x) -> x)
             syms.Assert(func, args)
 
-        override syms.CheckConstraint(func: string, args: ISym[]) =
-            let args = args |> Array.map (fun (Sym x) -> x)
-            syms.Check(func, args)
-
-        override syms.Push() = syms.Push()
-        override syms.Pop() = syms.Pop()
-        override syms.Clear() = syms.Clear()
         override _.ReportDiagnostic(severity, message) = diagnostics.Add((severity, message))
 
     member _.Push() = 
@@ -271,7 +268,7 @@ type SymScope() =
         let elim = syms.GetEliminationMatrix()
         expr.Substitute(Array.map fst elim, Array.map snd elim)
 
-    member syms.GetAdditionalDiagnostics() =
+    member syms.GetAdditionalDiagnostics() : (int * SourceLocation option * string)[] =
         let elim = syms.GetEliminationMatrix()
         [| for (vsym, vexpr) in elim do
                 match mapping.TryGetValue vsym.Id with

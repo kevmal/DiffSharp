@@ -9,6 +9,28 @@ open DiffSharp.Backends.ShapeChecking
 open System.Runtime.CompilerServices
 
 [<AutoOpen>]
+module ShapeCheckingAutoOpens =
+    type SymScope with 
+        member syms.CreateFreshIntVar(name:string, ?location:SourceLocation) =
+            Int.FromSymbol (syms.CreateFreshVar(name, ?location=location))
+
+        member syms.CreateIntVar(name:string, ?location:SourceLocation) =
+            Int.FromSymbol (syms.CreateVar(name, ?location=location))
+
+        /// Create an inferred symbol 
+        member syms.Infer = syms.CreateFreshIntVar("?")
+
+    /// Create a symbol in the global symbol context of the given name
+    let (?) (syms: SymScope) (name: string) : Int = syms.CreateIntVar(name)
+
+    // Shen using shape checking the syntax 128I is hijacked
+    module NumericLiteralI = 
+        let FromZero () : Int = Int 0
+        let FromOne () : Int = Int 1
+        let FromInt32 (value:int32): Int = Int value
+        
+
+[<AutoOpen>]
 module Tools =
 
     /// Record a stack of ranges in an exception. This uses exactly the same protocol as FsLive
@@ -170,9 +192,7 @@ module Tools =
                 getSymbolicShapeArg givenArgInfo p loc |> box
             elif pts = "DiffSharp.Tensor" then
                 getSymbolicTensorArg givenArgInfo p loc |> box
-            elif pts = "DiffSharp.ShapeChecking.ISymScope" then
-                syms |> box
-            elif pts = "DiffSharp.ShapeChecking.SymScope" then
+            elif pts = "DiffSharp.ShapeChecking.ISymScope" || pts = "DiffSharp.ShapeChecking.SymScope" then
                 syms |> box
             elif pts = "System.Int32" then 
                 getSampleArg givenArgInfo p 1 loc |> box
@@ -244,11 +264,11 @@ module Tools =
             let msg = sprintf "Unexpected return from method with ReturnShape attribute" 
             Error { Severity=1; LocationStack=[| loc |]; Message=msg; Number=1999 }
 
-    let makeModelAndRunShapeChecks (syms: SymScope) optionals (ctor: ConstructorInfo) ctorGivenArgs loc methLocs =
-        let ctorArgs = ParserLogic(syms, loc).GetParams optionals (ctor.GetParameters()) ctorGivenArgs loc
+    let makeModelAndRunShapeChecks (syms: SymScope) optionals (ctor: ConstructorInfo) ctorGivenArgs tloc methLocs =
+        let ctorArgs = ParserLogic(syms, tloc).GetParams optionals (ctor.GetParameters()) ctorGivenArgs tloc
         let model = 
            try ctor.Invoke(ctorArgs) |> Ok
-           with :?TargetInvocationException as e -> Error (DiagnosticFromException loc e.InnerException)
+           with :?TargetInvocationException as e -> Error (DiagnosticFromException tloc e.InnerException)
         match model with 
         | Error e -> ctorArgs, Error e, [| |], [| e |]
         | Ok model ->
@@ -256,27 +276,27 @@ module Tools =
         let diags = ResizeArray()
         let methCalls = ResizeArray()
         for meth in ctor.DeclaringType.GetMethods() do
+          // Use a better location for the method attribute if given
+          let mloc =
+             methLocs 
+             |> Array.tryFind (fun (methName, _file, _sl, _sc, _el, _ec) -> methName = meth.Name)
+             |> function 
+                | None -> tloc
+                | Some (_, file, sl, sc, el, ec) -> { File=file; StartLine=sl; StartColumn=sc; EndLine=el; EndColumn=ec} 
+
           if meth.ContainsGenericParameters || meth.DeclaringType.ContainsGenericParameters then
             let msg = "Skipping ShapeCheck for a generic method"
-            let diag = { Severity=1; LocationStack=[| loc |]; Message=msg; Number=1994 }
+            let diag = { Severity=1; LocationStack=[| mloc |]; Message=msg; Number=1994 }
             diags.Add diag
           else
             
-            // Use a better location for the method attribute if given
-            let loc =
-               methLocs 
-               |> Array.tryFind (fun (methName, _file, _sl, _sc, _el, _ec) -> methName = meth.Name)
-               |> function 
-                  | None -> loc
-                  | Some (_, file, sl, sc, el, ec) -> { File=file; StartLine=sl; StartColumn=sc; EndLine=el; EndColumn=ec} 
-
-            printfn "meth %s, loc = %O"  meth.Name loc
+            printfn "meth %s, loc = %O"  meth.Name mloc
             for attr in meth.GetCustomAttributes(typeof<ShapeCheckAttribute>, true) do
                 printfn "meth %s has attr"  meth.Name
                 try 
                     syms.Push()
                     let attr = attr :?> ShapeCheckAttribute
-                    let args = ParserLogic(syms, loc).GetParams optionals (meth.GetParameters()) attr.GivenArgs loc
+                    let args = ParserLogic(syms, mloc).GetParams optionals (meth.GetParameters()) attr.GivenArgs mloc
 
                     let res =
                         try 
@@ -284,20 +304,21 @@ module Tools =
                         with :?TargetInvocationException as e -> 
                             let e = e.InnerException
                             printfn "meth %s error, res = %A" meth.Name e
-                            Error (DiagnosticFromException loc e)
+                            Error (DiagnosticFromException mloc e)
 
                     match res with
                     | Ok retActual -> 
                        printfn "meth %s ok, res = %A" meth.Name retActual
-                       match constrainReturnValueByShapeInfo syms retActual attr.ReturnShape meth.ReturnParameter loc with 
+                       match constrainReturnValueByShapeInfo syms retActual attr.ReturnShape meth.ReturnParameter mloc with 
                        | Ok () -> ()
                        | Error diag -> diags.Add diag
 
                        // Show extra information about over-constrained variables
                        let moreDiags = syms.GetAdditionalDiagnostics()
                   
-                       for (severity, loc, msg) in moreDiags do   
-                            diags.Add ({ Severity=severity; LocationStack=[| loc |]; Message = msg; Number=1996 })
+                       for (severity, loc2, msg) in moreDiags do   
+                            let stack = Array.append (Option.toArray loc2) [| mloc |]
+                            diags.Add ({ Severity=severity; LocationStack=stack; Message = msg; Number=1996 })
                        methCalls.Add(meth, args, Ok retActual)
                     | Error e -> 
                        methCalls.Add(meth, args, Error e)
@@ -354,8 +375,8 @@ type ShapeCheckAttribute internal (given: obj[]) =
                | Some c -> c
 
         printfn "attr.GivenArgs = %A" attr.GivenArgs
-        let loc = { File = locFile; StartLine = locStartLine; StartColumn = locStartColumn; EndLine = locEndLine; EndColumn= locEndColumn }
-        let _, _, _, diags = makeModelAndRunShapeChecks syms optionals ctor attr.GivenArgs loc methLocs
+        let tloc = { File = locFile; StartLine = locStartLine; StartColumn = locStartColumn; EndLine = locEndLine; EndColumn= locEndColumn }
+        let _, _, _, diags = makeModelAndRunShapeChecks syms optionals ctor attr.GivenArgs tloc methLocs
         [| for diag in diags -> 
             let stack = 
                 [| for m in diag.LocationStack do

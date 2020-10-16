@@ -51,20 +51,14 @@ type Tensor with
            t.mean(dims, ?keepDim=keepDim), t.stddev(dims, ?keepDim=keepDim)
 
 
+[<ShapeCheck>]
+module Test =
 
+    [<ShapeCheck("N,C,H,W", "K,C,F1,F2")>]
+    let someFunction (t1: Tensor, t2: Tensor) = 
+           let res = t1.conv2d(t2)
+           res
 
-
-//[<ShapeCheck>]
-//module Test =
-
-//    [<ShapeCheck("N,C,H,W", "K,C,F1,F2")>]
-//    let someFunction (t1: Tensor, t2: Tensor) = 
-//           let res = t1.conv2d(t2).conv2d(t2).conv2d(t2).conv2d(t2)
-//           res
-
-
-
-[<ShapeCheck("𝐶")>]
 type NeuralStyles(C: Int) =
     inherit Model()
 
@@ -122,21 +116,16 @@ type NeuralStyles(C: Int) =
         --> to_pixel_value 
         --> clip 0.0 255.0
 
-    //[<ShapeCheck( "5,3,65,65", ReturnShape="5,3,68,68")>]
-    //[<ShapeCheck( "5,3,68,68", ReturnShape="5,3,68,68")>]
-    [<ShapeCheck("𝑁,𝐶,𝐻,𝑊")>] 
     override _.forward(input) = 
-        let H = input.shapex.[2]
-        //let W = input.shapex.[3]
-        Assert (H % 4I =~= 0I)
-        //Assert (H >~ 4I)
-        //Assert (H <~ 6I)
-        //Assert (W % 4I =~= 0I)
         model.forward(input) 
         
          
 
 
+//[<ShapeCheck("𝐶")>]
+//[<ShapeCheck( "5,3,65,65", ReturnShape="5,3,68,68")>]
+//[<ShapeCheck( "5,3,68,68", ReturnShape="5,3,68,68")>]
+//[<ShapeCheck("𝑁,𝐶,𝐻,𝑊")>] 
 //[<ShapeCheck( "5,3,68,68")>]
  //, ReturnShape="5,3,68,68")>]
 //[<ShapeCheck( "5,3,68,68")>] //, ReturnShape="5,3,68,68")>]

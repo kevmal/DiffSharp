@@ -37,7 +37,18 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
     override _.Backend = Backend.ShapeChecking
 
     override t.GetItem(_indexes) =
-        printfn "GetItem not available for symbolic"
+        match t.Shape.TryGetSymScope() with
+        | None -> 
+            printfn "Value not available for symbolic tensor"
+        | Some syms -> 
+            syms.ReportDiagnostic (1, sprintf """A construct required a value from a symbolic tensor. Consider either 
+
+    - Changing your ShapeCheck to use concrete inputs, rather than symbolic, or
+    - Adjust the construct to propagate symbolic information, or
+    - Adjust your model to avoid dynamic dependencies on model inputs, or
+    - Add a check for symbolic tensor shapes, e.g. 'if tensor.symbolic then <return-dummy-tensor> else <main-code>'
+
+    Call stack: %A""" (System.Diagnostics.StackTrace(fNeedFileInfo=true).ToString()))
         sample
 
     override t.GetSlice(fullBounds:Int[,]) =
