@@ -291,7 +291,7 @@ type Weight =
     static member kaiming(fanIn:Int, fanOut:Int, ?a:float) = 
         // He et al. 2015. https://arxiv.org/abs/1502.01852
         let a = defaultArg a (sqrt 5.)
-        let w = dsharp.randn([ fanIn; fanOut ])
+        let w = dsharp.randn([fanIn; fanOut])
         let s = sqrt (2. / ((1. + a*a) * (float fanIn.ValueOrOne)))
         w * s
 
@@ -343,7 +343,7 @@ type Conv1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:Int, ?paddi
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.conv1d(value, w.value, ?stride=stride, ?padding=padding, ?dilation=dilation)
-        if bias then f + b.value.expand([ value.shapex.[0]; outChannels ]).view([ value.shapex.[0]; outChannels; 1I]) else f
+        if bias then f + b.value.expand([value.shapex.[0]; outChannels]).view([value.shapex.[0]; outChannels; 1I]) else f
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
@@ -370,7 +370,7 @@ type Conv2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padd
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.conv2d(value, w.value, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
-        if bias then f + b.value.expand([ value.shapex.[0]; outChannels ]).view([ value.shapex.[0]; outChannels; 1I; 1I ]) else f
+        if bias then f + b.value.expand([value.shapex.[0]; outChannels]).view([value.shapex.[0]; outChannels; 1I; 1I]) else f
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
@@ -397,7 +397,7 @@ type Conv3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:Int, ?padd
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.conv3d(value, w.value, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
-        if bias then f + b.value.expand([ value.shapex.[0]; outChannels ]).view([ value.shapex.[0]; outChannels; 1I; 1I; 1I ]) else f
+        if bias then f + b.value.expand([value.shapex.[0]; outChannels]).view([value.shapex.[0]; outChannels; 1I; 1I; 1I]) else f
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
@@ -419,7 +419,7 @@ type ConvTranspose1d(inChannels:Int, outChannels:Int, kernelSize:Int, ?stride:In
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.convTranspose1d(value, w.value, ?stride=stride, ?padding=padding, ?dilation=dilation)
-        if bias then f + b.value.expand([ value.shapex.[0]; outChannels ]).view([ value.shapex.[0]; outChannels; 1I ]) else f
+        if bias then f + b.value.expand([value.shapex.[0]; outChannels]).view([value.shapex.[0]; outChannels; 1I]) else f
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?bias:bool) =
@@ -446,7 +446,7 @@ type ConvTranspose2d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:I
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.convTranspose2d(value, w.value, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
-        if bias then f + b.value.expand([ value.shapex.[0]; outChannels ]).view([ value.shapex.[0]; outChannels; 1I; 1I ]) else f
+        if bias then f + b.value.expand([value.shapex.[0]; outChannels]).view([value.shapex.[0]; outChannels; 1I; 1I]) else f
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
@@ -473,7 +473,7 @@ type ConvTranspose3d(inChannels:Int, outChannels:Int, ?kernelSize:Int, ?stride:I
     /// <summary>TBD</summary>
     override _.forward(value) =
         let f = dsharp.convTranspose3d(value, w.value, ?stride=stride, ?strides=strides, ?padding=padding, ?paddings=paddings, ?dilation=dilation, ?dilations=dilations)
-        if bias then f + b.value.expand([ value.shapex.[0]; outChannels ]).view([ value.shapex.[0]; outChannels; 1I; 1I; 1I ]) else f
+        if bias then f + b.value.expand([value.shapex.[0]; outChannels]).view([value.shapex.[0]; outChannels; 1I; 1I; 1I]) else f
 
     /// <summary>TBD</summary>
     new (inChannels:int, outChannels:int, kernelSize:int, ?stride:int, ?padding:int, ?dilation:int, ?kernelSizes:seq<int>, ?strides:seq<int>, ?paddings:seq<int>, ?dilations:seq<int>, ?bias:bool) =
@@ -591,7 +591,7 @@ type BatchNorm1d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
             if affine then res * w.value + b.value else res
         elif value.dim = 3 then
             if not (value.shapex.[1] =~= numFeatures) then failwithf "Expecting value to have shape NxCxL (batchSize x numFeatures x length) where numFeatures=%A, received value with shape %A" numFeatures value.shape
-            let vt = value.transpose(0,1).view([ numFeatures; Int -1 ])
+            let vt = value.transpose(0,1).view([numFeatures; Int -1])
             let mean, var =
                 if m.mode = Mode.Train || (m.mode = Mode.Eval && not trackRunningStats) then
                     vt.mean(1), vt.variance(1, unbiased=false)
@@ -600,8 +600,8 @@ type BatchNorm1d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
             if not value.symbolic && m.mode = Mode.Train && trackRunningStats then
                 let n = vt.shape.[1]
                 m.updateStats mean var n
-            let res = (value - mean.view([1I;numFeatures;1I ])) / (var.view([ 1I;numFeatures;1I]) + eps).sqrt()
-            if affine then res * w.value.view([ 1I;numFeatures;1I]) + b.value.view([ 1I;numFeatures;1I]) else res
+            let res = (value - mean.view([1I;numFeatures;1I ])) / (var.view([1I;numFeatures;1I]) + eps).sqrt()
+            if affine then res * w.value.view([1I;numFeatures;1I]) + b.value.view([1I;numFeatures;1I]) else res
         else failwithf "Expecting value to have shape NxL (batchSize x Length) or NxCxL (batchSize x numChannels x Length), received value with shape %A" value.shape
 
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
@@ -671,7 +671,7 @@ type BatchNorm2d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
     /// <summary>TBD</summary>
     override m.forward(value) =
         if value.dim <> 4 || not (value.shapex.[1] =~= numFeatures) then failwithf "Expecting value to have shape NxCxHxW (batchSize x numFeatures x height x width) where numFeatures=%A, received value with shape %A" numFeatures value.shape
-        let vt = value.transpose(0,1).view([ numFeatures;Int -1 ])
+        let vt = value.transpose(0,1).view([numFeatures;Int -1])
         let mean, var =
             if m.mode = Mode.Train || (m.mode = Mode.Eval && not trackRunningStats) then
                 vt.mean(1), vt.variance(1, unbiased=false)
@@ -681,7 +681,7 @@ type BatchNorm2d(numFeatures:Int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?
             let n = vt.shape.[1]
             m.updateStats mean var n
         let res = (value - mean.view([1I;numFeatures;1I;1I ])) / (var.view([1I;numFeatures;1I;1I]) + eps).sqrt()
-        if affine then res * w.value.view([ 1I;numFeatures;1I;1I]) + b.value.view([ 1I;numFeatures;1I;1I ]) else res
+        if affine then res * w.value.view([1I;numFeatures;1I;1I]) + b.value.view([1I;numFeatures;1I;1I]) else res
 
     /// <summary>TBD</summary>
     new (numFeatures:int, ?eps:double, ?momentum:Tensor, ?affine:bool, ?trackRunningStats:bool, ?reversible:bool) =
