@@ -289,7 +289,7 @@ type TestModel () =
         let dataset = TensorDataset(inputs, targets)
         let dataloader = dataset.loader(8, shuffle=true)        
         let lr, iters = 1e-2, 250
-        optim.sgd(net, dataloader, dsharp.crossEntropyLoss, lr=dsharp.tensor(lr), iters=iters)
+        optim.sgd(net, dataloader, dsharp.crossEntropyLoss, learningRate=dsharp.tensor(lr), iters=iters)
         let y = inputs --> net --> dsharp.softmax 1
         Assert.True(targetsp.allclose(y, 0.1, 0.1))
 
@@ -306,7 +306,7 @@ type TestModel () =
         let dataset = TensorDataset(inputs, targets)
         let dataloader = dataset.loader(8, shuffle=true)        
         let lr, iters = 1e-2, 250
-        optim.sgd(net, dataloader, dsharp.crossEntropyLoss, lr=dsharp.tensor(lr), iters=iters)
+        optim.sgd(net, dataloader, dsharp.crossEntropyLoss, learningRate=dsharp.tensor(lr), iters=iters)
         let y = inputs --> net --> dsharp.softmax 1
         Assert.True(targetsp.allclose(y, 0.1, 0.1))
 
@@ -323,7 +323,7 @@ type TestModel () =
         let dataset = TensorDataset(inputs, targets)
         let dataloader = dataset.loader(8, shuffle=true)        
         let lr, iters = 1e-2, 250
-        optim.sgd(net, dataloader, dsharp.crossEntropyLoss, lr=dsharp.tensor(lr), iters=iters)
+        optim.sgd(net, dataloader, dsharp.crossEntropyLoss, learningRate=dsharp.tensor(lr), iters=iters)
         let y = inputs --> net --> dsharp.softmax 1
         Assert.True(targetsp.allclose(y, 0.1, 0.1))
 
