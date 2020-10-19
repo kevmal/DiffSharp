@@ -542,7 +542,7 @@ type Tensor =
     /// This internal member is exposed as public in DiffSharp.ShapeChecking to keep the default API free of 'Int' and 'Shape'
     member internal a.onehotLikex(length:Int, hot:Int, ?dtype, ?device, ?backend) =
         if not (hot >=~ 0I) || not (hot <~ length) then failwithf "Expecting 0 <= hot < length"
-        a.zerosLikex(Shape [|length|], ?dtype=dtype, ?device=device, ?backend=backend).addSlice([|hot|], a.onesLike([|1|], ?dtype=dtype, ?device=device, ?backend=backend))
+        a.zerosLikex(Shape [|length|], ?dtype=dtype, ?device=device, ?backend=backend).addSlicex([|hot|], a.onesLike([|1|], ?dtype=dtype, ?device=device, ?backend=backend))
 
     /// <summary>Computes element-wise (\a &lt; b\), returning a boolean tensor containing a <c>true</c> at each location where the comparison is true</summary>
     member a.lt(b:Tensor) = Tensor(a.primalRaw.LtTT(b.primalRaw))
@@ -1946,16 +1946,16 @@ type Tensor =
     /// <summary>Add the given tensor as a slice at the given location.</summary>
     member a.addSlice(location:seq<int>, b:Tensor) =
         let location = location |> Seq.toArray |> Array.map Int
-        a.addSlice(location, b)
+        a.addSlicex(location, b)
 
-    member a.addSlice(location:seq<Int>, b:Tensor) =
+    member internal a.addSlicex(location:seq<Int>, b:Tensor) =
         let location = location |> Seq.toArrayQuick
         Shape.checkCanAddSlice a.shapex location b.shapex
         let fRaw(a:RawTensor,b) = a.AddTTSlice(location, b)
-        let fTensor(a:Tensor,b) = a.addSlice(location, b)
-        let dfTensorFwdTT(cp,ap,ad:Tensor,bp:Tensor,bd:Tensor) = ad.addSlice(location, bd)
+        let fTensor(a:Tensor,b) = a.addSlicex(location, b)
+        let dfTensorFwdTT(cp,ap,ad:Tensor,bp:Tensor,bd:Tensor) = ad.addSlicex(location, bd)
         let dfTensorFwdTC(cp,ap,ad) = ad
-        let dfTensorFwdCT(cp:Tensor,bp,bd) = cp.zerosLike().addSlice(location, bd)
+        let dfTensorFwdCT(cp:Tensor,bp,bd) = cp.zerosLike().addSlicex(location, bd)
         let dfTensorRevTT(a,b) = AddTTSlice(a,location,b)
         let dfTensorRevTC(a,b) = AddTTConstSlice(a)
         let dfTensorRevCT(a,b) = AddTConstTSlice(location,b)
@@ -2111,7 +2111,7 @@ type Tensor =
             for i in 0..shape.Length-1 do
                 shape.[i] <- shape.[i] + paddings.[i] * 2
             let ret = a.zerosLikex(Shape shape)
-            ret.addSlice(paddings, a)
+            ret.addSlicex(paddings, a)
 
     /// <summary>Applies a 1D max pooling over an input signal composed of several input planes, returning the max indices along with the outputs.</summary>
     /// <param name="kernelSize">The size of the window to take a max over.</param>
@@ -3006,7 +3006,7 @@ type Tensor =
                         | SplitT(a,sizes,dim,i) -> 
                             if a.derivative.dim = 0 then a.derivative <- a.zerosLike() + a.derivative
                             let locs = (0I,sizes) ||> Array.scan (+)
-                            a.derivative <- a.derivative.addSlice(Array.init a.dim (fun j -> if j=dim then locs.[i] else 0I), t.derivative)
+                            a.derivative <- a.derivative.addSlicex(Array.init a.dim (fun j -> if j=dim then locs.[i] else 0I), t.derivative)
                             push ((a.zeroLike(), a) :: tt)
                         | GatherT(a,dim,indices) -> 
                             // TODO: The following is a minimal correct implementation. Faster and more memory efficient implementations should be possible.

@@ -37,9 +37,10 @@ module Shape =
     let scalar : Shape = Shape ([| |]: int[])
 
     /// Indicates if one shape contains another.
-    let contains (bigShape:Shape) (smallShape: Shape) =
+    let checkContains (bigShape:Shape) (smallShape: Shape) =
         if bigShape.Length <> smallShape.Length then failwithf "Expecting bigShape (%A) and smallShape (%A) to have the same number of dimensions" bigShape.Length smallShape.Length
-        Array.map2 (<=) smallShape.Dims bigShape.Dims |> Array.forall id
+        for (a, b) in Array.zip smallShape.Dims bigShape.Dims do
+            if not (a <=~ b) then failwithf "slice: Expecting shape1 to contain shape2, received %A, %A" bigShape smallShape
 
     /// Checks if the given shapes are appropriate for a stack operation and returns information related to the resulting shape.
     let checkCanStack (shapes:Shape[]) (dim: int) =
@@ -484,7 +485,7 @@ module Shape =
 
     /// Checks if the given shape is appropriate for an addSlice operation.
     let checkCanAddSlice (shape1: Shape) (location: Int[]) (shape2: Shape) =
-        if not (contains shape1 shape2) then failwithf "slice: Expecting shape1 to contain shape2, received %A, %A" shape1 shape2
+        checkContains shape1 shape2
         if location.Length <> shape1.Length then failwithf "slice: Expecting location of the same length as shape1, received %A, %A" (location.Length) shape1
 
     /// Checks if the given shape is appropriate for a matmul operation.
