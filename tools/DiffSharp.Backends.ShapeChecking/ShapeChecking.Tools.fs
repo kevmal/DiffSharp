@@ -147,10 +147,10 @@ module Tools =
             match givenArgInfo with 
             | Some (:? int as n, _) -> Int n 
             | Some (:? string as nm, loc) -> parseSymbolicIntArg nm loc
-            | Some (arg, loc) -> failwithf "%O: unknown arg specification %A" loc arg
+            | Some (arg, loc) -> failwithf "%O: unknown specification %A for argument '%s'" loc arg p.Name
             | None -> syms.CreateIntVar(p.Name, loc) 
 
-        let getSymbolicShapeArg (givenArgInfo: (obj * SourceLocation) option) (_p: ParameterInfo) (loc: SourceLocation) : Shape =
+        let getSymbolicShapeArg (givenArgInfo: (obj * SourceLocation) option) (p: ParameterInfo) (loc: SourceLocation) : Shape =
             //printfn "making symbolic for model parameter %s" p.Name
             match givenArgInfo with 
             | Some (:? int as n, _) -> Shape [| n |]
@@ -160,9 +160,9 @@ module Tools =
                             match nm with 
                             | :? int as n -> Int n
                             | :? string as nm -> parseSymbolicIntArg nm loc 
-                            | arg -> failwithf "%O: unknown arg specification %A" loc arg |]
-            | Some (arg, loc) -> failwithf "%O: unknown arg specification %A" loc arg
-            | None -> failwithf "%O: shape needs argument information in ShapeCheck attribute, e.g. [<ShapeCheck([| 1;4;2 |])>] or [<ShapeCheck([| \"N\";\"M\" |])>] " loc
+                            | arg -> failwithf "%O: unknown specification %A for argument '%s'" loc arg p.Name |]
+            | Some (arg, loc) -> failwithf "%O: unknown specification %A for argument '%s'" loc arg p.Name
+            | None -> failwithf "%O: argument '%s' needs shape information in ShapeCheck attribute, e.g. [<ShapeCheck([| 1;4;2 |])>] or [<ShapeCheck([| \"N\";\"M\" |])>] " loc p.Name
 
         let getSymbolicTensorArg givenArgInfo (p: ParameterInfo) loc : Tensor =
             let shape = getSymbolicShapeArg givenArgInfo p loc
@@ -203,7 +203,8 @@ module Tools =
             elif optionals && pts = "Microsoft.FSharp.Core.FSharpOption`1[DiffSharp.Shape]" then 
                 getSymbolicShapeArg givenArgInfo p loc |> Some |> box
             elif optionals && pts = "Microsoft.FSharp.Core.FSharpOption`1[DiffSharp.Tensor]" then 
-                getSymbolicTensorArg givenArgInfo p loc |> Some |> box
+                // Only lay down an optional tensor arg if ndims info has actually been given
+                givenArgInfo |> Option.bind (fun _ -> getSymbolicTensorArg givenArgInfo p loc |> Some) |> box
             elif optionals && pts = "Microsoft.FSharp.Core.FSharpOption`1[System.Boolean]" then 
                 getSampleArg givenArgInfo p true loc |> Some |> box
             elif optionals && pts = "Microsoft.FSharp.Core.FSharpOption`1[System.Int32]" then 
