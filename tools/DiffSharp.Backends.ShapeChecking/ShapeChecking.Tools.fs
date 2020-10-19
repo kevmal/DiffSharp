@@ -330,10 +330,22 @@ module Tools =
 [<AttributeUsage(validOn=AttributeTargets.All, AllowMultiple=true, Inherited=true)>]
 type ShapeCheckAttribute internal (given: obj[]) =
     inherit System.Attribute()
-    new (argShape1: obj) = ShapeCheckAttribute([| argShape1 |])
-    new (argShape1: obj, argShape2: obj) = ShapeCheckAttribute([| argShape1; argShape2 |])
-    new (argShape1: obj, argShape2: obj, argShape3: obj) = ShapeCheckAttribute([| argShape1; argShape2; argShape3 |])
-    new () = ShapeCheckAttribute([| |] : obj[])
+    new () =
+        ShapeCheckAttribute([| |] : obj[])
+    new (argShape1: obj) =
+        ShapeCheckAttribute([| argShape1 |])
+    new (argShape1: obj, argShape2: obj) =
+        ShapeCheckAttribute([| argShape1; argShape2 |])
+    new (argShape1: obj, argShape2: obj, argShape3: obj) =
+        ShapeCheckAttribute([| argShape1; argShape2; argShape3 |])
+    new (argShape1: obj, argShape2: obj, argShape3: obj, argShape4: obj) =
+        ShapeCheckAttribute([| argShape1; argShape2; argShape3; argShape4 |])
+    new (argShape1: obj, argShape2: obj, argShape3: obj, argShape4: obj, argShape5: obj) =
+        ShapeCheckAttribute([| argShape1; argShape2; argShape3; argShape4; argShape5 |])
+    new (argShape1: obj, argShape2: obj, argShape3: obj, argShape4: obj, argShape5: obj, argShape6: obj) =
+        ShapeCheckAttribute([| argShape1; argShape2; argShape3; argShape4; argShape5; argShape6 |])
+    new (argShape1: obj, argShape2: obj, argShape3: obj, argShape4: obj, argShape5: obj, argShape6: obj, argShape7: obj) =
+        ShapeCheckAttribute([| argShape1; argShape2; argShape3; argShape4; argShape5; argShape6; argShape7 |])
 
     member val ReturnShape : obj = null with get, set
 
