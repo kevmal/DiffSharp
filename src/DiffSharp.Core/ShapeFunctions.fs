@@ -488,10 +488,13 @@ module Shape =
         checkContains shape1 shape2
         if location.Length <> shape1.Length then failwithf "slice: Expecting location of the same length as shape1, received %A, %A" (location.Length) shape1
 
-    /// Checks if the given shape is appropriate for a matmul operation.
+    /// Check if the given shape is appropriate for a matmul operation.
     let checkCanMatmul (shape1: Shape) (shape2: Shape) =
-        if shape1.Length <> 2 || shape2.Length <> 2 then failwithf "matmul: Expecting two 2d Tensors, received Tensors with shapes %A, %A" shape1 shape2
-        if not (shape1.[1] =~= shape2.[0]) then failwithf "matmul: Cannot multiply Tensors with shapes %A, %A" shape1 shape2
+        if shape1.Length < 2 || shape2.Length < 2 then failwithf "Expecting two 2d Tensors, received Tensors with shapes %A, %A" shape1 shape2
+        let aBatchPart, aMatrixPart = Array.splitAt (shape1.Length-2) shape1.Dims
+        let bBatchPart, bMatrixPart = Array.splitAt (shape2.Length-2) shape2.Dims
+        if not (aMatrixPart.[1] =~= bMatrixPart.[0]) then failwithf "Cannot matrix multiply tensors with shapes %A, %A - mismatch in matrix dimension" shape1 shape2
+        (aBatchPart, aMatrixPart), (bBatchPart, bMatrixPart)
 
     /// Checks if the given shape is appropriate for a dot product operation.
     let checkCanDot (shape1: Shape) (shape2: Shape) =

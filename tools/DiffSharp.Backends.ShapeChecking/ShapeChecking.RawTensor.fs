@@ -180,10 +180,11 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
     override t1.PowT0T(t2) = t2
     override t1.PowTT0(_t2) = t1 :>_
 
-    override t1.MatMulT2T2(t2) = 
-        Shape.checkCanMatmul t1.Shape t2.Shape
-        let t1rows, _t1cols = t1.Shape.[0], t1.Shape.[1]
-        let _t2rows, t2cols = t2.Shape.[0], t2.Shape.[1]
+    override t1.MatMulTT(t2) = 
+        let (t1BatchPart, t1MatrixPart), (t2BatchPart, t2MatrixPart) = Shape.checkCanMatmul t1.Shape t2.Shape
+        if not (Shape t1BatchPart =~= Shape t2BatchPart) then failwithf "Cannot matrix multiply raw tensors with shapes %A, %A - mismatch batching" t1.Shape t2.Shape
+        let t1rows = t1MatrixPart.[0]
+        let t2cols = t2MatrixPart.[1]
         t1.MakeLike(Shape [| t1rows; t2cols |])
 
     override t1.MaxPool1D(kernelSize, stride, padding) = 
