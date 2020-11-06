@@ -755,19 +755,19 @@ type TestTensor () =
 
     [<Test>]
     member _.TestTensorToString () =
-        for dtype in Dtypes.IntegralAndFloatingPoint do
-            let t0 = dsharp.tensor(2.,dtype=dtype)
-            let t1 = dsharp.tensor([[2.]; [2.]],dtype=dtype)
-            let t2 = dsharp.tensor([[[2.; 2.]]],dtype=dtype)
-            let t3 = dsharp.tensor([[1.;2.]; [3.;4.]],dtype=dtype)
-            let t4 = dsharp.tensor([[[[1.]]]],dtype=dtype)
+        for combo in Combos.IntegralAndFloatingPoint do
+            let t0 = combo.tensor(2.)
+            let t1 = combo.tensor([[2.]; [2.]])
+            let t2 = combo.tensor([[[2.; 2.]]])
+            let t3 = combo.tensor([[1.;2.]; [3.;4.]])
+            let t4 = combo.tensor([[[[1.]]]])
             let t0String = t0.ToString()
             let t1String = t1.ToString()
             let t2String = t2.ToString()
             let t3String = t3.ToString()
             let t4String = t4.ToString()
             let suffix = 
-                match dtype with 
+                match combo.dtype with 
                 | Bool -> failwith "unexpected bool dtype in test"
                 | Byte -> ""
                 | Int8 -> ""
@@ -776,12 +776,28 @@ type TestTensor () =
                 | Int64 -> ""
                 | Float32 -> ".000000"
                 | Float64 -> ".000000"
-            let dtypeText = if dtype = Dtype.Default then "" else ",dtype=" + dtype.ToString()
-            let t0StringCorrect = sprintf "tensor(2%s%s)" suffix dtypeText
-            let t1StringCorrect = sprintf "tensor([[2%s],\n        [2%s]]%s)" suffix suffix dtypeText
-            let t2StringCorrect = sprintf "tensor([[[2%s, 2%s]]]%s)" suffix suffix dtypeText
-            let t3StringCorrect = sprintf "tensor([[1%s, 2%s],\n        [3%s, 4%s]]%s)" suffix suffix suffix suffix dtypeText
-            let t4StringCorrect = sprintf "tensor([[[[1%s]]]]%s)" suffix dtypeText
+            let dtypeText = 
+                if combo.dtype = Dtype.Default then
+                    ""
+                else
+                    sprintf ",dtype=%s" (combo.dtype.ToString())
+            let deviceText = 
+                if combo.device = Device.Default then
+                    ""
+                else
+                    sprintf ",device=%s" (combo.device.ToString())
+            let backendText = 
+                if combo.backend = Backend.Default then
+                    ""
+                else
+                    sprintf ",backend=%s" (combo.backend.ToString())
+
+            let extraText = dtypeText + deviceText + backendText
+            let t0StringCorrect = sprintf "tensor(2%s%s)" suffix extraText
+            let t1StringCorrect = sprintf "tensor([[2%s],\n        [2%s]]%s)" suffix suffix extraText
+            let t2StringCorrect = sprintf "tensor([[[2%s, 2%s]]]%s)" suffix suffix extraText
+            let t3StringCorrect = sprintf "tensor([[1%s, 2%s],\n        [3%s, 4%s]]%s)" suffix suffix suffix suffix extraText
+            let t4StringCorrect = sprintf "tensor([[[[1%s]]]]%s)" suffix extraText
             Assert.CheckEqual(t0StringCorrect, t0String)
             Assert.CheckEqual(t1StringCorrect, t1String)
             Assert.CheckEqual(t2StringCorrect, t2String)

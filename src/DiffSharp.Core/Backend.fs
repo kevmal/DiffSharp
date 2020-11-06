@@ -27,6 +27,8 @@ type Backend =
         | ShapeChecking -> "ShapeChecking"
         | Other (name, _) -> name
 
+    override x.ToString() = x.Name
+
 /// Contains functions and settings related to backend specifications.
 module Backend = 
     let internal count = ref 0

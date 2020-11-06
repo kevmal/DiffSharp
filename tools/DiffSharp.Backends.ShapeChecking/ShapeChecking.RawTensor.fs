@@ -58,7 +58,7 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
     
     override t.Expand(newShape) = t.MakeLike(newShape)
 
-    override t.GetString() =
+    override t.GetString(extra) =
         let sb = System.Text.StringBuilder()
         sb.Append "tensor(" |> ignore
         sb.Append (t.Shape.ToString()) |> ignore
@@ -71,6 +71,7 @@ type ShapeCheckingTensor(shape: Shape, dtype: Dtype, device: Device) =
         if t.Backend <> Backend.Default then
             sb.Append ",backend=" |> ignore
             sb.Append (t.Backend.ToString()) |> ignore
+        sb.Append extra |> ignore
         sb.Append ")" |> ignore
         sb.ToString()
 

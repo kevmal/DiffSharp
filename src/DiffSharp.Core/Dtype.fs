@@ -45,6 +45,7 @@ type Dtype =
     /// Constraint equality
     static member (=~=) (a:Dtype,b:Dtype) : bool = (a = b)
 
+    override x.ToString() = x.Name
 
 /// Contains functions and settings related to tensor element types
 module Dtype =
